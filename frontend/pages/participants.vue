@@ -1,27 +1,29 @@
 <template>
   <v-container fluid class="pa-6">
     <!-- Header -->
-    <div class="d-flex justify-space-between align-center mb-6">
-      <div class="d-flex align-center">
+    <div class="d-flex flex-column mb-6">
+      <div class="d-flex align-center mb-4">
         <v-icon size="32" color="grey-darken-2" class="mr-3">mdi-account-outline</v-icon>
         <h1 class="text-h4 font-weight-bold">Liste des Participants (Coureurs)</h1>
       </div>
+      
+      <!-- Barre de recherche (Full width) -->
       <v-text-field
-        v-model="search"
+        v-model="store.search"
         prepend-inner-icon="mdi-magnify"
-        placeholder="Rechercher..."
+        placeholder="Rechercher un participant par nom, prénom ou équipe..."
         variant="outlined"
         density="compact"
         hide-details
         rounded="lg"
-        style="max-width: 250px"
+        class="w-100"
       />
     </div>
 
     <!-- Participants List -->
     <v-card rounded="lg" elevation="0" class="border">
       <v-list lines="two" class="pa-0">
-        <template v-for="(participant, index) in filteredParticipants" :key="participant.id">
+        <template v-for="(participant, index) in store.filteredParticipants" :key="participant.id">
           <v-list-item class="py-4 px-4">
             <template #prepend>
               <v-avatar color="grey-lighten-3" size="48">
@@ -48,40 +50,35 @@
                 </v-chip>
                 <span v-else class="text-body-2 text-medium-emphasis">Au repos</span>
 
-                <v-btn variant="outlined" size="small" rounded="lg">
+                <v-btn variant="outlined" size="small" rounded="lg" @click="openHistory(participant)">
                   Voir l'historique
                 </v-btn>
               </div>
             </template>
           </v-list-item>
-          <v-divider v-if="index < filteredParticipants.length - 1" />
+          <v-divider v-if="index < store.filteredParticipants.length - 1" />
         </template>
       </v-list>
     </v-card>
+
+    <ParticipantHistoryModal v-model="isModalOpen" :participant="selectedParticipant" />
   </v-container>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
+import { useParticipantsStore } from '~/stores/participants'
+import ParticipantHistoryModal from '~/components/participants/ParticipantHistoryModal.vue'
 
-const search = ref('')
+const store = useParticipantsStore()
 
-const participants = ref([
-  { id: 1, nom: 'Dupont', prenom: 'Marie', equipeLabel: 'Équipe 12 - Les Flèches', transpondeurActif: 'TR-002' },
-  { id: 2, nom: 'Bernard', prenom: 'Thomas', equipeLabel: 'Équipe 12 - Les Flèches', transpondeurActif: null },
-  { id: 3, nom: 'Martin', prenom: 'Sophie', equipeLabel: 'Team INSA (Eq. 04)', transpondeurActif: null },
-  { id: 4, nom: 'Petit', prenom: 'Lucas', equipeLabel: 'Équipe 7 - Les Rapides', transpondeurActif: 'TR-045' },
-  { id: 5, nom: 'Rousseau', prenom: 'Emma', equipeLabel: 'Équipe 15 - Sprint Masters', transpondeurActif: null },
-])
+const isModalOpen = ref(false)
+const selectedParticipant = ref(null)
 
-const filteredParticipants = computed(() => {
-  if (!search.value) return participants.value
-  const s = search.value.toLowerCase()
-  return participants.value.filter(p =>
-    `${p.nom} ${p.prenom}`.toLowerCase().includes(s) ||
-    p.equipeLabel.toLowerCase().includes(s)
-  )
-})
+const openHistory = (participant) => {
+  selectedParticipant.value = participant
+  isModalOpen.value = true
+}
 </script>
 
 <style scoped>
