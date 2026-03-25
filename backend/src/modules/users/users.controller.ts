@@ -24,7 +24,7 @@ export class UsersController {
   }
 
   @ApiOperation({ summary: "Créer un utilisateur (public — provisioning)" })
-  @ApiBody({ schema: { example: { email: "user@example.com", password: "password123", firstName: "Jean", lastName: "Dupont", role: "USER" } } })
+  @ApiBody({ schema: { example: { email: "user@example.com", password: "password123", firstName: "Jean", lastName: "Dupont", role: "BENEVOLE" } } })
   @ApiResponse({ status: 201, description: "Utilisateur créé." })
   @Post("user")
   @Public()
@@ -35,7 +35,7 @@ export class UsersController {
       firstName: userData.firstName,
       lastName: userData.lastName,
       phone: userData.phone,
-      role: userData.role ?? Role.USER,
+      role: userData.role ?? Role.BENEVOLE,
     };
     return this.userService.createUser(data);
   }

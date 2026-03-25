@@ -34,7 +34,7 @@ export class TeamsController {
   @ApiOperation({ summary: "Créer une équipe" })
   @ApiBody({ schema: { example: { num: 99, name: "Nouvelle Équipe", courseId: 1 } } })
   @Post("team")
-  @Roles(Role.ADMIN, Role.ORGA)
+  @Roles(Role.ADMIN)
   async createTeam(@Body() data: CreateTeamDto): Promise<Team> {
     const prismaData: Prisma.TeamCreateInput = {
       num: data.num,
@@ -48,7 +48,7 @@ export class TeamsController {
   @ApiParam({ name: "id", description: "ID de l'équipe" })
   @ApiBody({ schema: { example: { nbTour: 230 } } })
   @Put("team/:id")
-  @Roles(Role.ADMIN, Role.ORGA)
+  @Roles(Role.ADMIN)
   async updateTeam(@Param("id") id: string, @Body() data: UpdateTeamDto): Promise<Team> {
     const prismaData: Prisma.TeamUpdateInput = {
       ...(data.num !== undefined ? { num: data.num } : {}),
@@ -61,7 +61,7 @@ export class TeamsController {
   @ApiOperation({ summary: "Supprimer une équipe" })
   @ApiParam({ name: "id", description: "ID de l'équipe" })
   @Delete("team/:id")
-  @Roles(Role.ADMIN, Role.ORGA)
+  @Roles(Role.ADMIN)
   async deleteTeam(@Param("id") id: string): Promise<Team> {
     return this.teamService.deleteTeam({ id: Number(id) });
   }

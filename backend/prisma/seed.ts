@@ -45,7 +45,8 @@ async function main() {
   });
 
   const orgaUser = await prisma.user.create({
-    data: { email: "orga@24h-insa.fr", firstName: "Théo", lastName: "Orga", password: hashedPwd, role: Role.ORGA, phone: "0600000002" },
+    // ORGA => ADMIN (fusion des rôles)
+    data: { email: "orga@24h-insa.fr", firstName: "Théo", lastName: "Orga", password: hashedPwd, role: Role.ADMIN, phone: "0600000002" },
   });
 
   const benevoles = await Promise.all([
@@ -55,9 +56,10 @@ async function main() {
   ]);
 
   const participantUsers = await Promise.all([
-    prisma.user.create({ data: { email: "user1@insa-lyon.fr", firstName: "Alice", lastName: "Moreau", password: hashedPwd, role: Role.USER } }),
-    prisma.user.create({ data: { email: "user2@insa-lyon.fr", firstName: "Bob", lastName: "Simon", password: hashedPwd, role: Role.USER } }),
-    prisma.user.create({ data: { email: "user3@insa-lyon.fr", firstName: "Clara", lastName: "Laurent", password: hashedPwd, role: Role.USER } }),
+    // USER => BENEVOLE (fusion des rôles)
+    prisma.user.create({ data: { email: "user1@insa-lyon.fr", firstName: "Alice", lastName: "Moreau", password: hashedPwd, role: Role.BENEVOLE } }),
+    prisma.user.create({ data: { email: "user2@insa-lyon.fr", firstName: "Bob", lastName: "Simon", password: hashedPwd, role: Role.BENEVOLE } }),
+    prisma.user.create({ data: { email: "user3@insa-lyon.fr", firstName: "Clara", lastName: "Laurent", password: hashedPwd, role: Role.BENEVOLE } }),
   ]);
 
   console.log("✅ Utilisateurs créés avec mot de passe 'password123'.");

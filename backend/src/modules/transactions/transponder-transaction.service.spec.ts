@@ -55,8 +55,8 @@ describe("TransponderTransactionService", () => {
       expect(result.id).toBe(100);
     });
 
-    it("should throw ForbiddenException if user is not authorized (role USER)", async () => {
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 1, role: Role.USER });
+    it("should throw ForbiddenException if user is not authorized (invalid role)", async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 1, role: "INVALID" as any });
 
       await expect(service.createTransaction(mockData as any, 1)).rejects.toThrow(
         ForbiddenException,

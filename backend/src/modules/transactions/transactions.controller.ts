@@ -43,7 +43,7 @@ export class TransactionsController {
   @ApiOperation({ summary: "Lister toutes les transactions" })
   @ApiResponse({ status: 200, description: "Historique complet des transactions." })
   @Get("transactions")
-  @Roles(Role.ADMIN, Role.BENEVOLE, Role.ORGA)
+  @Roles(Role.ADMIN, Role.BENEVOLE)
   async getTransactions(): Promise<TransponderTransaction[]> {
     return this.transactionService.transactions({});
   }

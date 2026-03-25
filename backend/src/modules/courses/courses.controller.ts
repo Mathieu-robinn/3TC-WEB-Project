@@ -27,7 +27,7 @@ export class CoursesController {
   @ApiBody({ schema: { example: { name: "12 Heures", distanceTour: 2.5, dateAndTime: "2026-05-16T20:00:00Z", editionId: 1 } } })
   @ApiResponse({ status: 201, description: "Parcours créé." })
   @Post("course")
-  @Roles(Role.ADMIN, Role.ORGA)
+  @Roles(Role.ADMIN)
   async createCourse(@Body() data: CreateCourseDto): Promise<Course> {
     const prismaData: Prisma.CourseCreateInput = {
       name: data.name,

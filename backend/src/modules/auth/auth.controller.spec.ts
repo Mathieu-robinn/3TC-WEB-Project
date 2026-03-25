@@ -29,7 +29,7 @@ describe("AuthController", () => {
   describe("register", () => {
     it("should call authService.register and return the result", async () => {
       const dto = { email: "test@example.com", password: "pwd", firstName: "A", lastName: "B" };
-      const expectedResult = { accessToken: "token", user: { id: 1, ...dto, role: "USER" } };
+      const expectedResult = { accessToken: "token", user: { id: 1, ...dto, role: "BENEVOLE" } };
       (authService.register as jest.Mock).mockResolvedValue(expectedResult);
 
       const result = await controller.register(dto);
@@ -47,7 +47,7 @@ describe("AuthController", () => {
   describe("login", () => {
     it("should call authService.login and return the result", async () => {
       const dto = { email: "test@example.com", password: "pwd" };
-      const expectedResult = { accessToken: "token", user: { id: 1, email: dto.email, role: "USER" } };
+      const expectedResult = { accessToken: "token", user: { id: 1, email: dto.email, role: "BENEVOLE" } };
       (authService.login as jest.Mock).mockResolvedValue(expectedResult);
 
       const result = await controller.login(dto);

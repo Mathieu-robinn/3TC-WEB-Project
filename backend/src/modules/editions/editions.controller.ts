@@ -27,7 +27,7 @@ export class EditionsController {
   @ApiBody({ schema: { example: { name: "24h INSA 2027", active: false, startDate: "2027-05-15T18:00:00Z", endDate: "2027-05-17T18:00:00Z" } } })
   @ApiResponse({ status: 201, description: "Édition créée." })
   @Post("edition")
-  @Roles(Role.ADMIN, Role.ORGA)
+  @Roles(Role.ADMIN)
   async createEdition(@Body() data: CreateEditionDto): Promise<Edition> {
     const prismaData: Prisma.EditionCreateInput = {
       name: data.name,

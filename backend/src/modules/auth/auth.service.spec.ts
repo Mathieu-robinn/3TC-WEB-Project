@@ -46,7 +46,7 @@ describe("AuthService", () => {
       
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.user.create as jest.Mock).mockImplementation(async (args) => {
-        return { id: 1, ...args.data, role: "USER" };
+        return { id: 1, ...args.data, role: "BENEVOLE" };
       });
 
       const result = await service.register(dto.email, dto.password, dto.firstName, dto.lastName);
@@ -60,7 +60,7 @@ describe("AuthService", () => {
 
       expect(result).toEqual({
         accessToken: "mock-token",
-        user: { id: 1, email: dto.email, role: "USER" },
+        user: { id: 1, email: dto.email, role: "BENEVOLE" },
       });
     });
 
@@ -76,7 +76,7 @@ describe("AuthService", () => {
   describe("login", () => {
     it("should return a token for valid credentials", async () => {
       const hashedPassword = await bcrypt.hash("pwd", 10);
-      const user = { id: 1, email: "test@example.com", password: hashedPassword, role: "USER" };
+      const user = { id: 1, email: "test@example.com", password: hashedPassword, role: "BENEVOLE" };
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(user);
 
       const result = await service.login("test@example.com", "pwd");
