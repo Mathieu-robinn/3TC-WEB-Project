@@ -14,7 +14,6 @@
     "@pinia/nuxt": "^0.11.3",
     "chart.js": "^4.5.1",
     "nuxt": "3.16.0",
-    "nuxt-oidc-auth": "1.0.0-beta.10",
     "pinia": "^3.0.4",
     "quill": "^2.0.3",
     "sass": "^1.98.0",
