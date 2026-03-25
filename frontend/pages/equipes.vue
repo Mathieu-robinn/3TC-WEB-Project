@@ -345,7 +345,7 @@
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useEquipesStore } from '~/stores/equipes'
-import EquipeDetailsModal from '~/components/equipes/EquipeDetailsModal.vue'
+import EquipeDetailsModal from '~/components/features/equipes/EquipeDetailsModal.vue'
 
 const store = useEquipesStore()
 

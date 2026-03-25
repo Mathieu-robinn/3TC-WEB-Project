@@ -1,6 +1,5 @@
 <template>
-  <v-app :theme="themeStore.isDark ? 'dark' : 'light'">
-    <div class="login-page" :class="{ 'login-dark': themeStore.isDark }">
+  <div class="login-page" :class="{ 'login-dark': themeStore.isDark }">
       <!-- Theme toggle top right -->
       <v-btn
         icon
@@ -42,7 +41,7 @@
               <p class="text-body-2 text-medium-emphasis">Connectez-vous à votre espace</p>
             </div>
 
-          <v-form @submit.prevent="handleLogin" v-model="formValid">
+          <v-form ref="formRef" @submit.prevent="handleLogin">
             <div class="field-label">Email</div>
             <v-text-field
               v-model="email"
@@ -55,10 +54,13 @@
               :rules="[v => !!v || 'Email requis', v => /.+@.+\..+/.test(v) || 'Email invalide']"
               required
               class="mb-1"
+              autocomplete="username"
+              @keydown.enter.prevent="onEmailEnter"
             />
 
             <div class="field-label mt-2">Mot de passe</div>
             <v-text-field
+              ref="passwordFieldRef"
               v-model="password"
               name="password"
               prepend-inner-icon="mdi-lock-outline"
@@ -70,6 +72,8 @@
               placeholder="••••••••"
               :rules="[v => !!v || 'Mot de passe requis']"
               required
+              autocomplete="current-password"
+              @keydown.enter.prevent="handleLogin"
             />
 
             <v-alert
@@ -90,7 +94,7 @@
               block
               class="mt-5 font-weight-bold login-btn"
               :loading="loading"
-              :disabled="!formValid || loading"
+              :disabled="loading"
               rounded="lg"
               elevation="0"
             >
@@ -106,7 +110,6 @@
       </div>
     </div>
   </div>
-  </v-app>
 </template>
 
 <script setup>
@@ -124,12 +127,29 @@ const themeStore = useThemeStore()
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
-const formValid = ref(false)
+const formRef = ref()
+const passwordFieldRef = ref()
 const loading = ref(false)
 const error = ref('')
 
+function focusPassword() {
+  const el = passwordFieldRef.value?.$el?.querySelector?.('input')
+  el?.focus()
+}
+
+function onEmailEnter() {
+  if (!password.value) {
+    focusPassword()
+    return
+  }
+  handleLogin()
+}
+
 const handleLogin = async () => {
-  if (!formValid.value || loading.value) return
+  if (loading.value) return
+
+  const result = await formRef.value?.validate()
+  if (!result?.valid) return
 
   loading.value = true
   error.value = ''
@@ -137,8 +157,7 @@ const handleLogin = async () => {
   try {
     const success = await authStore.login(email.value, password.value)
     if (success) {
-      // Use navigateTo (Nuxt) instead of router.push so the middleware
-      // re-evaluates after the cookie is fully committed — fixes double-click bug
+      await nextTick()
       await navigateTo('/')
     }
   } catch (e) {

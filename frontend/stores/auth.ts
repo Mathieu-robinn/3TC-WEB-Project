@@ -13,10 +13,8 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async login(email: string, password: string) {
       try {
-        const response: any = await $fetch('http://localhost:3000/auth/login', {
-          method: 'POST',
-          body: { email, password }
-        })
+        const api = useApi()
+        const response: any = await api.post('/auth/login', { email, password })
         
         // Create cookie with 24 hours maxAge
         const token = useCookie('auth_token', { maxAge: 60 * 60 * 24, path: '/' })

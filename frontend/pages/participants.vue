@@ -264,7 +264,7 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useParticipantsStore } from '~/stores/participants'
-import ParticipantDetailsModal from '~/components/participants/ParticipantHistoryModal.vue'
+import ParticipantDetailsModal from '~/components/features/participants/ParticipantDetailsModal.vue'
 
 const store = useParticipantsStore()
 const viewMode = ref('list')

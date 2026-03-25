@@ -1,5 +1,5 @@
 <template>
-  <v-app :theme="themeStore.isDark ? 'dark' : 'light'">
+  <div class="default-layout">
     <!-- Top Navigation Bar -->
     <v-app-bar flat class="top-navbar" height="56" :color="themeStore.isDark ? 'grey-darken-4' : 'white'" elevation="1">
       <v-app-bar-nav-icon @click="drawer = !drawer" />
@@ -94,7 +94,7 @@
     <v-main :class="themeStore.isDark ? 'main-content-dark' : 'main-content'">
       <slot />
     </v-main>
-  </v-app>
+  </div>
 </template>
 
 <script setup>

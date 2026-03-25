@@ -8,6 +8,8 @@ import {
   OnGatewayDisconnect,
 } from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
 
 /**
  * EventsGateway : Passerelle WebSocket pour la messagerie en temps réel et les notifications.
@@ -20,6 +22,11 @@ import { Server, Socket } from "socket.io";
   },
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
+
   /** L'instance du serveur Socket.IO injectée par NestJS */
   @WebSocketServer()
   server: Server;
@@ -29,13 +36,31 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   /**
    * Appelé automatiquement quand un client se connecte.
-   * On peut extraire l'userId depuis le token JWT passé dans la query string ou les headers.
+   * Authentifie le client via JWT (handshake.auth.token ou Authorization header).
    */
   handleConnection(client: Socket) {
-    const userId = client.handshake.query.userId;
-    if (userId) {
-      this.connectedUsers.set(Number(userId), client.id);
-      console.log(`[WS] Utilisateur ${userId} connecté (socket: ${client.id})`);
+    const authToken =
+      client.handshake.auth?.token ||
+      (client.handshake.headers.authorization?.startsWith("Bearer ")
+        ? client.handshake.headers.authorization.slice("Bearer ".length)
+        : undefined);
+    const secret = this.configService.get<string>("JWT_SECRET");
+
+    if (!authToken || !secret) {
+      client.disconnect(true);
+      return;
+    }
+
+    try {
+      const payload = this.jwtService.verify<{ sub: number }>(authToken, { secret });
+      if (!payload?.sub) {
+        client.disconnect(true);
+        return;
+      }
+      this.connectedUsers.set(payload.sub, client.id);
+      console.log(`[WS] Utilisateur ${payload.sub} connecté (socket: ${client.id})`);
+    } catch {
+      client.disconnect(true);
     }
   }
 
