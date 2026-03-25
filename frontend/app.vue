@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { useThemeStore } from '~/stores/theme'
+import { useThemeStore } from '~/features/theme/stores/theme'
 
 const themeStore = useThemeStore()
 </script>

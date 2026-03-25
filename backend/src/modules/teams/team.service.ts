@@ -29,6 +29,27 @@ export class TeamService {
     });
   }
 
+  /** Liste équipes avec coureurs et transpondeurs (pages admin / détail). */
+  async teamsWithRunners(params: {
+    skip?: number;
+    take?: number;
+    where?: Prisma.TeamWhereInput;
+    orderBy?: Prisma.TeamOrderByWithRelationInput;
+  }) {
+    const { skip, take, where, orderBy } = params;
+    return this.prisma.team.findMany({
+      skip,
+      take,
+      where,
+      orderBy,
+      include: {
+        runners: {
+          include: { transponders: true },
+        },
+      },
+    });
+  }
+
   async createTeam(data: Prisma.TeamCreateInput): Promise<Team> {
     return this.prisma.team.create({
       data,

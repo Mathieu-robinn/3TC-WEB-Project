@@ -3,6 +3,7 @@
 export type TransponderStatusApi = 'NEW' | 'IN' | 'OUT' | 'LOST'
 
 export interface ApiTransponderRef {
+  id?: number
   reference?: string
   status?: string
 }
@@ -24,6 +25,7 @@ export interface ApiTeam {
   /** Alias possible côté UI legacy */
   nom?: string
   nbTour?: number | null
+  courseId?: number
   runners?: ApiRunner[]
 }
 

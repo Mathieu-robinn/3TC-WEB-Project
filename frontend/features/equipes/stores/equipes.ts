@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { removeAccents } from '~/utils/string'
+import { transponderDisplay } from '~/utils/transponder'
 import type { ApiTeam } from '~/types/api'
 
 type SortKey = 'ranking' | 'name' | 'members'
@@ -87,8 +88,9 @@ export const useEquipesStore = defineStore('equipes', () => {
       const nbTour = inRanking?.nbTour ?? e.nbTour ?? 0
       const runners = e.runners || []
       const runnerWithTransponder = runners.find((r) => r.transponders?.some((t) => t.status === 'OUT'))
-      const activeRef =
-        runnerWithTransponder?.transponders?.find((t) => t.status === 'OUT')?.reference || null
+      const activeRef = transponderDisplay(
+        runnerWithTransponder?.transponders?.find((t) => t.status === 'OUT'),
+      )
       const statut = runners.length === 0 ? 'sans_transpondeur' : activeRef ? 'en_piste' : 'en_attente'
 
       return {
@@ -136,6 +138,13 @@ export const useEquipesStore = defineStore('equipes', () => {
     enAttente: equipesWithStatus.value.filter((e) => e.statut === 'en_attente').length,
     sansTranspondeur: equipesWithStatus.value.filter((e) => e.statut === 'sans_transpondeur').length,
   }))
+
+  const resetFilters = () => {
+    search.value = ''
+    filterTranspondeur.value = 'tous'
+    filterNbMembres.value = null
+    sortBy.value = 'ranking'
+  }
 
   const getMockEquipes = (): ApiTeam[] => [
     {
@@ -204,5 +213,6 @@ export const useEquipesStore = defineStore('equipes', () => {
     createTeam,
     updateTeam,
     deleteTeam,
+    resetFilters,
   }
 })

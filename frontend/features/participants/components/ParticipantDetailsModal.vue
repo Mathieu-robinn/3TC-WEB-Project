@@ -106,6 +106,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { transponderDisplay } from '~/utils/transponder'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -122,7 +123,10 @@ const initials = computed(() => {
 
 const history = computed(() => {
   return props.participant?.historique
-    || props.participant?.transponders?.map(t => ({ date: '—', event: `Transpondeur ${t.reference} — ${t.status}` }))
+    || props.participant?.transponders?.map((t) => ({
+        date: '—',
+        event: `Transpondeur ${transponderDisplay(t) ?? '?'} — ${t.status}`,
+      }))
     || []
 })
 </script>

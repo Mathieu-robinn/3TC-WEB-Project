@@ -19,8 +19,8 @@ export class TeamsController {
   @ApiResponse({ status: 200, description: "Liste des équipes." })
   @Get("teams")
   @Public()
-  async getAllTeams(): Promise<Team[]> {
-    return this.teamService.teams({});
+  async getAllTeams() {
+    return this.teamService.teamsWithRunners({});
   }
 
   @ApiOperation({ summary: "Classement des équipes par nombre de tours (public)" })

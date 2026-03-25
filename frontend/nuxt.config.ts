@@ -4,6 +4,28 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
+  /** `~/components` (partagé) + composants métier par feature. */
+  components: [
+    '~/components',
+    { path: '~/features/auth/components', pathPrefix: false },
+    { path: '~/features/participants/components', pathPrefix: false },
+    { path: '~/features/equipes/components', pathPrefix: false },
+    { path: '~/features/transpondeurs/components', pathPrefix: false },
+    { path: '~/features/communication/components', pathPrefix: false },
+    { path: '~/features/parametres/components', pathPrefix: false },
+    { path: '~/features/dashboard/components', pathPrefix: false },
+  ],
+
+  pinia: {
+    storesDirs: [
+      'features/auth/stores',
+      'features/theme/stores',
+      'features/participants/stores',
+      'features/equipes/stores',
+      'features/transpondeurs/stores',
+    ],
+  },
+
   runtimeConfig: {
     public: {
       /** Base URL de l’API (surchargée par NUXT_PUBLIC_API_BASE en .env) */

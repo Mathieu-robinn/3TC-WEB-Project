@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { removeAccents } from '~/utils/string'
+import { transponderDisplay } from '~/utils/transponder'
 import type { ApiRunner, ApiTeam } from '~/types/api'
 
 export interface RunnerCreateInput {
@@ -8,6 +9,14 @@ export interface RunnerCreateInput {
   lastName: string
   email?: string
   teamId?: number
+}
+
+export interface RunnerUpdateInput {
+  firstName: string
+  lastName: string
+  email?: string
+  /** `null` = retirer l'équipe (API) */
+  teamId?: number | null
 }
 
 type RunnerNormalized = ApiRunner & {
@@ -57,21 +66,27 @@ export const useParticipantsStore = defineStore('participants', () => {
         firstName: data.firstName,
         lastName: data.lastName,
         ...(data.email ? { email: data.email } : {}),
-        ...(data.teamId ? { team: { connect: { id: data.teamId } } } : {}),
+        ...(data.teamId != null ? { teamId: data.teamId } : {}),
       }
-      const created = await api.post<ApiRunner>('/runner', body)
-      runners.value.push(created)
-      return created
-    } catch {
-      const mock: ApiRunner = {
-        id: Date.now(),
+      return await api.post<ApiRunner>('/runner', body)
+    } finally {
+      saving.value = false
+    }
+  }
+
+  const updateRunner = async (id: number, data: RunnerUpdateInput) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const body: Record<string, unknown> = {
         firstName: data.firstName,
         lastName: data.lastName,
-        teamId: data.teamId,
-        transponders: [],
       }
-      runners.value.push(mock)
-      return mock
+      if (data.email !== undefined) body.email = data.email || null
+      if (data.teamId === null) body.teamId = null
+      else if (data.teamId !== undefined) body.teamId = data.teamId
+
+      return await api.put<ApiRunner>(`/runner/${id}`, body)
     } finally {
       saving.value = false
     }
@@ -82,10 +97,8 @@ export const useParticipantsStore = defineStore('participants', () => {
     const api = useApi()
     try {
       await api.del(`/runner/${id}`)
-    } catch {
-      console.warn('DELETE runner failed, removing locally anyway')
-    } finally {
       runners.value = runners.value.filter((r) => r.id !== id)
+    } finally {
       saving.value = false
     }
   }
@@ -93,7 +106,8 @@ export const useParticipantsStore = defineStore('participants', () => {
   const runnersNormalized = computed<RunnerNormalized[]>(() =>
     runners.value.map((r) => {
       const team = teams.value.find((t) => t.id === (r.teamId ?? r.team?.id))
-      const activeTransponder = r.transponders?.find((t) => t.status === 'OUT')?.reference || null
+      const out = r.transponders?.find((t) => t.status === 'OUT')
+      const activeTransponder = transponderDisplay(out)
       return {
         ...r,
         fullName: `${r.firstName || ''} ${r.lastName || ''}`.trim(),
@@ -140,6 +154,12 @@ export const useParticipantsStore = defineStore('participants', () => {
     { id: 7, firstName: 'Claire', lastName: 'Moreau', teamId: 6, transponders: [{ reference: 'TR-067', status: 'OUT' }] },
   ]
 
+  const resetFilters = () => {
+    search.value = ''
+    filterEquipe.value = null
+    filterStatus.value = 'tous'
+  }
+
   const getMockTeams = (): ApiTeam[] => [
     { id: 1, name: 'Les Flèches' },
     { id: 2, name: 'Team INSA' },
@@ -164,6 +184,8 @@ export const useParticipantsStore = defineStore('participants', () => {
     stats,
     fetchAll,
     createRunner,
+    updateRunner,
     deleteRunner,
+    resetFilters,
   }
 })

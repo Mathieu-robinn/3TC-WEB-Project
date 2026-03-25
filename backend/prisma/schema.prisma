@@ -10,10 +10,8 @@ datasource db {
 }
 
 enum Role {
-  USER
   ADMIN
   BENEVOLE
-  ORGA
 }
 
 enum TransponderStatus {
@@ -45,7 +43,7 @@ model User {
   firstName String
   phone     String?
   password  String
-  role      Role     @default(USER)
+  role      Role     @default(BENEVOLE)
 
   logs                     Log[]
   notifications            Notification[]

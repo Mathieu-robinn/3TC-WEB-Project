@@ -1,11 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Prisma, Role, Runner } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { Public } from "../auth/public.decorator.js";
 import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
-import { CreateRunnerDto } from "./dto/runner.dto.js";
+import { CreateRunnerDto, UpdateRunnerDto } from "./dto/runner.dto.js";
 import { RunnerService } from "./runner.service.js";
 
 @ApiTags("Runners")
@@ -19,8 +19,8 @@ export class RunnersController {
   @ApiResponse({ status: 200, description: "Liste des coureurs." })
   @Get("runners")
   @Public()
-  async getAllRunners(): Promise<Runner[]> {
-    return this.runnerService.runners({});
+  async getAllRunners() {
+    return this.runnerService.runnersWithTransponders();
   }
 
   @ApiOperation({ summary: "Créer un nouveau coureur" })
@@ -36,6 +36,33 @@ export class RunnersController {
       ...(data.teamId ? { team: { connect: { id: data.teamId } } } : {}),
     };
     return this.runnerService.createRunner(prismaData);
+  }
+
+  @ApiOperation({ summary: "Mettre à jour un coureur" })
+  @ApiParam({ name: "id", description: "ID du coureur" })
+  @ApiBody({
+    schema: {
+      example: { firstName: "Marie", lastName: "Curie", teamId: 1 },
+    },
+  })
+  @Put("runner/:id")
+  @Roles(Role.ADMIN, Role.ORGA, Role.BENEVOLE)
+  async updateRunner(@Param("id") id: string, @Body() data: UpdateRunnerDto): Promise<Runner> {
+    const prismaData: Prisma.RunnerUpdateInput = {
+      ...(data.firstName !== undefined ? { firstName: data.firstName } : {}),
+      ...(data.lastName !== undefined ? { lastName: data.lastName } : {}),
+      ...(data.email !== undefined ? { email: data.email } : {}),
+      ...(data.phone !== undefined ? { phone: data.phone } : {}),
+    };
+    if (data.teamId === null) {
+      prismaData.team = { disconnect: true };
+    } else if (data.teamId !== undefined) {
+      prismaData.team = { connect: { id: data.teamId } };
+    }
+    return this.runnerService.updateRunner({
+      where: { id: Number(id) },
+      data: prismaData,
+    });
   }
 
   @ApiOperation({ summary: "Supprimer un coureur" })

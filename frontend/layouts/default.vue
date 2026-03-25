@@ -99,8 +99,8 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useAuthStore } from '~/stores/auth'
-import { useThemeStore } from '~/stores/theme'
+import { useAuthStore } from '~/features/auth/stores/auth'
+import { useThemeStore } from '~/features/theme/stores/theme'
 import { useRouter } from 'vue-router'
 
 const drawer = ref(true)
