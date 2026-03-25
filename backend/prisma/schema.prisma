@@ -1,29 +1,193 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
-  posts Post[]
+enum Role {
+  USER
+  ADMIN
+  BENEVOLE
+  ORGA
 }
 
-model Post {
+enum TransponderStatus {
+  LOST
+  IN
+  OUT
+  NEW
+}
+
+enum ConversationType {
+  PRIVATE
+  GROUP
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+}
+
+enum ParticipantRole {
+  ADMIN
+  MEMBER
+}
+
+model User {
   id        Int      @id @default(autoincrement())
-  title     String
-  content   String?
-  published Boolean? @default(false)
-  author    User?    @relation(fields: [authorId], references: [id])
-  authorId  Int?
+  email     String   @unique
+  lastName  String
+  firstName String
+  phone     String?
+  password  String
+  role      Role     @default(USER)
+
+  logs                     Log[]
+  notifications            Notification[]
+  transactions             TransponderTransaction[]
+  createdConversations     Conversation[]
+  messages                 Message[]
+  conversationParticipants ConversationParticipant[]
+}
+
+model Edition {
+  id        Int      @id @default(autoincrement())
+  name      String
+  active    Boolean  @default(false)
+  startDate DateTime
+  endDate   DateTime
+
+  courses Course[]
+}
+
+model Course {
+  id           Int      @id @default(autoincrement())
+  name         String
+  distanceTour Float
+  dateAndTime  DateTime
+  editionId    Int
+
+  edition Edition @relation(fields: [editionId], references: [id])
+  teams   Team[]
+}
+
+model Team {
+  id           Int    @id @default(autoincrement())
+  num          Int
+  name         String
+  nbTour       Int?
+  courseId     Int
+  respRunnerId Int?   @unique
+
+  course       Course        @relation(fields: [courseId], references: [id])
+  runners      Runner[]      @relation("TeamRunners")
+  respRunner   Runner?       @relation("TeamResponsible", fields: [respRunnerId], references: [id])
+  transponders Transponder[]
+}
+
+model Runner {
+  id        Int     @id @default(autoincrement())
+  teamId    Int?
+  lastName  String
+  firstName String
+  email     String?
+  phone     String?
+
+  team Team? @relation("TeamRunners", fields: [teamId], references: [id])
+  
+  responsibleForTeam Team? @relation("TeamResponsible")
+
+  transponders           Transponder[]
+  transponderTransactions TransponderTransaction[]
+}
+
+model Transponder {
+  id       Int               @id @default(autoincrement())
+  status   TransponderStatus @default(NEW)
+  runnerId Int?
+  teamId   Int?
+
+  runner Runner? @relation(fields: [runnerId], references: [id])
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  transactions TransponderTransaction[]
+}
+
+model TransponderTransaction {
+  id            Int               @id @default(autoincrement())
+  transponderId Int
+  runnerId      Int?
+  userId        Int
+  dateTime      DateTime          @default(now())
+  type          TransponderStatus
+
+  transponder Transponder @relation(fields: [transponderId], references: [id])
+  runner      Runner?     @relation(fields: [runnerId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+}
+
+model Log {
+  id       Int      @id @default(autoincrement())
+  dateTime DateTime @default(now())
+  message  String
+  type     String // e.g., "AddUser", "DeleteUser", etc.
+  userId   Int
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id      Int      @id @default(autoincrement())
+  userId  Int
+  message String
+  date    DateTime @default(now())
+  state   String // e.g., "Seen", "Unseen"
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Conversation {
+  id            Int              @id @default(autoincrement())
+  name          String?
+  type          ConversationType
+  createdByUserId Int
+  lastMessageAt DateTime?
+
+  createdByUser User                      @relation(fields: [createdByUserId], references: [id])
+  messages      Message[]
+  participants  ConversationParticipant[]
+}
+
+model Message {
+  id             Int         @id @default(autoincrement())
+  conversationId Int
+  senderUserId   Int
+  content        String
+  messageType    MessageType @default(TEXT)
+  createdAt      DateTime    @default(now())
+  editedAt       DateTime?
+  replyToMessageId Int?
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  sender         User         @relation(fields: [senderUserId], references: [id])
+  replyToMessage Message?     @relation("Replies", fields: [replyToMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies        Message[]    @relation("Replies")
+}
+
+model ConversationParticipant {
+  id               Int             @id @default(autoincrement())
+  userId           Int
+  conversationId   Int
+  role             ParticipantRole @default(MEMBER)
+  joinedAt         DateTime        @default(now())
+  leftAt           DateTime?
+  lastReadMessageId Int?
+
+  user         User         @relation(fields: [userId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
 }

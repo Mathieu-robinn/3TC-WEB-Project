@@ -1,0 +1,44 @@
+(node:20232) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/transponder-transaction.service.spec.ts
+  TransponderTransactionService
+    createTransaction
+      √ should create a transaction successfully for a BENEVOLE (110 ms)
+      √ should throw ForbiddenException if user is not authorized (role USER) (58 ms)
+      √ should throw BadRequestException if transponder is already OUT (5 ms)
+      √ should throw BadRequestException if transponder is LOST (9 ms)
+
+FAIL src/auth/auth.service.spec.ts
+  ● Test suite failed to run
+
+    TypeError: Cannot assign to read only property 'hash' of object '[object Module]'
+
+      at ../node_modules/.pnpm/jest-mock@30.3.0/node_modules/jest-mock/build/index.js:622:31
+
+(node:32740) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24736) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/app.controller.spec.ts
+  AppController
+    √ should be defined (40 ms)
+    getTeamRanking
+      √ should return teams ordered by nbTour Desc (7 ms)
+    getTransponderStats
+      √ should calculate correct stats from transponders list (7 ms)
+
+(node:10936) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/auth/auth.controller.spec.ts
+  AuthController
+    √ should be defined (17 ms)
+    register
+      √ should call authService.register and return the result (3 ms)
+    login
+      √ should call authService.login and return the result (3 ms)
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       10 passed, 10 total
+Snapshots:   0 total
+Time:        5.118 s
+Ran all test suites.

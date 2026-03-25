@@ -1,7 +1,67 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module.js';
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module.js";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);}
+
+  // ─── Configuration CORS ────────────────────────────────────────────────────
+  // Permet au frontend Nuxt (port 3001 / autre) de communiquer avec l'API
+  app.enableCors({ origin: "*" });
+
+  // ─── Configuration Swagger ─────────────────────────────────────────────────
+  const config = new DocumentBuilder()
+    .setTitle("24h INSA API")
+    .setDescription(
+      `API REST du projet 24h INSA.\n\n` +
+      `**Authentification** : La plupart des routes nécessitent un token JWT.\n` +
+      `Utilisez \`POST /auth/login\` pour obtenir un token, puis cliquez sur **Authorize** et entrez \`Bearer <token>\`.`
+    )
+    .setVersion("1.0")
+    .addBearerAuth(
+      { type: "http", scheme: "bearer", bearerFormat: "JWT", description: "Entrez votre JWT ici" },
+      "JWT-auth", // Nom de la security scheme, utilisé dans @ApiBearerAuth()
+    )
+    .addTag("Auth", "Authentification (login / register)")
+    .addTag("Users", "Gestion des utilisateurs")
+    .addTag("Editions", "Gestion des éditions de la course")
+    .addTag("Courses", "Gestion des parcours")
+    .addTag("Teams", "Gestion des équipes & classements")
+    .addTag("Runners", "Gestion des coureurs")
+    .addTag("Transponders", "Gestion des puces de chronométrage")
+    .addTag("Transactions", "Historique des distributions de puces")
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  // Interface Swagger disponible à http://localhost:3000/api
+  SwaggerModule.setup("api", app, document, {
+    // Titre de l'onglet navigateur
+    customSiteTitle: "24h INSA — API Docs",
+    // Favicon personnalisé (logo INSA)
+    customfavIcon: "https://www.insa-lyon.fr/sites/all/themes/insa/favicon.ico",
+    // CSS pour remplacer le logo Swagger par le logo 24h INSA
+    customCss: `
+      .swagger-ui .topbar { background-color: #1a1a2e; padding: 10px 20px; }
+      .swagger-ui .topbar-wrapper img { display: none; }
+      .swagger-ui .topbar-wrapper::before {
+        content: "🏃 24h INSA";
+        color: #ffffff;
+        font-size: 1.8rem;
+        font-weight: 700;
+        font-family: 'Segoe UI', sans-serif;
+        letter-spacing: 1px;
+      }
+      .swagger-ui .topbar a { pointer-events: none; }
+      .swagger-ui .info .title { color: #1a1a2e; }
+    `,
+    swaggerOptions: {
+      persistAuthorization: true, // Garde le token entre les rechargements de page
+    },
+  });
+
+  await app.listen(process.env.PORT ?? 3000);
+  console.log(`🚀 API démarrée sur http://localhost:${process.env.PORT ?? 3000}`);
+  console.log(`📚 Swagger disponible sur http://localhost:${process.env.PORT ?? 3000}/api`);
+}
+
 bootstrap();
