@@ -44,9 +44,8 @@ async function main() {
     data: { email: "admin@24h-insa.fr", firstName: "Sophie", lastName: "Admin", password: hashedPwd, role: Role.ADMIN, phone: "0600000001" },
   });
 
-  const orgaUser = await prisma.user.create({
-    // ORGA => ADMIN (fusion des rôles)
-    data: { email: "orga@24h-insa.fr", firstName: "Théo", lastName: "Orga", password: hashedPwd, role: Role.ADMIN, phone: "0600000002" },
+  const benevoleUser = await prisma.user.create({
+    data: { email: "benevole@24h-insa.fr", firstName: "Théo", lastName: "Bénévole", password: hashedPwd, role: Role.BENEVOLE, phone: "0600000002" },
   });
 
   const benevoles = await Promise.all([
@@ -304,7 +303,7 @@ async function main() {
   });
 
   // Ajouter des participants
-  for (const user of [adminUser, orgaUser, ...benevoles]) {
+  for (const user of [adminUser, benevoleUser, ...benevoles]) {
     await prisma.conversationParticipant.create({
       data: {
         conversationId: convOrga.id,
@@ -318,15 +317,15 @@ async function main() {
   // Messages dans la conversation orga
   const orgaMessages = [
     { user: adminUser, content: "Bonjour tout le monde ! Début de l'événement dans quelques heures.", delay: 0 },
-    { user: orgaUser, content: "Tout est prêt côté timing ! Les puces sont chargées.", delay: 10 },
+    { user: benevoleUser, content: "Tout est prêt côté timing ! Les puces sont chargées.", delay: 10 },
     { user: benevoles[0], content: "Zone de distribution prête. On commence à 13h30.", delay: 20 },
     { user: benevoles[1], content: "Alerte : puce #7 n'a pas été retrouvée après le relais.", delay: 35 },
     { user: adminUser, content: "OK, on va la marquer LOST dans le système. Merci Emma.", delay: 37 },
-    { user: orgaUser, content: "Classement mis à jour ! DNA Running prend la tête !", delay: 120 },
+    { user: benevoleUser, content: "Classement mis à jour ! DNA Running prend la tête !", delay: 120 },
     { user: benevoles[2], content: "Le stand 5 est saturé, besoin de renfort SVP.", delay: 185 },
     { user: adminUser, content: "Jules, je t'envoie quelqu'un.", delay: 186 },
     { user: benevoles[0], content: "Je peux venir, j'ai 30 minutes libres.", delay: 188 },
-    { user: orgaUser, content: "Super ambiance ce soir ! Courage à tous !", delay: 360 },
+    { user: benevoleUser, content: "Super ambiance ce soir ! Courage à tous !", delay: 360 },
   ];
 
   let lastMessageId: number | null = null;
