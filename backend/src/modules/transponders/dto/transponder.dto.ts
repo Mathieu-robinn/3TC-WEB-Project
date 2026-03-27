@@ -1,5 +1,5 @@
 import { TransponderStatus } from "@prisma/client";
-import { IsEnum, IsOptional } from "class-validator";
+import { IsEnum, IsInt, IsOptional } from "class-validator";
 
 export class CreateTransponderDto {
   @IsOptional()
@@ -12,3 +12,12 @@ export class UpdateTransponderDto {
   status: TransponderStatus;
 }
 
+export class AssignTransponderDto {
+  @IsOptional()
+  @IsInt()
+  teamId?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  runnerId?: number | null;
+}

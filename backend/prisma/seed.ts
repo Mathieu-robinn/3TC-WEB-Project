@@ -174,16 +174,16 @@ async function main() {
   // ───────────────────────────────────────────────────────────────────────────
 
   const transponders: { id: number; status: TransponderStatus }[] = [];
-  const statuses = [TransponderStatus.OUT, TransponderStatus.OUT, TransponderStatus.IN, TransponderStatus.NEW, TransponderStatus.LOST];
+  const statuses = [TransponderStatus.ATTRIBUE, TransponderStatus.ATTRIBUE, TransponderStatus.DISPONIBLE, TransponderStatus.DISPONIBLE, TransponderStatus.PERDU];
 
   for (let i = 0; i < 40; i++) {
-    const status = i < 15 ? TransponderStatus.OUT   // 15 puces actuellement en course
-                 : i < 25 ? TransponderStatus.IN    // 10 puces rentrées
-                 : i < 33 ? TransponderStatus.NEW   // 8 puces neuves en stock
-                 : TransponderStatus.LOST;          // 7 puces perdues
+    const status = i < 15 ? TransponderStatus.ATTRIBUE   // 15 puces actuellement en course
+                 : i < 25 ? TransponderStatus.DISPONIBLE    // 10 puces rentrées
+                 : i < 33 ? TransponderStatus.DISPONIBLE   // 8 puces neuves en stock
+                 : TransponderStatus.PERDU;          // 7 puces perdues
 
     // Associer les puces OUT à un coureur aléatoire
-    const runner = status === TransponderStatus.OUT ? pick(createdRunners) : undefined;
+    const runner = status === TransponderStatus.ATTRIBUE ? pick(createdRunners) : undefined;
     const t = await prisma.transponder.create({
       data: {
         status,
@@ -208,19 +208,19 @@ async function main() {
     const runner = pick(createdRunners);
     const txDate = new Date(baseDate.getTime() + i * 3 * 60 * 1000); // +3 min par transaction
 
-    // Transaction de "OUT" (distribution)
+    // Transaction de "ATTRIBUE" (distribution)
     await prisma.transponderTransaction.create({
       data: {
         transponderId: t.id,
         runnerId: runner.id,
         userId: benevole.id,
-        type: TransponderStatus.OUT,
+        type: TransponderStatus.ATTRIBUE,
         dateTime: txDate,
       },
     });
 
-    // Pour les puces "IN" et "LOST" : ajouter une deuxième transaction (retour ou perte)
-    if (t.status === TransponderStatus.IN || t.status === TransponderStatus.LOST) {
+    // Pour les puces "DISPONIBLE" et "PERDU" : ajouter une deuxième transaction (retour ou perte)
+    if (t.status === TransponderStatus.DISPONIBLE || t.status === TransponderStatus.PERDU) {
       const returnDate = new Date(txDate.getTime() + rand(60, 300) * 60 * 1000);
       await prisma.transponderTransaction.create({
         data: {

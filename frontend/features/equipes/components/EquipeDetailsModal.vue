@@ -174,7 +174,7 @@ const getFullName = (m) => typeof m === 'string' ? m : `${m.firstName || ''} ${m
 const getInitials = (m) => getFullName(m).split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 const getTransponder = (m) => {
   if (typeof m === 'string') return null
-  return transponderDisplay(m.transponders?.find(t => t.status === 'OUT'))
+  return transponderDisplay(m.transponders?.find(t => t.status === 'ATTRIBUE'))
 }
 </script>
 

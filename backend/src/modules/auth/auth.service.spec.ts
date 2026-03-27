@@ -1,4 +1,3 @@
-import { jest } from "@jest/globals";
 import { Test, TestingModule } from "@nestjs/testing";
 import { AuthService } from "./auth.service.js";
 import { JwtService } from "@nestjs/jwt";

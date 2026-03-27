@@ -1,4 +1,3 @@
-import { jest } from "@jest/globals";
 import { Test, TestingModule } from "@nestjs/testing";
 import { TransponderTransactionService } from "./transponder-transaction.service.js";
 import { PrismaService } from "../../prisma.service.js";
@@ -34,7 +33,7 @@ describe("TransponderTransactionService", () => {
 
   describe("createTransaction", () => {
     const mockUser = { id: 1, role: Role.BENEVOLE };
-    const mockTransponder = { id: 10, status: TransponderStatus.IN };
+    const mockTransponder = { id: 10, status: "DISPONIBLE" as any };
     const mockData = {
       transponder: { connect: { id: 10 } },
       runner: { connect: { id: 5 } },
@@ -67,7 +66,7 @@ describe("TransponderTransactionService", () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.transponder.findUnique as jest.Mock).mockResolvedValue({
         id: 10,
-        status: TransponderStatus.OUT,
+        status: "ATTRIBUE" as any,
       });
 
       await expect(service.createTransaction(mockData as any, 1)).rejects.toThrow(BadRequestException);
@@ -77,7 +76,7 @@ describe("TransponderTransactionService", () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.transponder.findUnique as jest.Mock).mockResolvedValue({
         id: 10,
-        status: TransponderStatus.LOST,
+        status: "PERDU" as any,
       });
 
       await expect(service.createTransaction(mockData as any, 1)).rejects.toThrow(BadRequestException);

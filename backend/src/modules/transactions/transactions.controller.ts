@@ -14,14 +14,17 @@ import { TransponderTransactionService } from "./transponder-transaction.service
 export class TransactionsController {
   constructor(private readonly transactionService: TransponderTransactionService) {}
 
-  @ApiOperation({
-    summary: "Créer une transaction de puce (distribution ou retour)",
+  @ApiOperation({ summary: "Créer une transaction pour un transpondeur (ex: distribution, retour)" })
+  @ApiResponse({ status: 201, description: "Transaction enregistrée." })
+  @ApiResponse({
+    status: 403,
     description:
-      "L'utilisateur doit avoir le rôle BENEVOLE ou ADMIN. La puce ne doit pas être OUT ou LOST.",
+      "L'utilisateur doit avoir le rôle BENEVOLE ou ADMIN. La puce ne doit pas être ATTRIBUE ou PERDU.",
   })
   @ApiBody({
     schema: {
-      example: { transponderId: 1, runnerId: 1, type: "OUT" },
+      type: "object",
+      example: { transponderId: 1, runnerId: 1, type: "ATTRIBUE" },
     },
   })
   @ApiResponse({ status: 201, description: "Transaction créée, statut de la puce mis à jour." })

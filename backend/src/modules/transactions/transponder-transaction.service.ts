@@ -81,17 +81,16 @@ export class TransponderTransactionService {
       throw new BadRequestException(`Transpondeur #${transponderId} introuvable.`);
     }
 
-    // Un transpondeur "OUT" (prêté) ne peut pas être ré-assigné sans une restitution préalable.
-    if (transponder.status === TransponderStatus.OUT) {
+    // Un transpondeur "ATTRIBUE" (prêté) ne peut pas être ré-assigné sans une restitution préalable.
+    if (transponder.status === TransponderStatus.ATTRIBUE) {
       throw new BadRequestException(
-        `Le transpondeur #${transponderId} est déjà en cours d'utilisation (statut OUT). Il doit être rendu avant de pouvoir être réassigné.`,
+        `Le transpondeur #${transponderId} est déjà en cours d'utilisation (statut ATTRIBUE). Il doit être rendu avant de pouvoir être réassigné.`,
       );
     }
 
-    // Un transpondeur perdu ne peut pas être attribué.
-    if (transponder.status === TransponderStatus.LOST) {
+    if (transponder.status === TransponderStatus.PERDU) {
       throw new BadRequestException(
-        `Le transpondeur #${transponderId} est marqué comme LOST et ne peut pas être attribué.`,
+        `Le transpondeur #${transponderId} est marqué comme PERDU et ne peut pas être attribué.`,
       );
     }
 

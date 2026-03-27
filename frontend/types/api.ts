@@ -40,4 +40,8 @@ export interface ApiTransponder {
   id: number
   reference?: string
   status: TransponderStatusApi
+  teamId?: number | null
+  runnerId?: number | null
+  team?: { id: number; name?: string; num?: number } | null
+  runner?: { id: number; firstName?: string; lastName?: string } | null
 }

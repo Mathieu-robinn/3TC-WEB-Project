@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ApiTransponder, TransponderStats, TransponderStatusApi } from '~/types/api'
+import type { ApiTeam, ApiTransponder, TransponderStats, TransponderStatusApi } from '~/types/api'
 
 const emptyStats = (): TransponderStats => ({ NEW: 0, IN: 0, OUT: 0, LOST: 0 })
 
@@ -14,6 +14,8 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
   const transponders = ref<ApiTransponder[]>([])
   const stats = ref<TransponderStats>(emptyStats())
   const transactions = ref<unknown[]>([])
+  const unassignedTeams = ref<ApiTeam[]>([])
+  const loadingTeams = ref(false)
 
   const fetchAll = async () => {
     loading.value = true
@@ -72,6 +74,47 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     }
   }
 
+  const fetchUnassignedTeams = async () => {
+    loadingTeams.value = true
+    const api = useApi()
+    try {
+      const data = await api.get<ApiTeam[]>('/transponders/unassigned-teams')
+      unassignedTeams.value = Array.isArray(data) ? data : []
+    } catch {
+      unassignedTeams.value = []
+    } finally {
+      loadingTeams.value = false
+    }
+  }
+
+  const assignTransponder = async (transponderId: number, teamId: number | null, runnerId: number | null) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/assign`, { teamId, runnerId })
+      const idx = transponders.value.findIndex((t) => t.id === transponderId)
+      if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
+      await Promise.all([fetchAll(), fetchUnassignedTeams()])
+      return updated
+    } finally {
+      saving.value = false
+    }
+  }
+
+  const unassignTransponder = async (transponderId: number) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/unassign`, {})
+      const idx = transponders.value.findIndex((t) => t.id === transponderId)
+      if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
+      await Promise.all([fetchAll(), fetchUnassignedTeams()])
+      return updated
+    } finally {
+      saving.value = false
+    }
+  }
+
   const createTransaction = async (data: Record<string, unknown>) => {
     saving.value = true
     const api = useApi()
@@ -84,18 +127,40 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     }
   }
 
-  const statuses: TransponderStatusApi[] = ['NEW', 'IN', 'OUT', 'LOST']
+  const markAsLost = async (transponderId: number) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}`, { status: 'PERDU' })
+      const idx = transponders.value.findIndex((t) => t.id === transponderId)
+      if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
+      await fetchAll()
+      return updated
+    } finally {
+      saving.value = false
+    }
+  }
+
+  const statuses: TransponderStatusApi[] = ['DISPONIBLE', 'ATTRIBUE', 'PERDU']
 
   const statusColor = (s: string) =>
-    ({ NEW: 'blue', IN: 'green', OUT: 'orange', LOST: 'red' } as Record<string, string>)[s] || 'grey'
+    ({ DISPONIBLE: 'blue', ATTRIBUE: 'green', PERDU: 'red' } as Record<string, string>)[s] || 'grey'
 
   const statusLabel = (s: string) =>
-    ({ NEW: 'Disponible', IN: 'En stock', OUT: 'Distribué', LOST: 'Perdu' } as Record<string, string>)[s] || s
+    ({ DISPONIBLE: 'Disponible', ATTRIBUE: 'Attribué', PERDU: 'Perdu' } as Record<string, string>)[s] || s
 
   const filteredTransponders = computed(() => {
     let list = transponders.value
     const s = search.value.toLowerCase()
-    if (s) list = list.filter((t) => t.reference?.toLowerCase().includes(s) || String(t.id).includes(s))
+    if (s)
+      list = list.filter(
+        (t) =>
+          t.reference?.toLowerCase().includes(s) ||
+          String(t.id).includes(s) ||
+          t.team?.name?.toLowerCase().includes(s) ||
+          t.runner?.firstName?.toLowerCase().includes(s) ||
+          t.runner?.lastName?.toLowerCase().includes(s),
+      )
     if (filterStatus.value !== 'tous') list = list.filter((t) => t.status === filterStatus.value)
     return list
   })
@@ -121,6 +186,8 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     transponders,
     stats,
     transactions,
+    unassignedTeams,
+    loadingTeams,
     filteredTransponders,
     totalStats,
     statuses,
@@ -128,8 +195,12 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     statusLabel,
     fetchAll,
     fetchTransactions,
+    fetchUnassignedTeams,
     createTransponder,
     updateTransponder,
     createTransaction,
+    assignTransponder,
+    unassignTransponder,
+    markAsLost,
   }
 })

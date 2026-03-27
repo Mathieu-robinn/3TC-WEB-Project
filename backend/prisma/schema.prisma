@@ -15,10 +15,9 @@ enum Role {
 }
 
 enum TransponderStatus {
-  LOST
-  IN
-  OUT
-  NEW
+  DISPONIBLE
+  ATTRIBUE
+  PERDU
 }
 
 enum ConversationType {
@@ -106,7 +105,7 @@ model Runner {
 
 model Transponder {
   id       Int               @id @default(autoincrement())
-  status   TransponderStatus @default(NEW)
+  status   TransponderStatus @default(DISPONIBLE)
   runnerId Int?
   teamId   Int?
 

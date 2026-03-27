@@ -87,10 +87,14 @@ export const useEquipesStore = defineStore('equipes', () => {
       const inRanking = ranking.value.find((r) => r.id === e.id)
       const nbTour = inRanking?.nbTour ?? e.nbTour ?? 0
       const runners = e.runners || []
-      const runnerWithTransponder = runners.find((r) => r.transponders?.some((t) => t.status === 'OUT'))
-      const activeRef = transponderDisplay(
-        runnerWithTransponder?.transponders?.find((t) => t.status === 'OUT'),
-      )
+      
+      const transpondersWithRunner = runners.flatMap((r) => 
+        (r.transponders || [])
+          .filter((t) => t.status === 'ATTRIBUE')
+          .map((t) => `${r.firstName} 🏃 (${transponderDisplay(t)})`)
+      ).filter(Boolean)
+      const activeRef = transpondersWithRunner.length > 0 ? transpondersWithRunner.join('  ·  ') : null
+      
       const statut = runners.length === 0 ? 'sans_transpondeur' : activeRef ? 'en_piste' : 'en_attente'
 
       return {
@@ -155,8 +159,8 @@ export const useEquipesStore = defineStore('equipes', () => {
         {
           id: 1,
           firstName: 'Thomas',
-          lastName: 'Bernard',
-          transponders: [{ reference: 'TR-002', status: 'OUT' }],
+          lastName: 'Martin',
+          transponders: [{ reference: 'TR-002', status: 'ATTRIBUE' }],
         },
         { id: 2, firstName: 'Marie', lastName: 'Dupont', transponders: [] },
       ],
@@ -170,8 +174,9 @@ export const useEquipesStore = defineStore('equipes', () => {
     {
       id: 3,
       name: 'Les Rapides',
-      nbTour: 35,
-      runners: [{ id: 4, firstName: 'Lucas', lastName: 'Petit', transponders: [{ reference: 'TR-045', status: 'OUT' }] }],
+      nbTour: 18,
+      courseId: 1,
+      runners: [{ id: 4, firstName: 'Lucas', lastName: 'Petit', transponders: [{ reference: 'TR-045', status: 'ATTRIBUE' }] }],
     },
     {
       id: 4,
@@ -188,8 +193,9 @@ export const useEquipesStore = defineStore('equipes', () => {
     {
       id: 6,
       name: 'Team Endurance',
-      nbTour: 25,
-      runners: [{ id: 7, firstName: 'Claire', lastName: 'Moreau', transponders: [{ reference: 'TR-067', status: 'OUT' }] }],
+      nbTour: 12,
+      courseId: 2,
+      runners: [{ id: 7, firstName: 'Claire', lastName: 'Moreau', transponders: [{ reference: 'TR-067', status: 'ATTRIBUE' }] }],
     },
   ]
   const getMockRanking = () => getMockEquipes().map((e) => ({ id: e.id, name: e.name, nbTour: e.nbTour }))

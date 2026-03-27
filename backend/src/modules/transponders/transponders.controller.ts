@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, UseGuards, BadRequestException } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Prisma, Role, Transponder } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
-import { CreateTransponderDto, UpdateTransponderDto } from "./dto/transponder.dto.js";
+import { AssignTransponderDto, CreateTransponderDto, UpdateTransponderDto } from "./dto/transponder.dto.js";
 import { TransponderService } from "./transponder.service.js";
 
 @ApiTags("Transponders")
@@ -18,29 +18,74 @@ export class TranspondersController {
   @ApiResponse({ status: 200, description: "Liste des puces." })
   @ApiResponse({ status: 401, description: "Token JWT requis." })
   @Get("transponders")
-  async getAllTransponders(): Promise<Transponder[]> {
+  async getAllTransponders() {
     return this.transponderService.transponders({});
   }
 
   @ApiOperation({ summary: "Statistiques des puces par statut" })
-  @ApiResponse({ status: 200, description: "Exemple: { NEW: 8, IN: 10, OUT: 15, LOST: 7 }" })
+  @ApiResponse({ status: 200, description: "Exemple: { DISPONIBLE: 8, ATTRIBUE: 15, PERDU: 7 }" })
   @Get("transponders/stats")
   async getTransponderStats(): Promise<Record<string, number>> {
     const transponders = await this.transponderService.transponders({});
-    const stats: Record<string, number> = { NEW: 0, IN: 0, OUT: 0, LOST: 0 };
+    const stats: Record<string, number> = { DISPONIBLE: 0, ATTRIBUE: 0, PERDU: 0 };
     for (const t of transponders) {
       stats[t.status] = (stats[t.status] ?? 0) + 1;
     }
     return stats;
   }
 
+  @ApiOperation({ summary: "Equipes sans transpondeur actif (sans transpondeur ou transpondeur perdu)" })
+  @ApiResponse({ status: 200, description: "Liste des équipes éligibles pour recevoir un transpondeur." })
+  @Get("transponders/unassigned-teams")
+  async getTeamsWithoutTransponder() {
+    return this.transponderService.teamsWithoutActiveTransponder();
+  }
+
+  @ApiOperation({ summary: "Assigner un transpondeur à un coureur/équipe" })
+  @ApiParam({ name: "id", description: "ID du transpondeur" })
+  @ApiBody({ schema: { example: { teamId: 1, runnerId: 2 } } })
+  @Put("transponder/:id/assign")
+  @Roles(Role.ADMIN, Role.BENEVOLE)
+  async assignTransponder(@Param("id") id: string, @Body() data: AssignTransponderDto) {
+    if (data.teamId) {
+      const activeCount = await this.transponderService.transponders({
+        where: { teamId: data.teamId, status: "ATTRIBUE" as any },
+      });
+      // Vérifier si la puce n'est pas DEJA attribuée à cette même équipe/coureur.
+      // Si la longueur est > 0 ET que ce n'est pas le transpondeur actuel, on bloque.
+      const hasOther = activeCount.filter(t => t.id !== Number(id));
+      if (hasOther.length > 0) {
+        throw new BadRequestException("Une équipe ne peut avoir qu'un seul transpondeur actif.");
+      }
+    }
+
+    // Utiliser les champs directs teamId/runnerId pour éviter les erreurs
+    // Prisma avec disconnect sur des relations déjà nulles
+    return this.transponderService.updateTransponderFields(
+      Number(id),
+      { status: "ATTRIBUE" as any, teamId: data.teamId ?? null, runnerId: data.runnerId ?? null },
+    );
+  }
+
+  @ApiOperation({ summary: "Désassigner un transpondeur (le remettre disponible)" })
+  @ApiParam({ name: "id", description: "ID du transpondeur" })
+  @Put("transponder/:id/unassign")
+  @Roles(Role.ADMIN, Role.BENEVOLE)
+  async unassignTransponder(@Param("id") id: string) {
+    // NEW = Disponible (statut après désassignation)
+    return this.transponderService.updateTransponderFields(
+      Number(id),
+      { status: "DISPONIBLE" as any, teamId: null, runnerId: null },
+    );
+  }
+
   @ApiOperation({ summary: "Créer un nouveau transpondeur" })
-  @ApiBody({ schema: { example: { status: "NEW" } } })
+  @ApiBody({ schema: { example: { status: "DISPONIBLE" } } })
   @Post("transponder")
   @Roles(Role.ADMIN, Role.BENEVOLE)
   async createTransponder(@Body() data: CreateTransponderDto): Promise<Transponder> {
     const prismaData: Prisma.TransponderCreateInput = {
-      status: data.status ?? "NEW",
+      status: data.status ?? ("DISPONIBLE" as any),
     };
     return this.transponderService.createTransponder(prismaData);
   }
@@ -50,7 +95,7 @@ export class TranspondersController {
   @ApiBody({ schema: { example: { status: "LOST" } } })
   @Put("transponder/:id")
   @Roles(Role.ADMIN, Role.BENEVOLE)
-  async updateTransponder(@Param("id") id: string, @Body() data: UpdateTransponderDto): Promise<Transponder> {
+  async updateTransponder(@Param("id") id: string, @Body() data: UpdateTransponderDto) {
     const prismaData: Prisma.TransponderUpdateInput = { status: data.status };
     return this.transponderService.updateTransponder({ where: { id: Number(id) }, data: prismaData });
   }
