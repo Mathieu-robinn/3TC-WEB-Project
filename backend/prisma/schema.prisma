@@ -45,6 +45,12 @@ enum LogType { // a enrichier au fur et à mesure
   RETURN_TRANSPONDER
 }
 
+enum NotificationType {
+  INFO
+  ALERT
+  EMERGENCY
+}
+
 enum NotificationState {
   SEEN
   UNSEEN
@@ -69,7 +75,7 @@ model User {
 
 model Edition {
   id        Int      @id @default(autoincrement())
-  name      String
+  name      String   @unique
   active    Boolean  @default(false)
   startDate DateTime
   endDate   DateTime
@@ -91,8 +97,8 @@ model Course {
 model Team {
   id           Int    @id @default(autoincrement())
   num          Int
-  name         String
-  nbTour       Int?
+  name         String @unique
+  nbTour       Int    @default(0)
   courseId     Int
   respRunnerId Int?   @unique
 
@@ -107,7 +113,7 @@ model Runner {
   teamId    Int?
   lastName  String
   firstName String
-  email     String?
+  email     String? @unique
   phone     String?
 
   team Team? @relation("TeamRunners", fields: [teamId], references: [id])
@@ -155,10 +161,11 @@ model Log {
 
 model Notification {
   id      Int      @id @default(autoincrement())
+  type NotificationType @default(INFO)
   userId  Int
   message String
   date    DateTime @default(now())
-  state   NotificationState
+  state   NotificationState @default(UNSEEN)
 
   user User @relation(fields: [userId], references: [id])
 }
