@@ -69,7 +69,7 @@ model Course {
   dateAndTime  DateTime
   editionId    Int
 
-  edition Edition @relation(fields: [editionId], references: [id])
+  edition Edition @relation(fields: [editionId], references: [id], onDelete: Cascade)
   teams   Team[]
 }
 
@@ -170,7 +170,7 @@ model Message {
   editedAt       DateTime?
   replyToMessageId Int?
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User         @relation(fields: [senderUserId], references: [id])
   replyToMessage Message?     @relation("Replies", fields: [replyToMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies        Message[]    @relation("Replies")
