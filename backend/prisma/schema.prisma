@@ -35,6 +35,21 @@ enum ParticipantRole {
   MEMBER
 }
 
+enum LogType { // a enrichier au fur et à mesure
+  ADD_USER
+  DELETE_USER
+  ADD_TRANSPONDER
+  DELETE_TRANSPONDER
+  GIVE_TRANSPONDER
+  LOOSE_TRANSPONDER
+  RETURN_TRANSPONDER
+}
+
+enum NotificationState {
+  SEEN
+  UNSEEN
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -132,7 +147,7 @@ model Log {
   id       Int      @id @default(autoincrement())
   dateTime DateTime @default(now())
   message  String
-  type     String // e.g., "AddUser", "DeleteUser", etc.
+  type     LogType
   userId   Int
 
   user User @relation(fields: [userId], references: [id])
@@ -143,7 +158,7 @@ model Notification {
   userId  Int
   message String
   date    DateTime @default(now())
-  state   String // e.g., "Seen", "Unseen"
+  state   NotificationState
 
   user User @relation(fields: [userId], references: [id])
 }
