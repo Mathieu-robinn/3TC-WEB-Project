@@ -2,7 +2,7 @@ import { PrismaClient, Role, TransponderStatus, ConversationType, MessageType, P
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import "dotenv/config.js";
-
+import { LogType } from "@prisma/client";
 const { Pool } = pg;
 const adapter = new PrismaPg(new Pool({ connectionString: process.env.DATABASE_URL as string }) as any);
 const prisma = new PrismaClient({ adapter });
@@ -104,33 +104,33 @@ async function main() {
   // ───────────────────────────────────────────────────────────────────────────
 
   const teamDefinitions = [
-    { num: 1,  name: "Les Fous du Volant",     nbTour: 187, course: course2026_24h },
-    { num: 2,  name: "Flash et ses copains",    nbTour: 201, course: course2026_24h },
-    { num: 3,  name: "INSA Running Club",       nbTour: 215, course: course2026_24h },
-    { num: 4,  name: "Le Peloton Fantôme",      nbTour: 178, course: course2026_24h },
-    { num: 5,  name: "Kilomètre Zéro",          nbTour: 192, course: course2026_24h },
-    { num: 6,  name: "Les Tortues Ninjas",      nbTour: 164, course: course2026_24h },
-    { num: 7,  name: "Sprinteurs en Herbe",     nbTour: 220, course: course2026_24h },
-    { num: 8,  name: "Courir ou Mourir",        nbTour: 145, course: course2026_24h },
-    { num: 9,  name: "Jambes de feu",           nbTour: 198, course: course2026_24h },
-    { num: 10, name: "DNA Running",             nbTour: 230, course: course2026_24h },
-    { num: 11, name: "Les Éperviers",           nbTour: 155, course: course2026_24h },
-    { num: 12, name: "Nuits Debout",            nbTour: 109, course: course2026_24h },
-    { num: 13, name: "Team Café Crème",         nbTour: 88,  course: course2026_24h },
-    { num: 14, name: "Courant d'Air",           nbTour: 175, course: course2026_24h },
-    { num: 15, name: "Les Mollets Saillants",   nbTour: 211, course: course2026_24h },
+    { num: 1, name: "Les Fous du Volant", nbTour: 187, course: course2026_24h },
+    { num: 2, name: "Flash et ses copains", nbTour: 201, course: course2026_24h },
+    { num: 3, name: "INSA Running Club", nbTour: 215, course: course2026_24h },
+    { num: 4, name: "Le Peloton Fantôme", nbTour: 178, course: course2026_24h },
+    { num: 5, name: "Kilomètre Zéro", nbTour: 192, course: course2026_24h },
+    { num: 6, name: "Les Tortues Ninjas", nbTour: 164, course: course2026_24h },
+    { num: 7, name: "Sprinteurs en Herbe", nbTour: 220, course: course2026_24h },
+    { num: 8, name: "Courir ou Mourir", nbTour: 145, course: course2026_24h },
+    { num: 9, name: "Jambes de feu", nbTour: 198, course: course2026_24h },
+    { num: 10, name: "DNA Running", nbTour: 230, course: course2026_24h },
+    { num: 11, name: "Les Éperviers", nbTour: 155, course: course2026_24h },
+    { num: 12, name: "Nuits Debout", nbTour: 109, course: course2026_24h },
+    { num: 13, name: "Team Café Crème", nbTour: 88, course: course2026_24h },
+    { num: 14, name: "Courant d'Air", nbTour: 175, course: course2026_24h },
+    { num: 15, name: "Les Mollets Saillants", nbTour: 211, course: course2026_24h },
     // Équipes sur 12h
-    { num: 50, name: "Demi-fondeurs",           nbTour: 102, course: course2026_12h },
-    { num: 51, name: "Midnight Runners Lyon",   nbTour: 118, course: course2026_12h },
-    { num: 52, name: "GéniCourse",              nbTour: 97,  course: course2026_12h },
+    { num: 50, name: "Demi-fondeurs", nbTour: 102, course: course2026_12h },
+    { num: 51, name: "Midnight Runners Lyon", nbTour: 118, course: course2026_12h },
+    { num: 52, name: "GéniCourse", nbTour: 97, course: course2026_12h },
     // Équipes Handisport 6h
-    { num: 80, name: "Handis en route",         nbTour: 42,  course: course2026_6h },
-    { num: 81, name: "Rolleurs Invincibles",    nbTour: 51,  course: course2026_6h },
+    { num: 80, name: "Handis en route", nbTour: 42, course: course2026_6h },
+    { num: 81, name: "Rolleurs Invincibles", nbTour: 51, course: course2026_6h },
   ];
 
   // Prénoms et noms réalistes pour seed
-  const firstNames = ["Paul","Marie","Thomas","Julie","Nicolas","Emma","Pierre","Lucie","Antoine","Camille","Romain","Sarah","Maxime","Léa","Hugo","Inès","Axel","Zoé","Clément","Manon","Baptiste","Laura","Kevin","Alice","Quentin","Chloé","Matthieu","Elisa","Julien","Amélie"];
-  const lastNames = ["Martin","Bernard","Thomas","Petit","Robert","Richard","Durand","Simon","Laurent","Michel","Garcia","David","Bertrand","Roux","Vincent","Fournier","Morel","Girard","André","Lefebvre","Leroy","Dupont","Moreau","Rousseau","Lambert","Blanc","Guerin","Faure","Leclerc","Mayer"];
+  const firstNames = ["Paul", "Marie", "Thomas", "Julie", "Nicolas", "Emma", "Pierre", "Lucie", "Antoine", "Camille", "Romain", "Sarah", "Maxime", "Léa", "Hugo", "Inès", "Axel", "Zoé", "Clément", "Manon", "Baptiste", "Laura", "Kevin", "Alice", "Quentin", "Chloé", "Matthieu", "Elisa", "Julien", "Amélie"];
+  const lastNames = ["Martin", "Bernard", "Thomas", "Petit", "Robert", "Richard", "Durand", "Simon", "Laurent", "Michel", "Garcia", "David", "Bertrand", "Roux", "Vincent", "Fournier", "Morel", "Girard", "André", "Lefebvre", "Leroy", "Dupont", "Moreau", "Rousseau", "Lambert", "Blanc", "Guerin", "Faure", "Leclerc", "Mayer"];
 
   const createdTeams: { id: number; courseId: number }[] = [];
   const createdRunners: { id: number; teamId: number }[] = [];
@@ -174,21 +174,21 @@ async function main() {
   // ───────────────────────────────────────────────────────────────────────────
 
   const transponders: { id: number; status: TransponderStatus }[] = [];
-  const statuses = [TransponderStatus.ATTRIBUE, TransponderStatus.ATTRIBUE, TransponderStatus.DISPONIBLE, TransponderStatus.DISPONIBLE, TransponderStatus.PERDU];
 
   for (let i = 0; i < 40; i++) {
-    const status = i < 15 ? TransponderStatus.ATTRIBUE   // 15 puces actuellement en course
-                 : i < 25 ? TransponderStatus.DISPONIBLE    // 10 puces rentrées
-                 : i < 33 ? TransponderStatus.DISPONIBLE   // 8 puces neuves en stock
-                 : TransponderStatus.PERDU;          // 7 puces perdues
+    let status: TransponderStatus;
 
-    // Associer les puces OUT à un coureur aléatoire
-    const runner = status === TransponderStatus.ATTRIBUE ? pick(createdRunners) : undefined;
+    if (i < 15) status = TransponderStatus.ATTRIBUE;
+    else if (i < 25) status = TransponderStatus.RECUPERE;
+    else if (i < 33) status = TransponderStatus.EN_ATTENTE;
+    else status = TransponderStatus.PERDU;
+
+    const team = status !== TransponderStatus.EN_ATTENTE ? pick(createdTeams) : undefined;
+
     const t = await prisma.transponder.create({
       data: {
-        status,
-        runnerId: runner?.id,
-        teamId: runner ? createdTeams.find(t => t.id === runner.teamId)?.id : undefined,
+        status, // Utilise la variable typée
+        teamId: team?.id,
       },
     });
     transponders.push({ id: t.id, status: t.status });
@@ -205,32 +205,35 @@ async function main() {
   for (let i = 0; i < transponders.length; i++) {
     const t = transponders[i];
     const benevole = pick(benevoles);
-    const runner = pick(createdRunners);
+    const tDb = await prisma.transponder.findUnique({ where: { id: t.id } });
+    const teamId = tDb?.teamId || pick(createdTeams).id;
     const txDate = new Date(baseDate.getTime() + i * 3 * 60 * 1000); // +3 min par transaction
 
-    // Transaction de "ATTRIBUE" (distribution)
-    await prisma.transponderTransaction.create({
-      data: {
-        transponderId: t.id,
-        runnerId: runner.id,
-        userId: benevole.id,
-        type: TransponderStatus.ATTRIBUE,
-        dateTime: txDate,
-      },
-    });
-
-    // Pour les puces "DISPONIBLE" et "PERDU" : ajouter une deuxième transaction (retour ou perte)
-    if (t.status === TransponderStatus.DISPONIBLE || t.status === TransponderStatus.PERDU) {
-      const returnDate = new Date(txDate.getTime() + rand(60, 300) * 60 * 1000);
+    if (t.status !== ("EN_ATTENTE" as any)) {
+      // Transaction de "ATTRIBUE" (distribution)
       await prisma.transponderTransaction.create({
         data: {
           transponderId: t.id,
-          runnerId: runner.id,
+          teamId: teamId,
           userId: benevole.id,
-          type: t.status,
-          dateTime: returnDate,
-        },
+          type: "ATTRIBUE",
+          dateTime: txDate,
+        } as any,
       });
+
+      // Pour les puces "RECUPERE" et "PERDU" : ajouter une deuxième transaction (retour ou perte)
+      if (t.status === ("RECUPERE" as any) || t.status === ("PERDU" as any)) {
+        const returnDate = new Date(txDate.getTime() + rand(60, 300) * 60 * 1000);
+        await prisma.transponderTransaction.create({
+          data: {
+            transponderId: t.id,
+            teamId: teamId,
+            userId: benevole.id,
+            type: t.status,
+            dateTime: returnDate,
+          } as any,
+        });
+      }
     }
   }
 
@@ -240,20 +243,25 @@ async function main() {
   // 7. LOGS SYSTÈME
   // ───────────────────────────────────────────────────────────────────────────
 
-  const logTypes = ["AddUser", "DeleteUser", "AssignTransponder", "UpdateTeam", "CreateEdition"];
+  const logTypes = [
+    LogType.ADD_USER,
+    LogType.GIVE_TRANSPONDER, // Remplace ASSIGN_TRANSPONDER par GIVE_TRANSPONDER
+    LogType.ADD_TRANSPONDER,
+    LogType.RETURN_TRANSPONDER
+  ];
+
   const logMessages = [
     "Nouveau bénévole ajouté au système.",
     "Équipe mise à jour avec le nombre de tours.",
     "Puce transpondeur assignée au coureur.",
     "Nouvelle édition créée pour 2026.",
-    "Statut de la puce mis à jour vers LOST.",
   ];
 
   for (let i = 0; i < 25; i++) {
     await prisma.log.create({
       data: {
-        userId: adminUser.id,
-        type: pick(logTypes),
+        userId: adminUser.id, // Utilise l'ID de l'admin créé plus haut
+        type: pick(logTypes),  // Utilise les types corrigés
         message: pick(logMessages),
         dateTime: new Date(new Date("2026-05-15T10:00:00Z").getTime() + i * 20 * 60 * 1000),
       },
@@ -281,7 +289,7 @@ async function main() {
           userId: user.id,
           message: pick(notifMessages),
           date: new Date(new Date("2026-05-16T14:00:00Z").getTime() + rand(0, 600) * 60 * 1000),
-          state: rand(0, 1) === 0 ? "Seen" : "Unseen",
+          state: rand(0, 1) === 0 ? "SEEN" as any : "UNSEEN" as any,
         },
       });
     }

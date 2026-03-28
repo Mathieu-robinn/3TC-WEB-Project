@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { removeAccents } from '~/utils/string'
 import { transponderDisplay } from '~/utils/transponder'
-import type { ApiTeam } from '~/types/api'
+import type { ApiTeam, TransponderTransaction } from '~/types/api'
 
 type SortKey = 'ranking' | 'name' | 'members'
 
@@ -23,6 +23,7 @@ export const useEquipesStore = defineStore('equipes', () => {
   const error = ref<string | null>(null)
 
   const equipes = ref<ApiTeam[]>([])
+  const historique = ref<TransponderTransaction[]>([])
   const ranking = ref<ApiTeam[]>([])
 
   const fetchEquipes = async () => {
@@ -41,6 +42,22 @@ export const useEquipesStore = defineStore('equipes', () => {
       error.value = 'Mode démonstration — API non disponible'
       equipes.value = getMockEquipes()
       ranking.value = getMockRanking()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const fetchHistoriqueTranspondeurs = async (teamId: number) => {
+    loading.value = true
+    error.value = null
+    const api = useApi()
+    try {
+      const data = await api.get<TransponderTransaction[]>(`/transactions/team/${teamId}`)
+      historique.value = Array.isArray(data) ? data : []
+
+    } catch (e) {
+      console.error('Erreur fetch historique:', e)
+      error.value = 'Mode démonstration — API non disponible'
     } finally {
       loading.value = false
     }
@@ -87,15 +104,14 @@ export const useEquipesStore = defineStore('equipes', () => {
       const inRanking = ranking.value.find((r) => r.id === e.id)
       const nbTour = inRanking?.nbTour ?? e.nbTour ?? 0
       const runners = e.runners || []
-      
-      const transpondersWithRunner = runners.flatMap((r) => 
-        (r.transponders || [])
-          .filter((t) => t.status === 'ATTRIBUE')
-          .map((t) => `${r.firstName} 🏃 (${transponderDisplay(t)})`)
-      ).filter(Boolean)
-      const activeRef = transpondersWithRunner.length > 0 ? transpondersWithRunner.join('  ·  ') : null
-      
-      const statut = runners.length === 0 ? 'sans_transpondeur' : activeRef ? 'en_piste' : 'en_attente'
+
+      const activeTransponders = (e.transponders || (e as any).transpondeurs || [])
+        .filter((t: any) => t.status === 'ATTRIBUE')
+        .map((t: any) => transponderDisplay(t))
+
+      const activeRef = activeTransponders.length > 0 ? activeTransponders.join('  ·  ') : null
+
+      const statut = runners.length === 0 ? 'aucun membre' : activeRef ? 'en_piste' : 'en_attente'
 
       return {
         ...e,
@@ -140,7 +156,7 @@ export const useEquipesStore = defineStore('equipes', () => {
     total: equipes.value.length,
     enPiste: equipesWithStatus.value.filter((e) => e.statut === 'en_piste').length,
     enAttente: equipesWithStatus.value.filter((e) => e.statut === 'en_attente').length,
-    sansTranspondeur: equipesWithStatus.value.filter((e) => e.statut === 'sans_transpondeur').length,
+    sansTranspondeur: equipesWithStatus.value.filter((e) => e.statut === 'aucun membre').length,
   }))
 
   const resetFilters = () => {
@@ -160,42 +176,44 @@ export const useEquipesStore = defineStore('equipes', () => {
           id: 1,
           firstName: 'Thomas',
           lastName: 'Martin',
-          transponders: [{ reference: 'TR-002', status: 'ATTRIBUE' }],
         },
-        { id: 2, firstName: 'Marie', lastName: 'Dupont', transponders: [] },
+        { id: 2, firstName: 'Marie', lastName: 'Dupont' },
       ],
+      transponders: [{ reference: 'TR-002', status: 'ATTRIBUE' }],
     },
     {
       id: 2,
       name: 'Team INSA',
       nbTour: 38,
-      runners: [{ id: 3, firstName: 'Sophie', lastName: 'Martin', transponders: [] }],
+      runners: [{ id: 3, firstName: 'Sophie', lastName: 'Martin' }],
     },
     {
       id: 3,
       name: 'Les Rapides',
       nbTour: 18,
       courseId: 1,
-      runners: [{ id: 4, firstName: 'Lucas', lastName: 'Petit', transponders: [{ reference: 'TR-045', status: 'ATTRIBUE' }] }],
+      runners: [{ id: 4, firstName: 'Lucas', lastName: 'Petit' }],
+      transponders: [{ reference: 'TR-045', status: 'ATTRIBUE' }],
     },
     {
       id: 4,
       name: 'Sprint Masters',
       nbTour: 31,
-      runners: [{ id: 5, firstName: 'Emma', lastName: 'Rousseau', transponders: [] }],
+      runners: [{ id: 5, firstName: 'Emma', lastName: 'Rousseau' }],
     },
     {
       id: 5,
       name: 'Les Coureurs',
       nbTour: 28,
-      runners: [{ id: 6, firstName: 'Hugo', lastName: 'Dubois', transponders: [] }],
+      runners: [{ id: 6, firstName: 'Hugo', lastName: 'Dubois' }],
     },
     {
       id: 6,
       name: 'Team Endurance',
       nbTour: 12,
       courseId: 2,
-      runners: [{ id: 7, firstName: 'Claire', lastName: 'Moreau', transponders: [{ reference: 'TR-067', status: 'ATTRIBUE' }] }],
+      runners: [{ id: 7, firstName: 'Claire', lastName: 'Moreau' }],
+      transponders: [{ reference: 'TR-067', status: 'ATTRIBUE' }],
     },
   ]
   const getMockRanking = () => getMockEquipes().map((e) => ({ id: e.id, name: e.name, nbTour: e.nbTour }))
@@ -210,12 +228,14 @@ export const useEquipesStore = defineStore('equipes', () => {
     error,
     equipes,
     ranking,
+    historique,
     rankingWithDetails,
     equipesWithStatus,
     filteredEquipes,
     availableNbMembres,
     stats,
     fetchEquipes,
+    fetchHistoriqueTranspondeurs,
     createTeam,
     updateTeam,
     deleteTeam,

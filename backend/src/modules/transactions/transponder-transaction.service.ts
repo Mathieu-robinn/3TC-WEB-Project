@@ -4,7 +4,7 @@ import { TransponderTransaction, Prisma, TransponderStatus, Role } from "@prisma
 
 @Injectable()
 export class TransponderTransactionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   /**
    * Récupère une transaction de transpondeur par son identifiant unique.
@@ -88,9 +88,9 @@ export class TransponderTransactionService {
       );
     }
 
-    if (transponder.status === TransponderStatus.PERDU) {
+    if (transponder.status === TransponderStatus.PERDU || transponder.status === TransponderStatus.RECUPERE) {
       throw new BadRequestException(
-        `Le transpondeur #${transponderId} est marqué comme PERDU et ne peut pas être attribué.`,
+        `Le transpondeur #${transponderId} est marqué comme ${transponder.status} et ne peut pas être réutilisé.`,
       );
     }
 
@@ -126,5 +126,17 @@ export class TransponderTransactionService {
     where: Prisma.TransponderTransactionWhereUniqueInput,
   ): Promise<TransponderTransaction> {
     return this.prisma.transponderTransaction.delete({ where });
+  }
+
+  async getTeamTransactions(teamId: number): Promise<TransponderTransaction[]> {
+    return this.prisma.transponderTransaction.findMany({
+      where: { teamId },
+    });
+  }
+
+  async getUserTransactions(userId: number): Promise<TransponderTransaction[]> {
+    return this.prisma.transponderTransaction.findMany({
+      where: { userId },
+    });
   }
 }

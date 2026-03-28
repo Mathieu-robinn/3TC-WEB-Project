@@ -15,9 +15,10 @@ enum Role {
 }
 
 enum TransponderStatus {
-  DISPONIBLE
+  EN_ATTENTE
   ATTRIBUE
   PERDU
+  RECUPERE
 }
 
 enum ConversationType {
@@ -105,7 +106,8 @@ model Team {
   course       Course        @relation(fields: [courseId], references: [id])
   runners      Runner[]      @relation("TeamRunners")
   respRunner   Runner?       @relation("TeamResponsible", fields: [respRunnerId], references: [id])
-  transponders Transponder[]
+  transponders            Transponder[]
+  transponderTransactions TransponderTransaction[]
 }
 
 model Runner {
@@ -120,17 +122,13 @@ model Runner {
   
   responsibleForTeam Team? @relation("TeamResponsible")
 
-  transponders           Transponder[]
-  transponderTransactions TransponderTransaction[]
 }
 
 model Transponder {
   id       Int               @id @default(autoincrement())
-  status   TransponderStatus @default(DISPONIBLE)
-  runnerId Int?
+  status   TransponderStatus @default(EN_ATTENTE)
   teamId   Int?
 
-  runner Runner? @relation(fields: [runnerId], references: [id])
   team   Team?   @relation(fields: [teamId], references: [id])
 
   transactions TransponderTransaction[]
@@ -139,13 +137,13 @@ model Transponder {
 model TransponderTransaction {
   id            Int               @id @default(autoincrement())
   transponderId Int
-  runnerId      Int?
+  teamId        Int?
   userId        Int
   dateTime      DateTime          @default(now())
   type          TransponderStatus
 
   transponder Transponder @relation(fields: [transponderId], references: [id])
-  runner      Runner?     @relation(fields: [runnerId], references: [id])
+  team        Team?       @relation(fields: [teamId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
 }
 

@@ -15,7 +15,7 @@
         </div>
         <div class="d-flex gap-2">
           <v-btn variant="tonal" color="white" rounded="lg" prepend-icon="mdi-refresh"
-            @click="store.fetchEquipes()" :loading="store.loading">
+            @click="store.c()" :loading="store.loading">
             Actualiser
           </v-btn>
           <v-btn variant="flat" color="white" rounded="lg" prepend-icon="mdi-plus"
@@ -284,7 +284,12 @@
     </div>
 
     <!-- Details Modal -->
-    <EquipeDetailsModal v-model="isModalOpen" :equipe="selectedEquipe" @edit="openEdit" />
+    <EquipeDetailsModal 
+      v-if="selectedEquipe"
+      v-model="isModalOpen" 
+      :equipe="selectedEquipe" 
+      @edit="openEdit" 
+    />
 
     <!-- Create / Edit Dialog -->
     <v-dialog v-model="showForm" max-width="520" persistent>

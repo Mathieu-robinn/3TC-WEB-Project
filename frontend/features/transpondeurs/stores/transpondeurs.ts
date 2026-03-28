@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { ApiTeam, ApiTransponder, TransponderStats, TransponderStatusApi } from '~/types/api'
 
-const emptyStats = (): TransponderStats => ({ NEW: 0, IN: 0, OUT: 0, LOST: 0 })
+const emptyStats = (): TransponderStats => ({ EN_ATTENTE: 0, ATTRIBUE: 0, PERDU: 0, RECUPERE: 0 })
 
 export const useTranspondersStore = defineStore('transpondeurs', () => {
   const loading = ref(false)
@@ -31,7 +31,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     } catch {
       error.value = 'Mode démonstration — API non disponible'
       transponders.value = getMockTransponders()
-      stats.value = { NEW: 5, IN: 10, OUT: 18, LOST: 2 }
+      stats.value = { EN_ATTENTE: 5, ATTRIBUE: 18, PERDU: 2, RECUPERE: 10 }
     } finally {
       loading.value = false
     }
@@ -51,7 +51,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     saving.value = true
     const api = useApi()
     try {
-      const created = await api.post<ApiTransponder>('/transponder', { status: data.status || 'NEW' })
+      const created = await api.post<ApiTransponder>('/transponder', { status: data.status || 'EN_ATTENTE' })
       transponders.value.push(created)
       await fetchAll()
       return created
@@ -87,11 +87,11 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     }
   }
 
-  const assignTransponder = async (transponderId: number, teamId: number | null, runnerId: number | null) => {
+  const assignTransponder = async (transponderId: number, teamId: number | null) => {
     saving.value = true
     const api = useApi()
     try {
-      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/assign`, { teamId, runnerId })
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/assign`, { teamId })
       const idx = transponders.value.findIndex((t) => t.id === transponderId)
       if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
       await Promise.all([fetchAll(), fetchUnassignedTeams()])
@@ -141,13 +141,13 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     }
   }
 
-  const statuses: TransponderStatusApi[] = ['DISPONIBLE', 'ATTRIBUE', 'PERDU']
+  const statuses: TransponderStatusApi[] = ['EN_ATTENTE', 'ATTRIBUE', 'PERDU', 'RECUPERE']
 
   const statusColor = (s: string) =>
-    ({ DISPONIBLE: 'blue', ATTRIBUE: 'green', PERDU: 'red' } as Record<string, string>)[s] || 'grey'
+    ({ EN_ATTENTE: 'blue', ATTRIBUE: 'green', PERDU: 'red', RECUPERE: 'grey' } as Record<string, string>)[s] || 'grey'
 
   const statusLabel = (s: string) =>
-    ({ DISPONIBLE: 'Disponible', ATTRIBUE: 'Attribué', PERDU: 'Perdu' } as Record<string, string>)[s] || s
+    ({ EN_ATTENTE: 'En attente', ATTRIBUE: 'Attribué', PERDU: 'Perdu', RECUPERE: 'Récupéré' } as Record<string, string>)[s] || s
 
   const filteredTransponders = computed(() => {
     let list = transponders.value
@@ -157,9 +157,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
         (t) =>
           t.reference?.toLowerCase().includes(s) ||
           String(t.id).includes(s) ||
-          t.team?.name?.toLowerCase().includes(s) ||
-          t.runner?.firstName?.toLowerCase().includes(s) ||
-          t.runner?.lastName?.toLowerCase().includes(s),
+          t.team?.name?.toLowerCase().includes(s),
       )
     if (filterStatus.value !== 'tous') list = list.filter((t) => t.status === filterStatus.value)
     return list
@@ -174,7 +172,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     Array.from({ length: 10 }, (_, i) => ({
       id: i + 1,
       reference: `TR-${String(i + 1).padStart(3, '0')}`,
-      status: (['NEW', 'IN', 'OUT', 'LOST'] as const)[i % 4],
+      status: (['EN_ATTENTE', 'RECUPERE', 'ATTRIBUE', 'PERDU'] as const)[i % 4],
     }))
 
   return {

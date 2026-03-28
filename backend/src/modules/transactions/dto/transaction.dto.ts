@@ -10,7 +10,7 @@ export class CreateTransactionDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  runnerId?: number;
+  teamId?: number;
 
   @IsEnum(TransponderStatus)
   type: TransponderStatus;

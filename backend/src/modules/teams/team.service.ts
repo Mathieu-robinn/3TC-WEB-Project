@@ -43,9 +43,8 @@ export class TeamService {
       where,
       orderBy,
       include: {
-        runners: {
-          include: { transponders: true },
-        },
+        runners: true,
+        transponders: true,
       },
     });
   }

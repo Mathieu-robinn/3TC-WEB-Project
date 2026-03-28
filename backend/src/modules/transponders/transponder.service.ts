@@ -4,12 +4,12 @@ import { Transponder, Prisma } from "@prisma/client";
 
 @Injectable()
 export class TransponderService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async transponder(transponderWhereUniqueInput: Prisma.TransponderWhereUniqueInput): Promise<Transponder | null> {
     return this.prisma.transponder.findUnique({
       where: transponderWhereUniqueInput,
-      include: { team: true, runner: true },
+      include: { team: true },
     });
   }
 
@@ -27,7 +27,7 @@ export class TransponderService {
       cursor,
       where,
       orderBy,
-      include: { team: true, runner: true },
+      include: { team: true },
     });
   }
 
@@ -39,29 +39,24 @@ export class TransponderService {
     const teams = await this.prisma.team.findMany({
       include: {
         transponders: true,
-        runners: { include: { transponders: true } },
       },
     });
 
     return teams.filter((team) => {
       // Transpondeurs directement liés à l'équipe
+      if (team.respRunnerId == null) return false;
       const teamActiveTransponders = team.transponders.filter(
-        (t) => t.status === ("ATTRIBUE" as any) || t.status === ("DISPONIBLE" as any),
+        (t) => t.status === "ATTRIBUE" || t.status === "RECUPERE"
       );
       if (teamActiveTransponders.length > 0) return false;
-
-      // Transpondeurs liés aux coureurs de l'équipe
-      const runnerActiveTransponders = team.runners.flatMap((r) =>
-        r.transponders.filter((t) => t.status === ("ATTRIBUE" as any) || t.status === ("DISPONIBLE" as any)),
-      );
-      return runnerActiveTransponders.length === 0;
+      return true;
     });
   }
 
   async createTransponder(data: Prisma.TransponderCreateInput): Promise<Transponder> {
     return this.prisma.transponder.create({
       data,
-      include: { team: true, runner: true },
+      include: { team: true },
     });
   }
 
@@ -71,10 +66,9 @@ export class TransponderService {
   }) {
     const { where, data } = params;
     return this.prisma.transponder.update({
-
       data,
       where,
-      include: { team: true, runner: true },
+      include: { team: true },
     });
   }
 
@@ -85,16 +79,15 @@ export class TransponderService {
    */
   async updateTransponderFields(
     id: number,
-    fields: { status?: string; teamId?: number | null; runnerId?: number | null },
+    fields: { status?: string; teamId?: number | null },
   ) {
     return this.prisma.transponder.update({
       where: { id },
       data: {
         ...(fields.status !== undefined ? { status: fields.status as any } : {}),
         ...(fields.teamId !== undefined ? { teamId: fields.teamId } : {}),
-        ...(fields.runnerId !== undefined ? { runnerId: fields.runnerId } : {}),
       },
-      include: { team: true, runner: true },
+      include: { team: true },
     });
   }
 

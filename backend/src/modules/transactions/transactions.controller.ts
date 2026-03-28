@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, Request, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Post, Request, UseGuards, Param } from "@nestjs/common";
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Prisma, Role, TransponderTransaction } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { RolesGuard } from "../auth/roles.guard.js";
@@ -12,7 +12,7 @@ import { TransponderTransactionService } from "./transponder-transaction.service
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth("JWT-auth")
 export class TransactionsController {
-  constructor(private readonly transactionService: TransponderTransactionService) {}
+  constructor(private readonly transactionService: TransponderTransactionService) { }
 
   @ApiOperation({ summary: "Créer une transaction pour un transpondeur (ex: distribution, retour)" })
   @ApiResponse({ status: 201, description: "Transaction enregistrée." })
@@ -23,8 +23,7 @@ export class TransactionsController {
   })
   @ApiBody({
     schema: {
-      type: "object",
-      example: { transponderId: 1, runnerId: 1, type: "ATTRIBUE" },
+      example: { transponderId: 1, teamId: 1, type: "ATTRIBUE" },
     },
   })
   @ApiResponse({ status: 201, description: "Transaction créée, statut de la puce mis à jour." })
@@ -37,7 +36,7 @@ export class TransactionsController {
     const prismaData: Prisma.TransponderTransactionCreateInput = {
       transponder: { connect: { id: data.transponderId } },
       user: { connect: { id: req.user.userId } },
-      ...(data.runnerId ? { runner: { connect: { id: data.runnerId } } } : {}),
+      ...(data.teamId ? { team: { connect: { id: data.teamId } } } : {}),
       type: data.type,
     };
     return this.transactionService.createTransaction(prismaData, req.user.userId);
@@ -49,6 +48,24 @@ export class TransactionsController {
   @Roles(Role.ADMIN, Role.BENEVOLE)
   async getTransactions(): Promise<TransponderTransaction[]> {
     return this.transactionService.transactions({});
+  }
+
+  @ApiOperation({ summary: "Lister toutes les transactions d'une team" })
+  @ApiParam({ name: "id", description: "ID de la team" })
+  @ApiResponse({ status: 200, description: "Historique complet des transactions d'une team." })
+  @Get("transactions/team/:id")
+  @Roles(Role.ADMIN, Role.BENEVOLE)
+  async getTeamTransactions(@Param("id") id: string): Promise<TransponderTransaction[]> {
+    return this.transactionService.getTeamTransactions(Number(id));
+  }
+
+  @ApiOperation({ summary: "Lister toutes les transactions d'un utilisateur" })
+  @ApiParam({ name: "id", description: "ID de l'utilisateur" })
+  @ApiResponse({ status: 200, description: "Historique complet des transactions d'un utilisateur." })
+  @Get("transactions/user/:id")
+  @Roles(Role.ADMIN, Role.BENEVOLE)
+  async getUserTransactions(@Param("id") id: string): Promise<TransponderTransaction[]> {
+    return this.transactionService.getUserTransactions(Number(id));
   }
 }
 

@@ -28,7 +28,7 @@ export class TeamsController {
   @Get("teams/ranking")
   @Public()
   async getTeamRanking(): Promise<Team[]> {
-    return this.teamService.teams({ where: { nbTour: { not: null } }, orderBy: { nbTour: "desc" } });
+    return this.teamService.teams({ orderBy: { nbTour: "desc" } });
   }
 
   @ApiOperation({ summary: "Créer une équipe" })

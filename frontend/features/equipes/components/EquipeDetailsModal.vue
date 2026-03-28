@@ -76,9 +76,6 @@
                   <div class="text-caption text-medium-emphasis" v-if="membre.email">{{ membre.email }}</div>
                 </div>
                 <v-chip v-if="idx === 0" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
-                <v-chip v-else-if="getTransponder(membre)" color="blue" size="x-small" variant="tonal">
-                  {{ getTransponder(membre) }}
-                </v-chip>
               </div>
             </div>
           </v-col>
@@ -113,15 +110,15 @@
               <v-icon size="16" color="primary" class="mr-1">mdi-history</v-icon>
               <span>Historique</span>
             </div>
-            <div v-if="equipe.historiqueTranspondeurs?.length">
+            <div v-if="store.historique?.length">
               <v-timeline density="compact" align="start" side="end">
                 <v-timeline-item
-                  v-for="(evt, i) in equipe.historiqueTranspondeurs" :key="i"
+                  v-for="(evt, i) in store.historique" :key="i"
                   dot-color="primary" size="x-small"
                 >
-                  <div class="text-caption font-weight-bold">{{ evt.date }}</div>
-                  <div class="text-body-2 text-medium-emphasis">{{ evt.event }}</div>
-                  <v-chip size="x-small" variant="outlined" class="mt-1">{{ evt.transpondeur }}</v-chip>
+                  <div class="text-caption font-weight-bold">{{ evt.dateTime }}</div>
+                  <div class="text-body-2 text-medium-emphasis">{{ evt.type }}</div>
+                  <v-chip size="x-small" variant="outlined" class="mt-1">{{ evt.transponderId }}</v-chip>
                 </v-timeline-item>
               </v-timeline>
             </div>
@@ -145,13 +142,29 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { transponderDisplay } from '~/utils/transponder'
+import { useEquipesStore } from '~/features/equipes/stores/equipes'
 
 const props = defineProps({
   modelValue: Boolean,
   equipe: Object,
 })
+
+const store = useEquipesStore()
+
+
+watch(() => props.equipe?.id, (newId) => {
+  if (newId) {
+    // On vide l'ancien historique avant de charger le nouveau (pour éviter les flashs)
+    store.historiqueTranspondeurs = [] 
+    
+    // On lance la requête avec le nouvel ID
+    store.fetchHistoriqueTranspondeurs(newId)
+  }
+}, { immediate: true })
+
+console.log(store.historique);
 
 defineEmits(['update:modelValue', 'edit'])
 
@@ -172,10 +185,6 @@ const membres = computed(() => props.equipe?.membres || [])
 
 const getFullName = (m) => typeof m === 'string' ? m : `${m.firstName || ''} ${m.lastName || ''}`.trim()
 const getInitials = (m) => getFullName(m).split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-const getTransponder = (m) => {
-  if (typeof m === 'string') return null
-  return transponderDisplay(m.transponders?.find(t => t.status === 'ATTRIBUE'))
-}
 </script>
 
 <style scoped>

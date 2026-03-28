@@ -29,11 +29,9 @@ export class RunnerService {
     });
   }
 
-  /** Liste publique avec transpondeurs (statut « en piste » côté UI). */
+  /** Liste publique avec transpondeurs (obsolète côté coureur). */
   async runnersWithTransponders() {
-    return this.prisma.runner.findMany({
-      include: { transponders: true },
-    });
+    return this.prisma.runner.findMany();
   }
 
   async createRunner(data: Prisma.RunnerCreateInput): Promise<Runner> {

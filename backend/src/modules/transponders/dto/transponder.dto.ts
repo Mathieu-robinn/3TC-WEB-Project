@@ -16,8 +16,4 @@ export class AssignTransponderDto {
   @IsOptional()
   @IsInt()
   teamId?: number | null;
-
-  @IsOptional()
-  @IsInt()
-  runnerId?: number | null;
 }

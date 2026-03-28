@@ -1,6 +1,6 @@
 /** Types API minimaux partagés (stores / pages). */
 
-export type TransponderStatusApi = 'NEW' | 'IN' | 'OUT' | 'LOST'
+export type TransponderStatusApi = 'EN_ATTENTE' | 'ATTRIBUE' | 'PERDU' | 'RECUPERE'
 
 export interface ApiTransponderRef {
   id?: number
@@ -16,7 +16,6 @@ export interface ApiRunner {
   team?: { id: number }
   email?: string
   teamName?: string
-  transponders?: ApiTransponderRef[]
 }
 
 export interface ApiTeam {
@@ -27,21 +26,31 @@ export interface ApiTeam {
   nbTour?: number | null
   courseId?: number
   runners?: ApiRunner[]
+  transponders?: ApiTransponderRef[]
 }
 
 export interface TransponderStats {
-  NEW: number
-  IN: number
-  OUT: number
-  LOST: number
+  EN_ATTENTE: number
+  ATTRIBUE: number
+  PERDU: number
+  RECUPERE: number
 }
+
+export interface TransponderTransaction {
+  id: number;
+  transponderId: number;
+  teamId: number;
+  userId: number;
+  dateTime: string;
+  type: TransponderStatusApi;
+}
+
+
 
 export interface ApiTransponder {
   id: number
   reference?: string
   status: TransponderStatusApi
   teamId?: number | null
-  runnerId?: number | null
   team?: { id: number; name?: string; num?: number } | null
-  runner?: { id: number; firstName?: string; lastName?: string } | null
 }
