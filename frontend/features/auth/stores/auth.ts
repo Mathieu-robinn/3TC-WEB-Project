@@ -10,6 +10,7 @@ export const useAuthStore = defineStore('auth', {
       const token = useCookie('auth_token')
       return !!token.value
     },
+    currentUserId: (state) => state.user?.id ?? 0,
   },
   actions: {
     /** Après F5 ou si le login n’a pas renvoyé prénom/nom : recharge depuis l’API via le `sub` du JWT. */
@@ -37,8 +38,8 @@ export const useAuthStore = defineStore('auth', {
           phone: u.phone != null ? String(u.phone) : null,
           role: u.role,
         }
-      } catch {
-        /* token invalide ou hors ligne */
+      } catch (e) {
+        console.warn('erreur hydrate', e) /* token invalide ou hors ligne */
       }
     },
 

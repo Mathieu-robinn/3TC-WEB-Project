@@ -22,6 +22,7 @@ import { TeamsController } from "./modules/teams/teams.controller.js";
 import { RunnersController } from "./modules/runners/runners.controller.js";
 import { TranspondersController } from "./modules/transponders/transponders.controller.js";
 import { TransactionsController } from "./modules/transactions/transactions.controller.js";
+import { MessagingController } from "./modules/messaging/messaging.controller.js";
 
 /**
  * AppModule : Module racine qui registre tous les modules, contrôleurs et services.
@@ -45,6 +46,7 @@ import { TransactionsController } from "./modules/transactions/transactions.cont
     RunnersController,
     TranspondersController,
     TransactionsController,
+    MessagingController,
   ],
   providers: [
     PrismaService,

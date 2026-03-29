@@ -6,9 +6,9 @@ const API_BASE_FALLBACK = 'http://localhost:8000'
 export const useApi = () => {
   const config = useRuntimeConfig()
   const apiBase = (config.public?.apiBase as string | undefined) || API_BASE_FALLBACK
+  const token = useCookie('auth_token')
 
   const getHeaders = (): Record<string, string> => {
-    const token = useCookie('auth_token')
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (token.value) headers['Authorization'] = `Bearer ${token.value}`
     return headers
