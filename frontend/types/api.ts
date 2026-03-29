@@ -8,6 +8,12 @@ export interface ApiTransponderRef {
   status?: string
 }
 
+/** Réf. transpondeur côté liste coureur (API ou mock démo). */
+export interface ApiRunnerTransponderRef {
+  reference?: string
+  status?: string
+}
+
 export interface ApiRunner {
   id: number
   firstName?: string
@@ -16,6 +22,15 @@ export interface ApiRunner {
   team?: { id: number }
   email?: string
   teamName?: string
+  transponders?: ApiRunnerTransponderRef[]
+}
+
+export interface ApiCourse {
+  id: number
+  name: string
+  distanceTour?: number
+  dateAndTime?: string
+  editionId?: number
 }
 
 export interface ApiTeam {
@@ -36,13 +51,17 @@ export interface TransponderStats {
   RECUPERE: number
 }
 
+/** Transaction telle que renvoyée par l’API (champs Prisma + include optionnel). */
 export interface TransponderTransaction {
-  id: number;
-  transponderId: number;
-  teamId: number;
-  userId: number;
-  dateTime: string;
-  type: TransponderStatusApi;
+  id: number
+  transponderId: number
+  teamId: number | null
+  userId: number
+  dateTime: string
+  type: TransponderStatusApi
+  /** Présent sur GET /transactions/team/:id ou /transactions/transponder/:id lorsque le backend inclut la relation. */
+  transponder?: { id: number; status?: TransponderStatusApi }
+  team?: { id: number; name?: string } | null
 }
 
 

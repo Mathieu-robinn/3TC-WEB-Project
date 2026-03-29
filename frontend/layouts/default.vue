@@ -27,18 +27,18 @@
         </v-badge>
       </v-btn>
 
-      <template v-if="authStore.user">
+      <template v-if="showUserBar">
         <v-avatar color="primary" size="30" class="mr-2 cursor-pointer">
           <span class="text-caption font-weight-bold text-white">
             {{ userInitials }}
           </span>
         </v-avatar>
         <div class="d-none d-md-flex flex-column mr-2" style="line-height: 1.1;">
-          <span class="text-body-2 font-weight-medium">{{ authStore.user.firstName }} {{ authStore.user.lastName }}</span>
+          <span class="text-body-2 font-weight-medium">{{ displayName }}</span>
           <span class="text-caption text-medium-emphasis">{{ roleLabel }}</span>
         </div>
         <v-chip :color="roleColor" variant="flat" size="x-small" class="mr-3 font-weight-bold d-none d-sm-flex">
-          {{ authStore.user.role }}
+          {{ effectiveRole }}
         </v-chip>
       </template>
 
@@ -107,36 +107,56 @@ const drawer = ref(true)
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const router = useRouter()
+const { isAdmin, payload: jwtPayload, token } = useJwtAuth()
 
 const handleLogout = () => {
   authStore.logout()
   router.push('/login')
 }
 
+const showUserBar = computed(() => !!(authStore.user || token.value))
+
+const effectiveRole = computed(() => authStore.user?.role ?? jwtPayload.value?.role ?? '')
+
+const displayName = computed(() => {
+  const u = authStore.user
+  if (u?.firstName || u?.lastName) {
+    return `${u.firstName || ''} ${u.lastName || ''}`.trim()
+  }
+  return jwtPayload.value?.email || ''
+})
+
 const userInitials = computed(() => {
   const u = authStore.user
-  if (!u) return '?'
-  return ((u.firstName?.[0] || '') + (u.lastName?.[0] || '')).toUpperCase()
+  if (u?.firstName || u?.lastName) {
+    return ((u.firstName?.[0] || '') + (u.lastName?.[0] || '')).toUpperCase()
+  }
+  const em = jwtPayload.value?.email
+  if (em) return em.slice(0, 2).toUpperCase()
+  return '?'
 })
 
 const roleLabel = computed(() => {
   const roles = { ADMIN: 'Administrateur', BENEVOLE: 'Bénévole' }
-  return roles[authStore.user?.role] || authStore.user?.role || ''
+  return roles[effectiveRole.value] || effectiveRole.value || ''
 })
 
 const roleColor = computed(() => ({
   ADMIN: 'red',
   BENEVOLE: 'blue',
-}[authStore.user?.role] || 'grey'))
+}[effectiveRole.value] || 'grey'))
 
-const navItems = [
-  { title: 'Dashboard', icon: 'mdi-home-outline', path: '/' },
-  { title: 'Transpondeurs', icon: 'mdi-timer-outline', path: '/transpondeurs' },
-  { title: 'Participants', icon: 'mdi-account-outline', path: '/participants' },
-  { title: 'Équipes', icon: 'mdi-account-group-outline', path: '/equipes' },
-  { title: 'Communication', icon: 'mdi-message-outline', path: '/communication' },
-  { title: 'Paramètres', icon: 'mdi-cog-outline', path: '/parametres' },
+const allNavItems = [
+  { title: 'Dashboard', icon: 'mdi-home-outline', path: '/', adminOnly: false },
+  { title: 'Transpondeurs', icon: 'mdi-timer-outline', path: '/transpondeurs', adminOnly: false },
+  { title: 'Participants', icon: 'mdi-account-outline', path: '/participants', adminOnly: false },
+  { title: 'Équipes', icon: 'mdi-account-group-outline', path: '/equipes', adminOnly: false },
+  { title: 'Communication', icon: 'mdi-message-outline', path: '/communication', adminOnly: false },
+  { title: 'Comptes', icon: 'mdi-account-supervisor-outline', path: '/comptes', adminOnly: true },
+  { title: 'Paramètres', icon: 'mdi-cog-outline', path: '/parametres', adminOnly: false },
 ]
+
+const navItems = computed(() => allNavItems.filter((item) => !item.adminOnly || isAdmin.value))
 </script>
 
 <style scoped>

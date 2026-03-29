@@ -1,12 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { Prisma, Role, User } from "@prisma/client";
+import { Role, User } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
-import { Public } from "../auth/public.decorator.js";
 import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
 import { CreateUserDto, UpdateUserDto } from "./dto/user.dto.js";
-import { UserService } from "./user.service.js";
+import { UserPublic, UserService } from "./user.service.js";
 
 @ApiTags("Users")
 @Controller()
@@ -23,21 +22,30 @@ export class UsersController {
     return this.userService.user({ id: Number(id) });
   }
 
-  @ApiOperation({ summary: "Créer un utilisateur (public — provisioning)" })
+  @ApiOperation({
+    summary: "Lister les comptes (admin)",
+    description: "Retourne tous les utilisateurs sans le mot de passe. Réservé aux administrateurs.",
+  })
+  @ApiResponse({ status: 200, description: "Liste des utilisateurs." })
+  @Get("users")
+  @Roles(Role.ADMIN)
+  async listUsers(): Promise<UserPublic[]> {
+    return this.userService.listStaffAccounts();
+  }
+
+  @ApiOperation({
+    summary: "Créer un compte administrateur ou bénévole",
+    description:
+      "Crée un utilisateur avec mot de passe hashé (bcrypt). Réservé aux administrateurs. L’email doit être unique.",
+  })
   @ApiBody({ schema: { example: { email: "user@example.com", password: "password123", firstName: "Jean", lastName: "Dupont", role: "BENEVOLE" } } })
-  @ApiResponse({ status: 201, description: "Utilisateur créé." })
+  @ApiResponse({ status: 201, description: "Utilisateur créé (sans champ mot de passe)." })
+  @ApiResponse({ status: 409, description: "Email déjà utilisé." })
   @Post("user")
-  @Public()
-  async signupUser(@Body() userData: CreateUserDto): Promise<User> {
-    const data: Prisma.UserCreateInput = {
-      email: userData.email,
-      password: userData.password,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      phone: userData.phone,
-      role: userData.role ?? Role.BENEVOLE,
-    };
-    return this.userService.createUser(data);
+  @HttpCode(HttpStatus.CREATED)
+  @Roles(Role.ADMIN)
+  async createStaffUser(@Body() userData: CreateUserDto): Promise<UserPublic> {
+    return this.userService.createStaffUser(userData);
   }
 
   @ApiOperation({ summary: "Mettre à jour un utilisateur" })
@@ -45,16 +53,8 @@ export class UsersController {
   @ApiResponse({ status: 200, description: "Utilisateur mis à jour." })
   @Put("user/:id")
   @Roles(Role.ADMIN)
-  async updateUser(@Param("id") id: string, @Body() userData: UpdateUserDto): Promise<User> {
-    const data: Prisma.UserUpdateInput = {
-      ...(userData.email !== undefined ? { email: userData.email } : {}),
-      ...(userData.password !== undefined ? { password: userData.password } : {}),
-      ...(userData.firstName !== undefined ? { firstName: userData.firstName } : {}),
-      ...(userData.lastName !== undefined ? { lastName: userData.lastName } : {}),
-      ...(userData.phone !== undefined ? { phone: userData.phone } : {}),
-      ...(userData.role !== undefined ? { role: userData.role } : {}),
-    };
-    return this.userService.updateUser({ where: { id: Number(id) }, data });
+  async updateUser(@Param("id") id: string, @Body() userData: UpdateUserDto): Promise<UserPublic> {
+    return this.userService.updateStaffUser(Number(id), userData);
   }
 
   @ApiOperation({ summary: "Supprimer un utilisateur" })
