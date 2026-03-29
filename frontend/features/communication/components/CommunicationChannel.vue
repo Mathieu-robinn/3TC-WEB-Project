@@ -48,7 +48,7 @@ const commStore = useCommunicationStore()
 const authStore = useAuthStore()
 
 onMounted(async () => {
-  authStore.initFromToken()
+  authStore.hydrateUserFromToken()
   commStore.initSocket()
   await commStore.fetchConversations()
 })
