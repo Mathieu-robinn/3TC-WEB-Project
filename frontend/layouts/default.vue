@@ -1,106 +1,100 @@
 <template>
   <div class="default-layout">
-    <!-- Top Navigation Bar -->
-    <v-app-bar flat class="top-navbar" height="56" :color="themeStore.isDark ? 'grey-darken-4' : 'white'" elevation="1">
-      <v-app-bar-nav-icon @click="drawer = !drawer" />
-      <span class="navbar-brand d-flex align-center flex-wrap gap-2">
-        <strong>24h INSA</strong>
-        <span class="text-body-1 text-medium-emphasis">Gestion Transpondeurs</span>
-        <v-chip
-          v-if="activeEditionStore.name"
-          size="small"
-          variant="tonal"
-          color="primary"
-          class="font-weight-medium"
-        >
-          {{ activeEditionStore.name }}
-        </v-chip>
-      </span>
-      <v-spacer />
-      <span class="text-caption text-medium-emphasis mr-4 d-none d-sm-flex">Version 1.0</span>
-
-      <!-- Dark/Light toggle -->
-      <v-btn
-        icon
-        size="small"
-        class="mr-1"
-        :title="themeStore.isDark ? 'Passer en mode clair' : 'Passer en mode sombre'"
-        @click="themeStore.toggle()"
-      >
-        <v-icon>{{ themeStore.isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
-      </v-btn>
-
-      <v-btn icon size="small" class="mr-1">
-        <v-badge color="red" content="3" overlap>
-          <v-icon>mdi-bell-outline</v-icon>
-        </v-badge>
-      </v-btn>
-
-      <template v-if="showUserBar">
-        <v-avatar color="primary" size="30" class="mr-2 cursor-pointer">
-          <span class="text-caption font-weight-bold text-white">
-            {{ userInitials }}
-          </span>
-        </v-avatar>
-        <div class="d-none d-md-flex flex-column mr-2" style="line-height: 1.1;">
-          <span class="text-body-2 font-weight-medium">{{ displayName }}</span>
-          <span class="text-caption text-medium-emphasis">{{ roleLabel }}</span>
-        </div>
-        <v-chip :color="roleColor" variant="flat" size="x-small" class="mr-3 font-weight-bold d-none d-sm-flex">
-          {{ effectiveRole }}
-        </v-chip>
-      </template>
-
-      <v-btn icon size="small" @click="handleLogout" title="Se déconnecter">
-        <v-icon>mdi-logout</v-icon>
-      </v-btn>
-    </v-app-bar>
-
-    <!-- Sidebar Navigation -->
     <v-navigation-drawer
       v-model="drawer"
       rail
       expand-on-hover
       permanent
-      class="sidebar-nav"
+      class="sidebar-drawer"
       color="#1a1f36"
     >
-      <!-- Logo area -->
-      <div class="sidebar-logo px-3 py-4 d-flex align-center">
-        <v-icon color="red" size="22">mdi-timer-outline</v-icon>
-        <span class="ml-3 text-white font-weight-bold text-body-1 sidebar-logo-text">24h INSA</span>
-      </div>
-      <v-divider color="rgba(255,255,255,0.1)" class="mb-2" />
-
-      <v-list density="compact" nav class="px-2">
-        <v-list-item
-          v-for="item in navItems"
-          :key="item.path"
-          :to="item.path"
-          :prepend-icon="item.icon"
-          :title="item.title"
-          class="sidebar-item mb-1"
-          active-class="sidebar-active"
-          rounded="lg"
-        />
-      </v-list>
-
-      <template #append>
-        <v-divider color="rgba(255,255,255,0.1)" class="mb-2" />
-        <div class="px-3 pb-3">
-          <v-list-item
-            prepend-icon="mdi-logout"
-            title="Déconnexion"
-            class="sidebar-item"
-            rounded="lg"
-            @click="handleLogout"
-          />
+      <div class="sidebar">
+        <div class="sidebar__brand">
+          <div class="sidebar__iconCol" aria-hidden="true">
+            <v-icon color="#e57373" size="22">mdi-timer-outline</v-icon>
+          </div>
+          <span class="sidebar__label sidebar__label--brand text-white font-weight-bold">24h INSA</span>
         </div>
-      </template>
+
+        <div v-if="activeEditionStore.name" class="sidebar__edition">
+          <v-chip
+            size="small"
+            variant="tonal"
+            color="primary"
+            class="sidebar__edition-chip font-weight-medium"
+          >
+            {{ activeEditionStore.name }}
+          </v-chip>
+        </div>
+
+        <v-divider class="sidebar__divider" color="rgba(255,255,255,0.1)" />
+
+        <nav class="sidebar__scroll" aria-label="Navigation principale">
+          <NuxtLink
+            v-for="item in navItems"
+            :key="item.path"
+            :to="item.path"
+            class="sidebar__row sidebar__link"
+            :class="{ 'sidebar__link--active': isNavActive(item.path) }"
+          >
+            <span class="sidebar__iconCol" aria-hidden="true">
+              <v-icon size="22" :icon="item.icon" class="sidebar__icon" />
+            </span>
+            <span class="sidebar__label">{{ item.title }}</span>
+          </NuxtLink>
+        </nav>
+
+        <v-divider class="sidebar__divider" color="rgba(255,255,255,0.1)" />
+
+        <div class="sidebar__footer">
+          <div v-if="showUserBar" class="sidebar__row sidebar__row--tight">
+            <div class="sidebar__iconCol">
+              <v-avatar color="primary" size="32">
+                <span class="text-caption font-weight-bold text-white">{{ userInitials }}</span>
+              </v-avatar>
+            </div>
+            <div class="sidebar__stack">
+              <span class="sidebar__textStrong text-truncate">{{ userDisplayName }}</span>
+              <span class="sidebar__textMuted text-truncate">Statut : {{ roleLabel }}</span>
+            </div>
+          </div>
+
+          <button type="button" class="sidebar__row sidebar__btn">
+            <span class="sidebar__iconCol">
+              <v-badge color="red" :content="3" overlap>
+                <v-icon size="22" class="sidebar__icon">mdi-bell-outline</v-icon>
+              </v-badge>
+            </span>
+            <span class="sidebar__label">Notifications</span>
+          </button>
+
+          <button type="button" class="sidebar__row sidebar__btn" @click="themeStore.toggle()">
+            <span class="sidebar__iconCol">
+              <v-icon size="22" class="sidebar__icon">
+                {{ themeStore.isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}
+              </v-icon>
+            </span>
+            <span class="sidebar__label">{{ themeStore.isDark ? 'Mode clair' : 'Mode sombre' }}</span>
+          </button>
+
+          <div class="sidebar__row sidebar__row--muted">
+            <span class="sidebar__iconCol">
+              <v-icon size="22" class="sidebar__iconDim">mdi-tag-outline</v-icon>
+            </span>
+            <span class="sidebar__label sidebar__textMuted">Version 1.0</span>
+          </div>
+
+          <button type="button" class="sidebar__row sidebar__btn" @click="handleLogout">
+            <span class="sidebar__iconCol">
+              <v-icon size="22" class="sidebar__icon">mdi-logout</v-icon>
+            </span>
+            <span class="sidebar__label">Déconnexion</span>
+          </button>
+        </div>
+      </div>
     </v-navigation-drawer>
 
-    <!-- Main Content -->
-    <v-main :class="themeStore.isDark ? 'main-content-dark' : 'main-content'">
+    <v-main class="layout-main" :class="themeStore.isDark ? 'main-content-dark' : 'main-content'">
       <slot />
     </v-main>
   </div>
@@ -108,20 +102,27 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/features/auth/stores/auth'
 import { useThemeStore } from '~/features/theme/stores/theme'
 import { useActiveEditionStore } from '~/features/editions/stores/activeEdition'
-import { useRouter } from 'vue-router'
 
 const drawer = ref(true)
+const route = useRoute()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const activeEditionStore = useActiveEditionStore()
 const router = useRouter()
 const { isAdmin, payload: jwtPayload, token } = useJwtAuth()
 
-onMounted(() => {
+function isNavActive(path) {
+  if (path === '/') return route.path === '/'
+  return route.path === path || route.path.startsWith(`${path}/`)
+}
+
+onMounted(async () => {
   activeEditionStore.load()
+  await authStore.hydrateUserFromToken()
 })
 
 const handleLogout = () => {
@@ -133,12 +134,12 @@ const showUserBar = computed(() => !!(authStore.user || token.value))
 
 const effectiveRole = computed(() => authStore.user?.role ?? jwtPayload.value?.role ?? '')
 
-const displayName = computed(() => {
+const userDisplayName = computed(() => {
   const u = authStore.user
-  if (u?.firstName || u?.lastName) {
-    return `${u.firstName || ''} ${u.lastName || ''}`.trim()
-  }
-  return jwtPayload.value?.email || ''
+  const fn = u?.firstName?.trim()
+  const ln = u?.lastName?.trim()
+  if (fn || ln) return `${fn || ''} ${ln || ''}`.trim()
+  return '…'
 })
 
 const userInitials = computed(() => {
@@ -156,11 +157,6 @@ const roleLabel = computed(() => {
   return roles[effectiveRole.value] || effectiveRole.value || ''
 })
 
-const roleColor = computed(() => ({
-  ADMIN: 'red',
-  BENEVOLE: 'blue',
-}[effectiveRole.value] || 'grey'))
-
 const allNavItems = [
   { title: 'Dashboard', icon: 'mdi-home-outline', path: '/', adminOnly: false },
   { title: 'Transpondeurs', icon: 'mdi-timer-outline', path: '/transpondeurs', adminOnly: false },
@@ -175,42 +171,193 @@ const navItems = computed(() => allNavItems.filter((item) => !item.adminOnly || 
 </script>
 
 <style scoped>
-.top-navbar {
-  border-bottom: 1px solid rgba(0,0,0,0.08) !important;
-  z-index: 1006 !important;
-}
-
-.navbar-brand {
-  font-size: 1.1rem;
-}
-
-.sidebar-nav {
+/* --- Drawer : structure flex --- */
+.sidebar-drawer {
   padding-top: 0 !important;
 }
 
-.sidebar-logo-text {
-  opacity: 0;
-  transition: opacity 0.2s;
-  white-space: nowrap;
+.sidebar-drawer :deep(.v-navigation-drawer__content) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.v-navigation-drawer--is-hovering .sidebar-logo-text,
-.v-navigation-drawer:not(.v-navigation-drawer--rail) .sidebar-logo-text {
+.sidebar {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Une seule colonne d’icônes pour toute la barre */
+.sidebar__iconCol {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.sidebar__label--brand {
+  font-size: 1rem;
+}
+
+.sidebar__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 8px;
+  margin: 2px 0;
+  border-radius: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: default;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar__row--tight {
+  align-items: center;
+  cursor: default;
+}
+
+.sidebar__link {
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.sidebar__link:hover,
+.sidebar__btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.98);
+}
+
+.sidebar__link--active {
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.sidebar__link--active .sidebar__icon {
+  color: #fff !important;
+}
+
+.sidebar__btn {
+  cursor: pointer;
+  font: inherit;
+}
+
+.sidebar__row--muted {
+  pointer-events: none;
   opacity: 1;
 }
 
-.sidebar-item {
-  color: rgba(255, 255, 255, 0.7) !important;
+.sidebar__icon {
+  color: rgba(255, 255, 255, 0.88) !important;
+  opacity: 1;
 }
 
-.sidebar-item:hover {
-  color: white !important;
-  background-color: rgba(255, 255, 255, 0.08) !important;
+.sidebar__iconDim {
+  color: rgba(255, 255, 255, 0.4) !important;
 }
 
-.sidebar-active {
-  color: white !important;
-  background-color: rgba(255, 255, 255, 0.15) !important;
+.sidebar__textStrong {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  display: block;
+}
+
+.sidebar__textMuted {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
+  display: block;
+}
+
+.sidebar__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 8px 10px;
+  flex-shrink: 0;
+}
+
+.sidebar__edition {
+  padding: 0 8px 8px;
+  flex-shrink: 0;
+}
+
+.sidebar__edition-chip {
+  max-width: 100%;
+}
+
+.sidebar__divider {
+  flex-shrink: 0;
+  margin: 0 4px !important;
+  opacity: 0.9;
+}
+
+/* Scroll : marge latérale pour que les fonds arrondis ne soient pas coupés */
+.sidebar__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 8px 6px 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidebar__footer {
+  flex-shrink: 0;
+  padding: 6px 6px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Rail replié : masquer les libellés (pas opacity — pas de place fantôme) */
+.sidebar-drawer.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) .sidebar__label,
+.sidebar-drawer.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) .sidebar__stack,
+.sidebar-drawer.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) .sidebar__edition {
+  display: none;
+}
+
+.sidebar-drawer.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) .sidebar__brand,
+.sidebar-drawer.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) .sidebar__row {
+  justify-content: center;
+  gap: 0;
+}
+
+/* Plus de v-app-bar : pas de décalage réservé en haut */
+.layout-main {
+  padding-top: 0 !important;
 }
 
 .main-content {
@@ -221,9 +368,5 @@ const navItems = computed(() => allNavItems.filter((item) => !item.adminOnly || 
 .main-content-dark {
   background-color: #121212;
   min-height: 100vh;
-}
-
-.cursor-pointer {
-  cursor: pointer;
 }
 </style>

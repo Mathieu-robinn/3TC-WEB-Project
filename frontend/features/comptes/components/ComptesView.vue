@@ -9,9 +9,7 @@
             </div>
             <h1 class="text-h5 font-weight-bold text-white">Comptes</h1>
           </div>
-          <p class="text-body-2 text-white-70 ml-13">
-            {{ users.length }} compte(s) · {{ filteredUsers.length }} affiché(s) avec les filtres
-          </p>
+          <p class="text-body-2 text-white-70 ml-13">{{ comptesHeroSubtitle }}</p>
         </div>
         <div class="d-flex flex-wrap gap-2 ml-13 ml-md-0">
           <v-btn
@@ -437,6 +435,11 @@ const filteredUsers = computed(() => {
   return list
 })
 
+const comptesHeroSubtitle = computed(
+  () =>
+    `${users.value.length} compte(s) · ${filteredUsers.value.length} affiché(s) avec les filtres`,
+)
+
 function resetCompteFilters() {
   filterSearch.value = ''
   filterRole.value = 'tous'
@@ -609,3 +612,7 @@ onMounted(() => {
   fetchUsers()
 })
 </script>
+
+<style scoped>
+/* Styles partagés : ~/assets/css/admin-pages.css (.admin-page, .hero-header, etc.) */
+</style>
