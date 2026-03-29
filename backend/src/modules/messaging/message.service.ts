@@ -53,4 +53,8 @@ export class MessageService {
       where,
     });
   }
+
+  async countMessages(where: Prisma.MessageWhereInput): Promise<number> {
+    return this.prisma.message.count({ where });
+  }
 }

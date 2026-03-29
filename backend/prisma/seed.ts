@@ -437,19 +437,20 @@ async function main() {
     },
   });
 
-  // Ajouter des participants
+  // Ajouter des participants (dates cohérentes avec les messages : tout ≤ 28/03/2026 UTC)
   for (const user of [adminUser, benevoleUser, ...benevoles]) {
     await prisma.conversationParticipant.create({
       data: {
         conversationId: convOrga.id,
         userId: user.id,
         role: user.id === adminUser.id ? ParticipantRole.ADMIN : ParticipantRole.MEMBER,
-        joinedAt: new Date("2026-05-15T09:00:00Z"),
+        joinedAt: new Date("2026-03-28T08:00:00Z"),
       },
     });
   }
 
   // Messages dans la conversation orga
+  const orgaChatDayStart = new Date("2026-03-28T13:00:00.000Z");
   const orgaMessages = [
     { user: adminUser, content: "Bonjour tout le monde ! Début de l'événement dans quelques heures.", delay: 0 },
     { user: benevoleUser, content: "Tout est prêt côté timing ! Les puces sont chargées.", delay: 10 },
@@ -471,38 +472,29 @@ async function main() {
         senderUserId: msg.user.id,
         content: msg.content,
         messageType: MessageType.TEXT,
-        createdAt: new Date(new Date("2026-05-16T13:00:00Z").getTime() + msg.delay * 60 * 1000),
+        createdAt: new Date(orgaChatDayStart.getTime() + msg.delay * 60 * 1000),
         replyToMessageId: msg === orgaMessages[4] ? lastMessageId : null,
       },
     });
     lastMessageId = createdMsg.id;
   }
 
-  // Mettre à jour `lastMessageAt` sur la conversation
+  // Dernier message : 13h + 360 min = 19h le même jour (28/03/2026 UTC)
   await prisma.conversation.update({
     where: { id: convOrga.id },
-    data: { lastMessageAt: new Date("2026-05-16T19:00:00Z") },
+    data: { lastMessageAt: new Date(orgaChatDayStart.getTime() + 360 * 60 * 1000) },
   });
 
-  // Conversation #2 : Discussion privée admin <-> bénévole
-  const convPrivee = await prisma.conversation.create({
-    data: {
-      name: null,
-      type: ConversationType.PRIVATE,
-      createdByUserId: adminUser.id,
-    },
+  const lastOrgaMessage = await prisma.message.findFirst({
+    where: { conversationId: convOrga.id },
+    orderBy: { id: "desc" },
   });
-  for (const user of [adminUser, benevoles[1]]) {
-    await prisma.conversationParticipant.create({
-      data: { conversationId: convPrivee.id, userId: user.id, role: ParticipantRole.MEMBER, joinedAt: new Date() },
+  if (lastOrgaMessage) {
+    await prisma.conversationParticipant.updateMany({
+      where: { conversationId: convOrga.id },
+      data: { lastReadMessageId: lastOrgaMessage.id },
     });
   }
-  await prisma.message.create({
-    data: { conversationId: convPrivee.id, senderUserId: adminUser.id, content: "Emma, tu peux passer au poste 3 ce soir ?", messageType: MessageType.TEXT },
-  });
-  await prisma.message.create({
-    data: { conversationId: convPrivee.id, senderUserId: benevoles[1].id, content: "Oui pas de souci, j'y serai à 22h.", messageType: MessageType.TEXT },
-  });
 
   console.log("✅ Conversations et messages créés.");
   console.log("\n🎉 Seed terminé avec succès !");
@@ -511,7 +503,7 @@ async function main() {
   console.log(`   🏃 ${createdRunners.length + 1} coureurs`);
   console.log(`   📡 ${transponders.length} transpondeurs`);
   console.log(`   🔄 Transactions registrées`);
-  console.log(`   💬 2 conversations + ${orgaMessages.length + 2} messages`);
+  console.log(`   💬 1 conversation + ${orgaMessages.length} messages`);
 }
 
 main()

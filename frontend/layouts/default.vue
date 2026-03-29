@@ -38,7 +38,12 @@
             :class="{ 'sidebar__link--active': isNavActive(item.path) }"
           >
             <span class="sidebar__iconCol" aria-hidden="true">
-              <v-icon size="22" :icon="item.icon" class="sidebar__icon" />
+              <template v-if="item.path === '/communication' && commUnreadTotal > 0">
+                <v-badge color="error" :content="commUnreadTotal > 99 ? '99+' : commUnreadTotal" overlap>
+                  <v-icon size="22" :icon="item.icon" class="sidebar__icon" />
+                </v-badge>
+              </template>
+              <v-icon v-else size="22" :icon="item.icon" class="sidebar__icon" />
             </span>
             <span class="sidebar__label">{{ item.title }}</span>
           </NuxtLink>
@@ -102,6 +107,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useCommunicationStore } from '~/features/communication/stores/communication.store'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/features/auth/stores/auth'
 import { useThemeStore } from '~/features/theme/stores/theme'
@@ -114,6 +120,8 @@ const themeStore = useThemeStore()
 const activeEditionStore = useActiveEditionStore()
 const router = useRouter()
 const { isAdmin, payload: jwtPayload, token } = useJwtAuth()
+const commStore = useCommunicationStore()
+const commUnreadTotal = computed(() => commStore.totalUnreadCount)
 
 function isNavActive(path) {
   if (path === '/') return route.path === '/'
@@ -123,9 +131,15 @@ function isNavActive(path) {
 onMounted(async () => {
   activeEditionStore.load()
   await authStore.hydrateUserFromToken()
+  const authToken = useCookie('auth_token')
+  if (authToken.value) {
+    commStore.initSocket()
+    await commStore.fetchConversations()
+  }
 })
 
 const handleLogout = () => {
+  commStore.disconnectSocket()
   authStore.logout()
   router.push('/login')
 }

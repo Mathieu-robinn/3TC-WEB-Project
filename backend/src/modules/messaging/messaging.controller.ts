@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { ConversationService } from './conversation.service.js';
@@ -8,6 +9,14 @@ import { SendMessageDto } from './dto/send-message.dto.js';
 import { EventsGateway } from '../../events/events.gateway.js';
 import { ConversationParticipantService } from './conversation-participant.service.js';
 import { UserService } from '../users/user.service.js';
+
+type ConversationWithParticipants = Prisma.ConversationGetPayload<{
+  include: {
+    participants: {
+      include: { user: { select: { id: true; firstName: true; lastName: true; email: true } } };
+    };
+  };
+}>;
 
 @ApiTags('Messaging')
 @Controller('messaging')
@@ -40,8 +49,7 @@ export class MessagingController {
   @ApiOperation({ summary: 'Get all conversations for the current user' })
   async getConversations(@Req() req) {
     const userId = req.user.userId;
-    // We get conversations where the user is a participant
-    return this.conversationService.conversations({
+    const conversations = (await this.conversationService.conversations({
       where: {
         participants: {
           some: {
@@ -61,7 +69,22 @@ export class MessagingController {
           }
         }
       }
-    });
+    })) as ConversationWithParticipants[];
+
+    const withUnread = await Promise.all(
+      conversations.map(async (conv) => {
+        const me = conv.participants.find((p) => p.userId === userId);
+        const lastRead = me?.lastReadMessageId ?? null;
+        const where: Prisma.MessageWhereInput = {
+          conversationId: conv.id,
+          senderUserId: { not: userId },
+          ...(lastRead != null ? { id: { gt: lastRead } } : {}),
+        };
+        const unreadCount = await this.messageService.countMessages(where);
+        return { ...conv, unreadCount };
+      })
+    );
+    return withUnread;
   }
 
   @Post('conversations')
@@ -84,11 +107,12 @@ export class MessagingController {
         },
         include: { participants: true }
       });
-      // If a private conversation already exists with exactly these 2 participants, return it
       const exact = (existing as any[]).find(
         (c: any) => c.participants.length === 2
       );
-      if (exact) return exact;
+      if (exact) {
+        throw new ConflictException('Vous avez déjà une conversation avec cette personne.');
+      }
     }
 
     const conversation = await this.conversationService.createConversation({
@@ -103,6 +127,31 @@ export class MessagingController {
       },
     });
     return conversation;
+  }
+
+  @Patch('conversations/:id/read')
+  @ApiOperation({ summary: 'Mark conversation as read up to the latest message' })
+  async markConversationRead(@Param('id') conversationId: string, @Req() req) {
+    const userId = req.user.userId;
+    const cid = parseInt(conversationId, 10);
+    const participants = await this.participantService.participants({ where: { conversationId: cid, userId } });
+    const me = participants[0];
+    if (!me) throw new ForbiddenException('Vous ne participez pas à cette conversation.');
+
+    const lastMsgs = await this.messageService.messages({
+      where: { conversationId: cid },
+      orderBy: { id: 'desc' },
+      take: 1,
+    });
+    const lastId = lastMsgs[0]?.id;
+    if (lastId === undefined) {
+      return { ok: true, lastReadMessageId: null as number | null };
+    }
+    await this.participantService.updateParticipant({
+      where: { id: me.id },
+      data: { lastReadMessageId: lastId },
+    });
+    return { ok: true, lastReadMessageId: lastId };
   }
 
   @Patch('conversations/:id/name')

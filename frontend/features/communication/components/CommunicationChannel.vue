@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted } from 'vue'
 import { useCommunicationStore } from '../stores/communication.store'
 import { useAuthStore } from '../../auth/stores/auth'
 
@@ -51,10 +51,6 @@ onMounted(async () => {
   authStore.initFromToken()
   commStore.initSocket()
   await commStore.fetchConversations()
-})
-
-onUnmounted(() => {
-  commStore.disconnectSocket()
 })
 
 const selectConversation = (id: number) => {

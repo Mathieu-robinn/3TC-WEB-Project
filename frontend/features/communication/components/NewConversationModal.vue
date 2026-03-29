@@ -94,10 +94,14 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000" rounded="lg" location="bottom right">
+    {{ snackbar.text }}
+  </v-snackbar>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, reactive } from 'vue'
 import type { UserSnippet } from '../types/communication'
 
 const props = defineProps<{
@@ -119,6 +123,12 @@ const groupName = ref('')
 const users = ref<UserSnippet[]>([])
 const selectedUsers = ref<number[]>([])
 const loading = ref(false)
+
+const snackbar = reactive({
+  show: false,
+  text: '',
+  color: 'error' as string,
+})
 
 const filteredUsers = computed(() => {
   if (!search.value) return users.value
@@ -173,8 +183,19 @@ const createConversation = async () => {
     })
     emit('created', newConv.id)
     internalValue.value = false
-  } catch (e) {
-    console.error('Erreur création conversation', e)
+  } catch (e: any) {
+    const status = e?.statusCode ?? e?.status ?? e?.response?.status
+    const raw = e?.data?.message
+    const apiMsg = typeof raw === 'string' ? raw : Array.isArray(raw) ? raw[0] : null
+    if (status === 409) {
+      snackbar.text = apiMsg || 'Vous avez déjà une conversation avec cette personne.'
+      snackbar.color = 'warning'
+    } else {
+      console.error('Erreur création conversation', e)
+      snackbar.text = apiMsg || 'Impossible de créer la conversation.'
+      snackbar.color = 'error'
+    }
+    snackbar.show = true
   } finally {
     loading.value = false
   }

@@ -15,6 +15,7 @@ export interface ConversationParticipant {
   conversationId: number;
   role: ParticipantRole;
   joinedAt: string;
+  lastReadMessageId?: number | null;
   user?: UserSnippet;
 }
 
@@ -25,6 +26,8 @@ export interface Conversation {
   createdByUserId: number;
   lastMessageAt?: string | null;
   participants?: ConversationParticipant[];
+  /** Nombre de messages des autres non lus (renvoyé par l’API) */
+  unreadCount?: number;
 }
 
 export interface Message {

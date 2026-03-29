@@ -24,14 +24,16 @@ export const useCommunicationStore = defineStore('communication', {
       state.conversations.find((c) => c.id === state.activeConversationId),
     activeMessages: (state) =>
       state.activeConversationId ? state.messages[state.activeConversationId] || [] : [],
+    totalUnreadCount: (state) =>
+      state.conversations.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0),
   },
   actions: {
     initSocket() {
       if (this.socket) return;
-      
+
       const config = useRuntimeConfig();
       const token = useCookie('auth_token').value;
-      
+
       if (!token) return;
 
       this.socket = io(config.public.apiBase, {
@@ -46,31 +48,73 @@ export const useCommunicationStore = defineStore('communication', {
         this.isConnected = false;
       });
     },
-    
+
     disconnectSocket() {
       if (this.socket) {
+        this.socket.removeAllListeners();
         this.socket.disconnect();
         this.socket = null;
         this.isConnected = false;
       }
     },
 
+    attachConversationListeners() {
+      if (!this.socket) return;
+
+      this.conversations.forEach((conv) => {
+        const eventName = `conversation:${conv.id}:newMessage`;
+        this.socket!.off(eventName);
+        this.socket!.on(eventName, (newMessage: Message) => {
+          const cid = conv.id;
+          const uid = useAuthStore().user?.id ?? 0;
+          if (this.activeConversationId === cid) {
+            if (!this.messages[cid]) {
+              this.messages[cid] = [];
+            }
+            const exists = this.messages[cid].find((m) => m.id === newMessage.id);
+            if (!exists) {
+              this.messages[cid].push(newMessage);
+            }
+            void this.markConversationRead(cid);
+          } else if (newMessage.senderUserId !== uid) {
+            const c = this.conversations.find((x) => x.id === cid);
+            if (c) {
+              c.unreadCount = (c.unreadCount ?? 0) + 1;
+            }
+          }
+        });
+      });
+    },
+
     async fetchConversations() {
       const nuxtApp = useNuxtApp();
       const api = await nuxtApp.runWithContext(() => useApi());
       try {
-        const data = await api.get('/messaging/conversations');
+        const data = await api.get<Conversation[]>('/messaging/conversations');
         this.conversations = data;
+        this.attachConversationListeners();
       } catch (e) {
         console.error('Failed to fetch conversations', e);
       }
     },
 
+    async markConversationRead(conversationId: number) {
+      const nuxtApp = useNuxtApp();
+      const api = await nuxtApp.runWithContext(() => useApi());
+      try {
+        await api.patch(`/messaging/conversations/${conversationId}/read`, {});
+        const conv = this.conversations.find((c) => c.id === conversationId);
+        if (conv) conv.unreadCount = 0;
+      } catch (e) {
+        console.error('Failed to mark conversation read', e);
+      }
+    },
+
     async selectConversation(id: number) {
       this.activeConversationId = id;
-      // Always reload messages when switching conversations to pick up new ones
       await this.fetchMessages(id);
-      this.listenToConversation(id);
+      await this.markConversationRead(id);
+      this.attachConversationListeners();
     },
 
     async fetchMessages(conversationId: number) {
@@ -92,14 +136,11 @@ export const useCommunicationStore = defineStore('communication', {
           content,
           messageType,
         });
-        // Immediately push the sent message to the local store (don't wait for WS)
         if (!this.messages[conversationId]) {
           this.messages[conversationId] = [];
         }
-        // Avoid duplicates in case WS also delivers it
-        const exists = this.messages[conversationId].find(m => m.id === message.id);
+        const exists = this.messages[conversationId].find((m) => m.id === message.id);
         if (!exists) {
-          // Get current user info for the sender field
           const authStore = useAuthStore();
           const m: Message = {
             ...message,
@@ -108,31 +149,14 @@ export const useCommunicationStore = defineStore('communication', {
               firstName: authStore.user?.firstName ?? '',
               lastName: authStore.user?.lastName ?? '',
               email: authStore.user?.email ?? '',
-            }
+            },
           };
           this.messages[conversationId].push(m);
         }
+        await this.markConversationRead(conversationId);
       } catch (e) {
         console.error('Failed to send message', e);
       }
     },
-
-    listenToConversation(conversationId: number) {
-      if (!this.socket) return;
-      const eventName = `conversation:${conversationId}:newMessage`;
-      
-      // Ensure we don't listen multiple times
-      this.socket.off(eventName);
-      this.socket.on(eventName, (newMessage: Message) => {
-        if (!this.messages[conversationId]) {
-          this.messages[conversationId] = [];
-        }
-        // Prevent duplicate if we already optimistically added it
-        const exists = this.messages[conversationId].find(m => m.id === newMessage.id);
-        if (!exists) {
-          this.messages[conversationId].push(newMessage);
-        }
-      });
-    }
-  }
+  },
 });
