@@ -24,8 +24,8 @@
       </div>
 
       <!-- KPI Row -->
-      <v-row class="mt-4" dense>
-        <v-col cols="6" sm="3" v-for="kpi in kpis" :key="kpi.label">
+      <v-row class="mt-4" density="comfortable">
+        <v-col cols="6" sm="4" md="2" v-for="kpi in kpis" :key="kpi.label">
           <div class="kpi-chip">
             <div class="kpi-icon" :class="`bg-${kpi.color}-alpha`">
               <v-icon size="16" :color="kpi.color">{{ kpi.icon }}</v-icon>
@@ -44,8 +44,8 @@
       <!-- Controls Bar -->
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
-          <v-row dense align="center">
-            <v-col cols="12" md="4">
+          <v-row density="comfortable" align="center">
+            <v-col cols="12" md="2">
               <v-text-field
                 v-model="store.search"
                 prepend-inner-icon="mdi-magnify"
@@ -56,6 +56,21 @@
                 rounded="lg"
                 flat
                 clearable
+              />
+            </v-col>
+            <v-col cols="6" sm="4" md="2">
+              <v-select
+                v-model="store.filterCourseId"
+                :items="courseFilterItems"
+                item-title="title"
+                item-value="value"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+                label="Discipline"
               />
             </v-col>
             <v-col cols="6" sm="4" md="2">
@@ -129,8 +144,15 @@
           <template v-for="(p, idx) in store.filteredParticipants" :key="p.id">
             <v-list-item class="participant-item px-5 py-3">
               <template #prepend>
-                <v-avatar :color="p.activeTransponder ? 'blue' : 'grey-lighten-2'" size="44" class="mr-2">
-                  <span class="text-body-2 font-weight-bold" :class="p.activeTransponder ? 'text-white' : 'text-grey-darken-2'">
+                <v-avatar
+                  :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : 'grey-lighten-2'"
+                  size="44"
+                  class="mr-2"
+                >
+                  <span
+                    class="text-body-2 font-weight-bold"
+                    :class="p.status === 'au_repos' ? 'text-grey-darken-2' : 'text-white'"
+                  >
                     {{ initials(p) }}
                   </span>
                 </v-avatar>
@@ -143,12 +165,15 @@
 
               <template #append>
                 <div class="d-flex align-center gap-2 flex-wrap justify-end">
+                  <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
+                  <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
                   <v-chip v-if="p.activeTransponder" color="blue" size="x-small" variant="tonal" prepend-icon="mdi-timer">
                     {{ p.activeTransponder }}
                   </v-chip>
+                  <v-chip v-else-if="p.status === 'course_terminee'" color="teal" size="x-small" variant="tonal">Course terminée</v-chip>
                   <v-chip v-else color="grey" size="x-small" variant="tonal">Au repos</v-chip>
-                  <v-chip :color="p.activeTransponder ? 'green' : 'grey'" size="x-small" variant="flat" class="font-weight-bold d-none d-sm-flex">
-                    {{ p.activeTransponder ? 'En piste' : 'Repos' }}
+                  <v-chip :color="participantStatusColor(p)" size="x-small" variant="flat" class="font-weight-bold d-none d-sm-flex">
+                    {{ participantStatusLabel(p) }}
                   </v-chip>
                   <div class="d-flex gap-1">
                     <v-btn icon="mdi-eye-outline" size="x-small" variant="text" color="primary" @click="openDetails(p)" />
@@ -172,18 +197,35 @@
       <v-row v-if="!store.loading && viewMode === 'grid'">
         <v-col v-for="p in store.filteredParticipants" :key="p.id" cols="12" sm="6" md="4" lg="3">
           <v-card class="participant-card" rounded="xl" elevation="0">
-            <div class="participant-card-accent" :class="p.activeTransponder ? 'accent-blue' : 'accent-grey'"></div>
+            <div
+              class="participant-card-accent"
+              :class="
+                p.status === 'en_piste' ? 'accent-blue' : p.status === 'course_terminee' ? 'accent-teal' : 'accent-grey'
+              "
+            ></div>
             <v-card-text class="pa-4 text-center">
-              <v-avatar :color="p.activeTransponder ? 'blue' : 'grey-lighten-2'" size="60" class="mb-3">
-                <span class="text-h6 font-weight-bold" :class="p.activeTransponder ? 'text-white' : 'text-grey-darken-2'">
+              <v-avatar
+                :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : 'grey-lighten-2'"
+                size="60"
+                class="mb-3"
+              >
+                <span
+                  class="text-h6 font-weight-bold"
+                  :class="p.status === 'au_repos' ? 'text-grey-darken-2' : 'text-white'"
+                >
                   {{ initials(p) }}
                 </span>
               </v-avatar>
               <div class="text-subtitle-1 font-weight-bold">{{ p.fullName }}</div>
-              <div class="text-caption text-medium-emphasis mb-3">{{ p.teamName }}</div>
+              <div class="text-caption text-medium-emphasis mb-2">{{ p.teamName }}</div>
+              <div class="d-flex flex-wrap justify-center gap-1 mb-2">
+                <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
+                <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
+              </div>
               <v-chip v-if="p.activeTransponder" color="blue" size="small" variant="flat" prepend-icon="mdi-timer" class="mb-3">
                 {{ p.activeTransponder }}
               </v-chip>
+              <v-chip v-else-if="p.status === 'course_terminee'" color="teal" size="small" variant="tonal" class="mb-3">Course terminée</v-chip>
               <v-chip v-else color="grey" size="small" variant="tonal" class="mb-3">Au repos</v-chip>
               
               <v-divider class="mb-3" />
@@ -219,7 +261,7 @@
           <v-alert v-if="formError" type="error" variant="tonal" density="compact" rounded="lg" class="mb-4">
             {{ formError }}
           </v-alert>
-          <v-row dense>
+          <v-row density="comfortable">
             <v-col cols="6">
               <v-text-field v-model="form.firstName" label="Prénom *" variant="outlined" density="comfortable" :rules="[v => !!v || 'Requis']" />
             </v-col>
@@ -232,10 +274,10 @@
                 :items="store.availableTeams"
                 item-title="title"
                 item-value="value"
-                label="Équipe"
+                label="Équipe *"
                 variant="outlined"
                 density="comfortable"
-                clearable
+                :rules="[v => v != null || 'Requis']"
               />
             </v-col>
           </v-row>
@@ -248,7 +290,7 @@
             variant="flat"
             rounded="lg"
             :loading="store.saving"
-            :disabled="!form.firstName || !form.lastName"
+            :disabled="!form.firstName || !form.lastName || form.teamId == null"
             @click="submitForm()"
           >
             {{ editingRunner ? 'Enregistrer' : 'Ajouter' }}
@@ -313,6 +355,7 @@ const kpis = computed(() => [
   { label: 'Total', value: store.stats.total, icon: 'mdi-account', color: 'blue' },
   { label: 'En piste', value: store.stats.enPiste, icon: 'mdi-run', color: 'green' },
   { label: 'Au repos', value: store.stats.auRepos, icon: 'mdi-sleep', color: 'orange' },
+  { label: 'Course terminée', value: store.stats.courseTerminee, icon: 'mdi-flag-checkered', color: 'teal' },
   { label: 'Équipes', value: store.stats.equipes, icon: 'mdi-account-group', color: 'purple' },
 ])
 
@@ -320,7 +363,25 @@ const statusOptions = [
   { title: 'Tous les statuts', value: 'tous' },
   { title: 'En piste', value: 'en_piste' },
   { title: 'Au repos', value: 'au_repos' },
+  { title: 'Course terminée', value: 'course_terminee' },
 ]
+
+function participantStatusLabel(p) {
+  if (p.status === 'course_terminee') return 'Terminé'
+  if (p.status === 'en_piste') return 'En piste'
+  return 'Au repos'
+}
+
+function participantStatusColor(p) {
+  if (p.status === 'course_terminee') return 'teal'
+  if (p.status === 'en_piste') return 'green'
+  return 'grey'
+}
+
+const courseFilterItems = computed(() => [
+  { title: 'Toutes les disciplines', value: null },
+  ...store.courses.map((c) => ({ title: c.name, value: c.id })),
+])
 
 const initials = (p) => {
   const fn = (p.firstName || p.prenom || '')
@@ -332,7 +393,7 @@ const openCreate = () => {
   editingRunner.value = null
   form.firstName = ''
   form.lastName = ''
-  form.teamId = null
+  form.teamId = store.availableTeams[0]?.value ?? null
   formError.value = ''
   showForm.value = true
 }
@@ -462,6 +523,7 @@ const executeDelete = async () => {
   position: absolute; top: 0; left: 0; right: 0; height: 3px;
 }
 .accent-blue { background: #1976d2; }
+.accent-teal { background: #00897b; }
 .accent-grey { background: #bdbdbd; }
 
 .form-header {

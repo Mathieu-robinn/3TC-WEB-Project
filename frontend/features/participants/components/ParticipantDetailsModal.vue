@@ -6,8 +6,11 @@
       <div class="modal-header pa-5">
         <div class="d-flex align-center justify-space-between">
           <div class="d-flex align-center gap-3">
-            <v-avatar :color="participant.activeTransponder ? 'blue' : 'grey-lighten-2'" size="52">
-              <span class="text-h6 font-weight-bold" :class="participant.activeTransponder ? 'text-white' : 'text-grey-darken-2'">
+            <v-avatar
+              :color="avatarColor"
+              size="52"
+            >
+              <span class="text-h6 font-weight-bold" :class="participant.status === 'au_repos' ? 'text-grey-darken-2' : 'text-white'">
                 {{ initials }}
               </span>
             </v-avatar>
@@ -21,8 +24,12 @@
           <v-btn icon="mdi-close" variant="text" color="white" @click="$emit('update:modelValue', false)" />
         </div>
 
-        <!-- Mini stats -->
-        <v-row class="mt-4" dense>
+        <!-- Rôles + mini stats -->
+        <div class="d-flex flex-wrap gap-1 mt-3">
+          <v-chip v-if="participant.isCaptain" color="primary" size="small" variant="flat">Capitaine</v-chip>
+          <v-chip v-if="participant.isTransponderHolder" color="blue-lighten-1" size="small" variant="flat">Resp transpondeur</v-chip>
+        </div>
+        <v-row class="mt-4" density="comfortable">
           <v-col cols="6">
             <div class="mini-kpi">
               <v-chip v-if="participant.activeTransponder" color="blue-lighten-3" size="small" variant="flat" prepend-icon="mdi-timer" class="font-weight-bold">
@@ -34,8 +41,8 @@
           </v-col>
           <v-col cols="6">
             <div class="mini-kpi">
-              <v-chip :color="participant.activeTransponder ? 'green-lighten-2' : 'orange-lighten-2'" size="small" variant="flat" class="font-weight-bold">
-                {{ participant.activeTransponder ? 'En piste' : 'Au repos' }}
+              <v-chip :color="statusChipColor" size="small" variant="flat" class="font-weight-bold">
+                {{ statusLabel }}
               </v-chip>
               <div class="text-caption text-white-60 mt-1">Statut actuel</div>
             </div>
@@ -52,7 +59,7 @@
           Informations
         </div>
         <v-card class="info-card pa-4 mb-5 rounded-lg" elevation="0">
-          <v-row dense>
+          <v-row density="comfortable">
             <v-col cols="6">
               <div class="text-caption text-medium-emphasis">Prénom</div>
               <div class="text-body-2 font-weight-medium">{{ participant.firstName || participant.prenom || '—' }}</div>
@@ -119,6 +126,27 @@ const initials = computed(() => {
   const fn = props.participant?.firstName || props.participant?.prenom || ''
   const ln = props.participant?.lastName || props.participant?.nom || ''
   return ((fn[0] || '') + (ln[0] || '')).toUpperCase()
+})
+
+const avatarColor = computed(() => {
+  const s = props.participant?.status
+  if (s === 'en_piste') return 'blue'
+  if (s === 'course_terminee') return 'teal'
+  return 'grey-lighten-2'
+})
+
+const statusLabel = computed(() => {
+  const s = props.participant?.status
+  if (s === 'course_terminee') return 'Course terminée'
+  if (s === 'en_piste') return 'En piste'
+  return 'Au repos'
+})
+
+const statusChipColor = computed(() => {
+  const s = props.participant?.status
+  if (s === 'course_terminee') return 'teal-lighten-2'
+  if (s === 'en_piste') return 'green-lighten-2'
+  return 'orange-lighten-2'
 })
 
 const history = computed(() => {

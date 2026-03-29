@@ -81,7 +81,8 @@ model Edition {
   startDate DateTime
   endDate   DateTime
 
-  courses Course[]
+  courses      Course[]
+  transponders Transponder[]
 }
 
 model Course {
@@ -96,40 +97,47 @@ model Course {
 }
 
 model Team {
-  id           Int    @id @default(autoincrement())
-  num          Int
-  name         String @unique
-  nbTour       Int    @default(0)
-  courseId     Int
-  respRunnerId Int?   @unique
+  id             Int     @id @default(autoincrement())
+  num            Int
+  name           String  @unique
+  nbTour         Int     @default(0)
+  courseId       Int
+  respRunnerId   Int?    @unique
+  /** Coureur à qui le transpondeur actif a été attribué (affichage « Resp transpondeur »). */
+  transponderHolderRunnerId Int? @unique
+  /** Course terminée (transpondeur récupéré) — plus d'attribution possible. */
+  courseFinished Boolean @default(false)
 
   course       Course        @relation(fields: [courseId], references: [id])
   runners      Runner[]      @relation("TeamRunners")
   respRunner   Runner?       @relation("TeamResponsible", fields: [respRunnerId], references: [id])
+  transponderHolderRunner   Runner?       @relation("TeamTransponderHolder", fields: [transponderHolderRunnerId], references: [id], onDelete: SetNull)
   transponders            Transponder[]
   transponderTransactions TransponderTransaction[]
 }
 
 model Runner {
   id        Int     @id @default(autoincrement())
-  teamId    Int?
+  teamId    Int
   lastName  String
   firstName String
   email     String? @unique
   phone     String?
 
-  team Team? @relation("TeamRunners", fields: [teamId], references: [id])
-  
-  responsibleForTeam Team? @relation("TeamResponsible")
+  team Team @relation("TeamRunners", fields: [teamId], references: [id], onDelete: Cascade)
 
+  responsibleForTeam Team? @relation("TeamResponsible")
+  transponderHolderForTeam Team? @relation("TeamTransponderHolder")
 }
 
 model Transponder {
-  id       Int               @id @default(autoincrement())
-  status   TransponderStatus @default(EN_ATTENTE)
-  teamId   Int?
+  id        Int               @id @default(autoincrement())
+  status    TransponderStatus @default(EN_ATTENTE)
+  teamId    Int?
+  editionId Int
 
-  team   Team?   @relation(fields: [teamId], references: [id])
+  team    Team?    @relation(fields: [teamId], references: [id])
+  edition Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
 
   transactions TransponderTransaction[]
 }

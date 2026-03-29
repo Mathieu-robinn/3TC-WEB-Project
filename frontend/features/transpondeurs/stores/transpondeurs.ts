@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ApiTeam, ApiTransponder, TransponderStats, TransponderStatusApi } from '~/types/api'
+import type { ApiTeam, ApiTransponder, TransponderStats, TransponderStatusApi, TransponderTransaction } from '~/types/api'
 
 const emptyStats = (): TransponderStats => ({ EN_ATTENTE: 0, ATTRIBUE: 0, PERDU: 0, RECUPERE: 0 })
 
@@ -16,6 +16,12 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
   const transactions = ref<unknown[]>([])
   const unassignedTeams = ref<ApiTeam[]>([])
   const loadingTeams = ref(false)
+
+  /** Historique affiché dans la modale « une puce » (page transpondeurs). */
+  const transponderHistory = ref<TransponderTransaction[]>([])
+  const transponderHistoryLoading = ref(false)
+  const transponderHistoryError = ref<string | null>(null)
+
 
   const fetchAll = async () => {
     loading.value = true
@@ -87,11 +93,17 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     }
   }
 
-  const assignTransponder = async (transponderId: number, teamId: number | null) => {
+  const assignTransponder = async (
+    transponderId: number,
+    teamId: number | null,
+    holderRunnerId?: number,
+  ) => {
     saving.value = true
     const api = useApi()
     try {
-      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/assign`, { teamId })
+      const body: Record<string, unknown> = { teamId }
+      if (teamId != null && holderRunnerId != null) body.holderRunnerId = holderRunnerId
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/assign`, body)
       const idx = transponders.value.findIndex((t) => t.id === transponderId)
       if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
       await Promise.all([fetchAll(), fetchUnassignedTeams()])
@@ -134,11 +146,31 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
       const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}`, { status: 'PERDU' })
       const idx = transponders.value.findIndex((t) => t.id === transponderId)
       if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
-      await fetchAll()
+      await Promise.all([fetchAll(), fetchUnassignedTeams()])
       return updated
     } finally {
       saving.value = false
     }
+  }
+
+  const fetchTransponderHistory = async (transponderId: number) => {
+    transponderHistoryLoading.value = true
+    transponderHistoryError.value = null
+    const api = useApi()
+    try {
+      const data = await api.get<TransponderTransaction[]>(`/transactions/transponder/${transponderId}`)
+      transponderHistory.value = Array.isArray(data) ? data : []
+    } catch {
+      transponderHistory.value = []
+      transponderHistoryError.value = "Impossible de charger l'historique de cette puce."
+    } finally {
+      transponderHistoryLoading.value = false
+    }
+  }
+
+  const clearTransponderHistory = () => {
+    transponderHistory.value = []
+    transponderHistoryError.value = null
   }
 
   const statuses: TransponderStatusApi[] = ['EN_ATTENTE', 'ATTRIBUE', 'PERDU', 'RECUPERE']
@@ -171,6 +203,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
   const getMockTransponders = (): ApiTransponder[] =>
     Array.from({ length: 10 }, (_, i) => ({
       id: i + 1,
+      editionId: 1,
       reference: `TR-${String(i + 1).padStart(3, '0')}`,
       status: (['EN_ATTENTE', 'RECUPERE', 'ATTRIBUE', 'PERDU'] as const)[i % 4],
     }))
@@ -186,6 +219,9 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     transactions,
     unassignedTeams,
     loadingTeams,
+    transponderHistory,
+    transponderHistoryLoading,
+    transponderHistoryError,
     filteredTransponders,
     totalStats,
     statuses,
@@ -200,5 +236,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     assignTransponder,
     unassignTransponder,
     markAsLost,
+    fetchTransponderHistory,
+    clearTransponderHistory,
   }
 })

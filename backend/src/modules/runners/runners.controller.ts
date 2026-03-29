@@ -7,20 +7,25 @@ import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
 import { CreateRunnerDto, UpdateRunnerDto } from "./dto/runner.dto.js";
 import { RunnerService } from "./runner.service.js";
+import { EditionService } from "../editions/edition.service.js";
 
 @ApiTags("Runners")
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth("JWT-auth")
 export class RunnersController {
-  constructor(private readonly runnerService: RunnerService) {}
+  constructor(
+    private readonly runnerService: RunnerService,
+    private readonly editionService: EditionService,
+  ) {}
 
   @ApiOperation({ summary: "Lister tous les coureurs (public)" })
   @ApiResponse({ status: 200, description: "Liste des coureurs." })
   @Get("runners")
   @Public()
   async getAllRunners() {
-    return this.runnerService.runnersWithTransponders();
+    const editionId = await this.editionService.getActiveEditionId();
+    return this.runnerService.runnersForActiveEdition(editionId);
   }
 
   @ApiOperation({ summary: "Créer un nouveau coureur" })
@@ -33,7 +38,7 @@ export class RunnersController {
       lastName: data.lastName,
       ...(data.email ? { email: data.email } : {}),
       ...(data.phone ? { phone: data.phone } : {}),
-      ...(data.teamId ? { team: { connect: { id: data.teamId } } } : {}),
+      team: { connect: { id: data.teamId } },
     };
     return this.runnerService.createRunner(prismaData);
   }
@@ -54,9 +59,7 @@ export class RunnersController {
       ...(data.email !== undefined ? { email: data.email } : {}),
       ...(data.phone !== undefined ? { phone: data.phone } : {}),
     };
-    if (data.teamId === null) {
-      prismaData.team = { disconnect: true };
-    } else if (data.teamId !== undefined) {
+    if (data.teamId !== undefined) {
       prismaData.team = { connect: { id: data.teamId } };
     }
     return this.runnerService.updateRunner({

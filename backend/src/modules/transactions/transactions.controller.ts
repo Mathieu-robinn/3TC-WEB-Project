@@ -6,13 +6,17 @@ import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
 import { CreateTransactionDto } from "./dto/transaction.dto.js";
 import { TransponderTransactionService } from "./transponder-transaction.service.js";
+import { EditionService } from "../editions/edition.service.js";
 
 @ApiTags("Transactions")
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth("JWT-auth")
 export class TransactionsController {
-  constructor(private readonly transactionService: TransponderTransactionService) { }
+  constructor(
+    private readonly transactionService: TransponderTransactionService,
+    private readonly editionService: EditionService,
+  ) { }
 
   @ApiOperation({ summary: "Créer une transaction pour un transpondeur (ex: distribution, retour)" })
   @ApiResponse({ status: 201, description: "Transaction enregistrée." })
@@ -47,7 +51,8 @@ export class TransactionsController {
   @Get("transactions")
   @Roles(Role.ADMIN, Role.BENEVOLE)
   async getTransactions(): Promise<TransponderTransaction[]> {
-    return this.transactionService.transactions({});
+    const editionId = await this.editionService.getActiveEditionId();
+    return this.transactionService.transactionsForActiveEdition(editionId);
   }
 
   @ApiOperation({ summary: "Lister toutes les transactions d'une team" })
@@ -55,13 +60,25 @@ export class TransactionsController {
   @ApiResponse({ status: 200, description: "Historique complet des transactions d'une team." })
   @Get("transactions/team/:id")
   @Roles(Role.ADMIN, Role.BENEVOLE)
-  async getTeamTransactions(@Param("id") id: string): Promise<TransponderTransaction[]> {
-    return this.transactionService.getTeamTransactions(Number(id));
+  async getTeamTransactions(@Param("id") id: string) {
+    const editionId = await this.editionService.getActiveEditionId();
+    return this.transactionService.getTeamTransactionsForActiveEdition(Number(id), editionId);
   }
 
   @ApiOperation({ summary: "Lister toutes les transactions d'un utilisateur" })
   @ApiParam({ name: "id", description: "ID de l'utilisateur" })
   @ApiResponse({ status: 200, description: "Historique complet des transactions d'un utilisateur." })
+
+  @ApiOperation({ summary: "Lister les transactions liées à un transpondeur" })
+  @ApiParam({ name: "id", description: "ID du transpondeur" })
+  @ApiResponse({ status: 200, description: "Historique de la puce (récent en premier)." })
+  @Get("transactions/transponder/:id")
+  @Roles(Role.ADMIN, Role.BENEVOLE)
+  async getTransponderTransactions(@Param("id") id: string) {
+    const editionId = await this.editionService.getActiveEditionId();
+    return this.transactionService.getTransponderTransactionsForActiveEdition(Number(id), editionId);
+  }
+
   @Get("transactions/user/:id")
   @Roles(Role.ADMIN, Role.BENEVOLE)
   async getUserTransactions(@Param("id") id: string): Promise<TransponderTransaction[]> {

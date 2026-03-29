@@ -1,5 +1,6 @@
 import { TransponderStatus } from "@prisma/client";
-import { IsEnum, IsInt, IsOptional } from "class-validator";
+import { Type } from "class-transformer";
+import { IsEnum, IsInt, IsOptional, ValidateIf } from "class-validator";
 
 export class CreateTransponderDto {
   @IsOptional()
@@ -14,6 +15,13 @@ export class UpdateTransponderDto {
 
 export class AssignTransponderDto {
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   teamId?: number | null;
+
+  /** Obligatoire lorsque `teamId` est défini : coureur de l'équipe qui reçoit la puce. */
+  @ValidateIf((o: AssignTransponderDto) => o.teamId != null)
+  @Type(() => Number)
+  @IsInt()
+  holderRunnerId?: number;
 }

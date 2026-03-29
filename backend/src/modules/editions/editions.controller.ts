@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Edition, Prisma, Role } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { Public } from "../auth/public.decorator.js";
@@ -36,6 +36,15 @@ export class EditionsController {
       endDate: data.endDate,
     };
     return this.editionService.createEdition(prismaData);
+  }
+
+  @ApiOperation({ summary: "Définir l’édition active (les autres passent à inactive)" })
+  @ApiParam({ name: "id", description: "ID de l’édition à activer" })
+  @ApiResponse({ status: 200, description: "Édition activée." })
+  @Patch("edition/:id/activate")
+  @Roles(Role.ADMIN)
+  async activateEdition(@Param("id") id: string): Promise<Edition> {
+    return this.editionService.setActiveEdition(Number(id));
   }
 }
 

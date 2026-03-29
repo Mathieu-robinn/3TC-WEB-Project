@@ -94,7 +94,7 @@
               </v-chip>
             </td>
             <td class="font-weight-medium">
-              <div v-if="t.team" class="d-flex align-center gap-2 text-medium-emphasis">
+              <div v-if="t.status === 'ATTRIBUE' && t.team" class="d-flex align-center gap-2 text-medium-emphasis">
                 <v-icon size="16">mdi-account-group</v-icon>
                 <span>{{ t.team.name || `Équipe #${t.team.id}` }}</span>
               </div>
@@ -140,7 +140,14 @@
                 >
                   <v-icon size="18">mdi-alert-circle</v-icon>
                 </v-btn>
-                <v-btn icon variant="text" size="small" disabled title="Historique (bientôt)">
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  title="Historique des opérations sur cette puce"
+                  @click="openHistoryDialog(t)"
+                >
                   <v-icon size="18">mdi-history</v-icon>
                 </v-btn>
               </div>
@@ -216,6 +223,20 @@
               </v-list-item-subtitle>
             </v-list-item>
           </v-list>
+
+          <v-select
+            v-if="selectedTeamId && holderSelectItems.length > 0"
+            v-model="selectedHolderRunnerId"
+            class="mt-4"
+            :items="holderSelectItems"
+            item-title="title"
+            item-value="value"
+            label="Remis à (coureur)"
+            variant="outlined"
+            density="comfortable"
+            rounded="lg"
+            hide-details="auto"
+          />
         </v-card-text>
 
         <v-divider />
@@ -227,13 +248,74 @@
             color="primary"
             variant="flat"
             rounded="lg"
-            :disabled="!selectedTeamId"
+            :disabled="!selectedTeamId || !selectedHolderRunnerId"
             :loading="store.saving"
             prepend-icon="mdi-check"
             @click="onConfirmAssign"
           >
             Confirmer l'assignation
           </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+
+    <!-- Historique d'un transpondeur -->
+    <v-dialog v-model="historyDialog" max-width="560" scrollable>
+      <v-card rounded="xl" v-if="historyTransponder">
+        <v-card-title class="d-flex align-center justify-space-between pt-5 px-5">
+          <div class="d-flex align-center gap-2">
+            <v-icon color="primary">mdi-history</v-icon>
+            <span class="text-h6 font-weight-bold">Historique</span>
+          </div>
+          <v-btn icon variant="text" @click="historyDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-subtitle class="px-5 pb-2">
+          Puce <strong>{{ labelFor(historyTransponder) }}</strong>
+        </v-card-subtitle>
+        <v-divider />
+        <v-card-text class="px-5 py-4">
+          <div v-if="store.transponderHistoryLoading" class="d-flex justify-center py-8">
+            <v-progress-circular indeterminate color="primary" size="40" />
+          </div>
+          <v-alert
+            v-else-if="store.transponderHistoryError"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            rounded="lg"
+          >
+            {{ store.transponderHistoryError }}
+          </v-alert>
+          <div v-else-if="store.transponderHistory.length">
+            <v-timeline density="compact" align="start" side="end">
+              <v-timeline-item
+                v-for="evt in store.transponderHistory"
+                :key="evt.id"
+                :dot-color="transactionTypeMeta(evt.type).color"
+                size="x-small"
+              >
+                <div class="text-caption font-weight-bold">{{ formatTransactionDate(evt.dateTime) }}</div>
+                <div class="text-body-2 text-medium-emphasis">{{ transactionTypeMeta(evt.type).label }}</div>
+                <div v-if="evt.team?.name" class="text-caption text-medium-emphasis mt-1">
+                  Équipe : {{ evt.team.name }}
+                </div>
+                <v-chip size="x-small" variant="outlined" class="mt-1 font-weight-medium">
+                  {{ transponderLabelFromTransaction(evt) }}
+                </v-chip>
+              </v-timeline-item>
+            </v-timeline>
+          </div>
+          <div v-else class="text-center text-medium-emphasis py-8">
+            <v-icon size="40" color="grey" class="mb-2">mdi-clock-outline</v-icon>
+            <p class="text-body-2">Aucune opération enregistrée pour cette puce.</p>
+          </div>
+        </v-card-text>
+        <v-card-actions class="px-5 pb-4">
+          <v-spacer />
+          <v-btn variant="text" rounded="lg" @click="historyDialog = false">Fermer</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -250,8 +332,32 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
 import { transponderDisplay } from '~/utils/transponder'
+import {
+  transactionTypeMeta,
+  formatTransactionDate,
+  transponderLabelFromTransaction,
+} from '~/utils/transponderTransactionDisplay'
 
 const store = useTranspondersStore()
+
+const historyDialog = ref(false)
+const historyTransponder = ref(null)
+
+async function openHistoryDialog(t) {
+  historyTransponder.value = t
+  store.clearTransponderHistory()
+  historyDialog.value = true
+  await store.fetchTransponderHistory(t.id)
+}
+
+function onHistoryDialogClosed() {
+  historyTransponder.value = null
+  store.clearTransponderHistory()
+}
+
+watch(historyDialog, (open) => {
+  if (!open) onHistoryDialogClosed()
+})
 
 // --- Filtres ---
 const statusFilterItems = computed(() => [
@@ -277,6 +383,31 @@ async function onAdd() {
 const assignDialog = ref(false)
 const selectedTransponder = ref(null)
 const selectedTeamId = ref(null)
+const selectedHolderRunnerId = ref(null)
+
+const selectedUnassignedTeam = computed(() =>
+  store.unassignedTeams.find((t) => t.id === selectedTeamId.value),
+)
+
+const holderSelectItems = computed(() => {
+  const runners = selectedUnassignedTeam.value?.runners ?? []
+  return runners.map((m) => ({
+    title: `${m.firstName || ''} ${m.lastName || ''}`.trim() || `Coureur #${m.id}`,
+    value: m.id,
+  }))
+})
+
+watch(selectedTeamId, (id) => {
+  const team = store.unassignedTeams.find((t) => t.id === id)
+  const runners = team?.runners ?? []
+  if (!runners.length) {
+    selectedHolderRunnerId.value = null
+    return
+  }
+  const cap = team?.respRunnerId
+  selectedHolderRunnerId.value =
+    cap != null && runners.some((r) => r.id === cap) ? cap : runners[0].id
+})
 
 function canAssign(transponder) {
   return transponder.status === 'EN_ATTENTE'
@@ -285,6 +416,7 @@ function canAssign(transponder) {
 async function openAssignDialog(transponder) {
   selectedTransponder.value = transponder
   selectedTeamId.value = null
+  selectedHolderRunnerId.value = null
   assignDialog.value = true
   await store.fetchUnassignedTeams()
 }
@@ -293,6 +425,7 @@ function closeAssignDialog() {
   assignDialog.value = false
   selectedTransponder.value = null
   selectedTeamId.value = null
+  selectedHolderRunnerId.value = null
 }
 
 function teamHasLostTransponder(team) {
@@ -302,9 +435,13 @@ function teamHasLostTransponder(team) {
 }
 
 async function onConfirmAssign() {
-  if (!selectedTransponder.value || !selectedTeamId.value) return
+  if (!selectedTransponder.value || !selectedTeamId.value || !selectedHolderRunnerId.value) return
   try {
-    await store.assignTransponder(selectedTransponder.value.id, selectedTeamId.value)
+    await store.assignTransponder(
+      selectedTransponder.value.id,
+      selectedTeamId.value,
+      selectedHolderRunnerId.value,
+    )
     closeAssignDialog()
     showSnackbar('Transpondeur assigné à l\'équipe avec succès !', 'success', 'mdi-check-circle')
   } catch {

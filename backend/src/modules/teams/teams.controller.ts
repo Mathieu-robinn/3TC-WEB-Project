@@ -7,20 +7,30 @@ import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
 import { CreateTeamDto, UpdateTeamDto } from "./dto/team.dto.js";
 import { TeamService } from "./team.service.js";
+import { EditionService } from "../editions/edition.service.js";
 
 @ApiTags("Teams")
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth("JWT-auth")
 export class TeamsController {
-  constructor(private readonly teamService: TeamService) {}
+  constructor(
+    private readonly teamService: TeamService,
+    private readonly editionService: EditionService,
+  ) {}
 
   @ApiOperation({ summary: "Lister toutes les équipes (public)" })
   @ApiResponse({ status: 200, description: "Liste des équipes." })
   @Get("teams")
   @Public()
   async getAllTeams() {
-    return this.teamService.teamsWithRunners({});
+    const editionId = await this.editionService.getActiveEditionId();
+    if (editionId == null) {
+      return [];
+    }
+    return this.teamService.teamsWithRunners({
+      where: { course: { editionId } },
+    });
   }
 
   @ApiOperation({ summary: "Classement des équipes par nombre de tours (public)" })
@@ -28,7 +38,14 @@ export class TeamsController {
   @Get("teams/ranking")
   @Public()
   async getTeamRanking(): Promise<Team[]> {
-    return this.teamService.teams({ orderBy: { nbTour: "desc" } });
+    const editionId = await this.editionService.getActiveEditionId();
+    if (editionId == null) {
+      return [];
+    }
+    return this.teamService.teams({
+      where: { course: { editionId } },
+      orderBy: { nbTour: "desc" },
+    });
   }
 
   @ApiOperation({ summary: "Créer une équipe" })
@@ -54,6 +71,7 @@ export class TeamsController {
       ...(data.num !== undefined ? { num: data.num } : {}),
       ...(data.name !== undefined ? { name: data.name } : {}),
       ...(data.nbTour !== undefined ? { nbTour: data.nbTour } : {}),
+      ...(data.respRunnerId !== undefined ? { respRunnerId: data.respRunnerId } : {}),
     };
     return this.teamService.updateTeam({ where: { id: Number(id) }, data: prismaData });
   }

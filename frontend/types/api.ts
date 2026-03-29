@@ -1,5 +1,13 @@
 /** Types API minimaux partagés (stores / pages). */
 
+export interface ApiEdition {
+  id: number
+  name: string
+  active: boolean
+  startDate: string
+  endDate: string
+}
+
 export type TransponderStatusApi = 'EN_ATTENTE' | 'ATTRIBUE' | 'PERDU' | 'RECUPERE'
 
 export interface ApiTransponderRef {
@@ -18,7 +26,7 @@ export interface ApiRunner {
   id: number
   firstName?: string
   lastName?: string
-  teamId?: number
+  teamId: number
   team?: { id: number }
   email?: string
   teamName?: string
@@ -40,6 +48,12 @@ export interface ApiTeam {
   nom?: string
   nbTour?: number | null
   courseId?: number
+  /** Capitaine (FK Prisma). */
+  respRunnerId?: number | null
+  /** Coureur désigné comme responsable du transpondeur. */
+  transponderHolderRunnerId?: number | null
+  /** Course terminée (transpondeur récupéré) — plus d’attribution. */
+  courseFinished?: boolean
   runners?: ApiRunner[]
   transponders?: ApiTransponderRef[]
 }
@@ -70,6 +84,7 @@ export interface ApiTransponder {
   id: number
   reference?: string
   status: TransponderStatusApi
+  editionId: number
   teamId?: number | null
   team?: { id: number; name?: string; num?: number } | null
 }

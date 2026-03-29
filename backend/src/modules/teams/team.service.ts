@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
 import { Team, Prisma } from "@prisma/client";
 
@@ -60,6 +60,19 @@ export class TeamService {
     data: Prisma.TeamUpdateInput;
   }): Promise<Team> {
     const { where, data } = params;
+    const team = await this.prisma.team.findUnique({ where });
+    if (!team) {
+      throw new NotFoundException(`Équipe introuvable.`);
+    }
+    const respPatch = (data as { respRunnerId?: number | null }).respRunnerId;
+    if (respPatch !== undefined) {
+      if (respPatch !== null) {
+        const runner = await this.prisma.runner.findUnique({ where: { id: respPatch } });
+        if (!runner || runner.teamId !== team.id) {
+          throw new BadRequestException("Le capitaine doit être un coureur de cette équipe.");
+        }
+      }
+    }
     return this.prisma.team.update({
       data,
       where,

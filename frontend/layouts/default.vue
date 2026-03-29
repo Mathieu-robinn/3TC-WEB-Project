@@ -3,9 +3,18 @@
     <!-- Top Navigation Bar -->
     <v-app-bar flat class="top-navbar" height="56" :color="themeStore.isDark ? 'grey-darken-4' : 'white'" elevation="1">
       <v-app-bar-nav-icon @click="drawer = !drawer" />
-      <span class="navbar-brand">
+      <span class="navbar-brand d-flex align-center flex-wrap gap-2">
         <strong>24h INSA</strong>
-        <span class="ml-3 text-body-1 text-medium-emphasis">Gestion Transpondeurs</span>
+        <span class="text-body-1 text-medium-emphasis">Gestion Transpondeurs</span>
+        <v-chip
+          v-if="activeEditionStore.name"
+          size="small"
+          variant="tonal"
+          color="primary"
+          class="font-weight-medium"
+        >
+          {{ activeEditionStore.name }}
+        </v-chip>
       </span>
       <v-spacer />
       <span class="text-caption text-medium-emphasis mr-4 d-none d-sm-flex">Version 1.0</span>
@@ -98,16 +107,22 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/features/auth/stores/auth'
 import { useThemeStore } from '~/features/theme/stores/theme'
+import { useActiveEditionStore } from '~/features/editions/stores/activeEdition'
 import { useRouter } from 'vue-router'
 
 const drawer = ref(true)
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const activeEditionStore = useActiveEditionStore()
 const router = useRouter()
 const { isAdmin, payload: jwtPayload, token } = useJwtAuth()
+
+onMounted(() => {
+  activeEditionStore.load()
+})
 
 const handleLogout = () => {
   authStore.logout()

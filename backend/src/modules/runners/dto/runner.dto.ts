@@ -16,10 +16,9 @@ export class CreateRunnerDto {
   @IsString()
   phone?: string;
 
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  teamId?: number;
+  teamId: number;
 }
 
 export class UpdateRunnerDto {
@@ -41,10 +40,9 @@ export class UpdateRunnerDto {
   @IsString()
   phone?: string | null;
 
-  /** Absent = ne pas modifier ; `null` = retirer l'équipe ; nombre = rattacher à cette équipe */
+  /** Absent = ne pas modifier ; nombre = changer d'équipe (désattacher interdit). */
   @IsOptional()
-  @ValidateIf((_, v) => v !== null && v !== undefined)
   @Type(() => Number)
   @IsInt()
-  teamId?: number | null;
+  teamId?: number;
 }

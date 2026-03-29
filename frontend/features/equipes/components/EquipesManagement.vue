@@ -15,7 +15,7 @@
         </div>
         <div class="d-flex gap-2">
           <v-btn variant="tonal" color="white" rounded="lg" prepend-icon="mdi-refresh"
-            @click="store.c()" :loading="store.loading">
+            @click="store.fetchEquipes()" :loading="store.loading">
             Actualiser
           </v-btn>
           <v-btn variant="flat" color="white" rounded="lg" prepend-icon="mdi-plus"
@@ -26,7 +26,7 @@
       </div>
 
       <!-- KPI Row -->
-      <v-row class="mt-4" dense>
+      <v-row class="mt-4" density="comfortable">
         <v-col cols="6" sm="3" v-for="kpi in kpis" :key="kpi.label">
           <div class="kpi-chip">
             <div class="kpi-icon" :class="`bg-${kpi.color}-alpha`">
@@ -46,13 +46,28 @@
       <!-- Controls Bar -->
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
-          <v-row dense align="center">
-            <v-col cols="12" md="4">
+          <v-row density="comfortable" align="center">
+            <v-col cols="12" md="2">
               <v-text-field
                 v-model="store.search"
                 prepend-inner-icon="mdi-magnify"
                 placeholder="Rechercher une équipe..."
                 variant="solo-filled" density="compact" hide-details rounded="lg" flat
+                clearable
+              />
+            </v-col>
+            <v-col cols="6" sm="4" md="2">
+              <v-select
+                v-model="store.filterCourseId"
+                :items="courseFilterItems"
+                item-title="title"
+                item-value="value"
+                label="Discipline"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
                 clearable
               />
             </v-col>
@@ -124,9 +139,26 @@
                         {{ (equipe.name || equipe.nom || '?')[0] }}
                       </span>
                     </v-avatar>
-                    <div>
+                    <div class="flex-grow-1" style="min-width: 0">
                       <div class="text-subtitle-1 font-weight-bold line-clamp-1">{{ equipe.name || equipe.nom }}</div>
-                      <div class="text-caption text-medium-emphasis">{{ equipe.capitaine }}</div>
+                      <v-select
+                        class="mt-1 captain-select"
+                        density="compact"
+                        variant="solo-filled"
+                        flat
+                        hide-details
+                        rounded="lg"
+                        :items="captainItems(equipe)"
+                        item-title="title"
+                        item-value="value"
+                        :model-value="equipe.respRunnerId ?? null"
+                        :disabled="!equipe.membres?.length || captainSavingId === equipe.id"
+                        placeholder="Capitaine"
+                        label="Capitaine"
+                        @update:model-value="(v) => onCaptainChange(equipe, v)"
+                        @click.stop
+                      />
+                      <div v-if="courseLabel(equipe.courseId)" class="text-caption text-primary mt-1">{{ courseLabel(equipe.courseId) }}</div>
                     </div>
                   </div>
                   <div class="d-flex flex-column align-end gap-1">
@@ -191,7 +223,10 @@
                   </v-avatar>
                 </template>
                 <v-list-item-title class="font-weight-semibold">{{ equipe.name || equipe.nom }}</v-list-item-title>
-                <v-list-item-subtitle>{{ equipe.capitaine }} · {{ equipe.membres.length }} coureur(s)</v-list-item-subtitle>
+                <v-list-item-subtitle>
+                  {{ equipe.capitaine }} · {{ equipe.membres.length }} coureur(s)
+                  <template v-if="courseLabel(equipe.courseId)"> · {{ courseLabel(equipe.courseId) }}</template>
+                </v-list-item-subtitle>
                 <template #append>
                   <div class="d-flex align-center gap-2">
                     <div class="text-center d-none d-sm-block">
@@ -221,20 +256,20 @@
       <div v-if="!store.loading && viewMode === 'ranking'">
         <v-card rounded="xl" elevation="0" class="list-card">
           <!-- Podium top 3 -->
-          <div class="podium-section pa-5 pb-0" v-if="store.rankingWithDetails.length >= 3">
+          <div class="podium-section pa-5 pb-0" v-if="store.filteredRankingWithDetails.length >= 3">
             <div class="d-flex justify-center align-end gap-4 mb-4">
               <div class="podium-item" v-for="pos in podiumOrder" :key="pos">
                 <div class="podium-avatar" :class="`pos-${pos}`">
                   <v-avatar :size="pos === 1 ? 56 : 44" :color="podiumColor(pos)" class="mb-1">
-                    <span class="text-body-1 font-weight-bold text-white">{{ (store.rankingWithDetails[pos - 1]?.name || '?')[0] }}</span>
+                    <span class="text-body-1 font-weight-bold text-white">{{ (store.filteredRankingWithDetails[pos - 1]?.name || '?')[0] }}</span>
                   </v-avatar>
                   <div class="podium-medal">{{ podiumMedal(pos) }}</div>
                 </div>
                 <div class="text-caption font-weight-bold text-center pt-1" style="max-width: 80px; word-break: break-word;">
-                  {{ store.rankingWithDetails[pos - 1]?.name }}
+                  {{ store.filteredRankingWithDetails[pos - 1]?.name }}
                 </div>
                 <div class="text-caption text-primary font-weight-bold text-center">
-                  {{ store.rankingWithDetails[pos - 1]?.nbTour }} tours
+                  {{ store.filteredRankingWithDetails[pos - 1]?.nbTour }} tours
                 </div>
                 <div class="podium-block" :class="`block-${pos}`"></div>
               </div>
@@ -252,7 +287,7 @@
             </thead>
             <tbody>
               <tr
-                v-for="team in store.rankingWithDetails" :key="team.id"
+                v-for="team in store.filteredRankingWithDetails" :key="team.id"
                 class="ranking-row" style="cursor: pointer"
                 @click="openDetailById(team.id)"
               >
@@ -288,7 +323,8 @@
       v-if="selectedEquipe"
       v-model="isModalOpen" 
       :equipe="selectedEquipe" 
-      @edit="openEdit" 
+      @edit="openEdit"
+      @equipe-updated="onEquipeUpdated"
     />
 
     <!-- Create / Edit Dialog -->
@@ -385,25 +421,46 @@ const showDeleteConfirm = ref(false)
 const editingTeam = ref(null)
 const deletingTeam = ref(null)
 
-// Load courses for the "create team" select
-const coursesOptions = ref([])
-const loadCourses = async () => {
-  try {
-    const api = useApi()
-    const data = await api.get('/courses')
-    coursesOptions.value = Array.isArray(data) ? data.map(c => ({ id: c.id, label: `${c.name} (id:${c.id})` })) : []
-  } catch {
-    coursesOptions.value = []
-  }
-}
+const coursesOptions = computed(() =>
+  store.courses.map((c) => ({ id: c.id, label: `${c.name} (id:${c.id})` })),
+)
+
+const courseFilterItems = computed(() => [
+  { title: 'Toutes les disciplines', value: null },
+  ...store.courses.map((c) => ({ title: c.name, value: c.id })),
+])
+
+const courseLabel = (courseId) =>
+  courseId != null ? store.courses.find((c) => c.id === courseId)?.name : undefined
 
 const form = reactive({ name: '', num: null, courseId: null, nbTour: 0 })
 const formError = ref('')
 const deleteError = ref('')
+const captainSavingId = ref(null)
+
+const captainItems = (equipe) =>
+  (equipe.membres || []).map((m) => ({
+    title: `${m.firstName || ''} ${m.lastName || ''}`.trim() || `Coureur #${m.id}`,
+    value: m.id,
+  }))
+
+async function onCaptainChange(equipe, runnerId) {
+  if (runnerId == null || runnerId === equipe.respRunnerId) return
+  captainSavingId.value = equipe.id
+  try {
+    await store.updateTeam(equipe.id, { respRunnerId: runnerId })
+    await store.fetchEquipes()
+    const fresh = store.equipesWithStatus.find((e) => e.id === equipe.id)
+    if (fresh && selectedEquipe.value?.id === equipe.id) selectedEquipe.value = fresh
+  } catch (e) {
+    console.error(e)
+  } finally {
+    captainSavingId.value = null
+  }
+}
 
 onMounted(() => {
   store.fetchEquipes()
-  loadCourses()
 })
 
 // ── KPIs ──────────────────────────────────────────────────────────────────
@@ -412,6 +469,7 @@ const kpis = computed(() => [
   { label: 'En piste', value: store.stats.enPiste, icon: 'mdi-run', color: 'green' },
   { label: 'En attente', value: store.stats.enAttente, icon: 'mdi-clock-outline', color: 'orange' },
   { label: 'Sans puce', value: store.stats.sansTranspondeur, icon: 'mdi-timer-off', color: 'red' },
+  { label: 'Terminé', value: store.stats.termine, icon: 'mdi-flag-checkered', color: 'teal' },
 ])
 
 const podiumOrder = [2, 1, 3]
@@ -432,6 +490,12 @@ const openDetails = (equipe) => {
   isModalOpen.value = true
 }
 
+const onEquipeUpdated = async (teamId) => {
+  await store.fetchEquipes()
+  const fresh = store.equipesWithStatus.find((e) => e.id === teamId)
+  if (fresh) selectedEquipe.value = fresh
+}
+
 const openDetailById = (id) => {
   const equipe = store.equipesWithStatus.find(e => e.id === id)
   if (equipe) openDetails(equipe)
@@ -440,7 +504,7 @@ const openDetailById = (id) => {
 const openCreate = () => {
   editingTeam.value = null
   formError.value = ''
-  Object.assign(form, { name: '', num: null, courseId: coursesOptions.value[0]?.id || null, nbTour: 0 })
+  Object.assign(form, { name: '', num: null, courseId: coursesOptions.value[0]?.id ?? null, nbTour: 0 })
   showForm.value = true
 }
 
@@ -487,8 +551,17 @@ const executeDelete = async () => {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-const getStatutColor = (s) => ({ en_piste: 'green', en_attente: 'orange', sans_transpondeur: 'red' }[s] || 'grey')
-const getStatutLabel = (s) => ({ en_piste: 'En piste', en_attente: 'En attente', sans_transpondeur: 'Sans puce' }[s] || s)
+const getStatutColor = (s) =>
+  ({ en_piste: 'green', en_attente: 'orange', sans_transpondeur: 'red', terminé: 'teal', 'aucun membre': 'red' }[s] ||
+  'grey')
+const getStatutLabel = (s) =>
+  ({
+    en_piste: 'En piste',
+    en_attente: 'En attente',
+    sans_transpondeur: 'Sans puce',
+    terminé: 'Terminé',
+    'aucun membre': 'Sans puce',
+  }[s] || s)
 const podiumColor = (rank) => ['amber-darken-2', 'grey-darken-1', 'brown-lighten-1'][rank - 1] || 'blue-grey'
 const podiumMedal = (rank) => ['🥇', '🥈', '🥉'][rank - 1] || rank
 </script>

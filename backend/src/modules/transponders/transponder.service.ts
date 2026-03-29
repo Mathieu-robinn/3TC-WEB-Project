@@ -1,6 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
-import { Transponder, Prisma } from "@prisma/client";
+import { Transponder, Prisma, TransponderStatus } from "@prisma/client";
 
 @Injectable()
 export class TransponderService {
@@ -9,7 +9,7 @@ export class TransponderService {
   async transponder(transponderWhereUniqueInput: Prisma.TransponderWhereUniqueInput): Promise<Transponder | null> {
     return this.prisma.transponder.findUnique({
       where: transponderWhereUniqueInput,
-      include: { team: true },
+      include: { team: true, edition: true },
     });
   }
 
@@ -27,7 +27,7 @@ export class TransponderService {
       cursor,
       where,
       orderBy,
-      include: { team: true },
+      include: { team: true, edition: true },
     });
   }
 
@@ -35,28 +35,81 @@ export class TransponderService {
    * Retourne les équipes qui n'ont pas de transpondeur actif (pas de transpondeur avec status OUT)
    * ou qui ont perdu leur transpondeur (tous leurs transpondeurs sont LOST).
    */
-  async teamsWithoutActiveTransponder() {
+  async teamsWithoutActiveTransponder(editionId: number | null) {
+    if (editionId == null) {
+      return [];
+    }
     const teams = await this.prisma.team.findMany({
+      where: {
+        courseFinished: false,
+        course: { editionId },
+      },
       include: {
         transponders: true,
+        runners: true,
       },
     });
 
     return teams.filter((team) => {
-      // Transpondeurs directement liés à l'équipe
-      if (team.respRunnerId == null) return false;
+      if (team.runners.length === 0) return false;
       const teamActiveTransponders = team.transponders.filter(
-        (t) => t.status === "ATTRIBUE" || t.status === "RECUPERE"
+        (t) =>
+          t.editionId === editionId && (t.status === "ATTRIBUE" || t.status === "RECUPERE"),
       );
       if (teamActiveTransponders.length > 0) return false;
       return true;
     });
   }
 
+  /** Vérifie qu'une équipe peut recevoir un transpondeur (course non terminée, au moins un coureur). */
+  async assertTeamEligibleForTransponderAssignment(teamId: number): Promise<void> {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: { _count: { select: { runners: true } } },
+    });
+    if (!team) {
+      throw new BadRequestException(`Équipe #${teamId} introuvable.`);
+    }
+    if (team._count.runners < 1) {
+      throw new BadRequestException(
+        "Cette équipe n'a aucun participant : impossible d'attribuer un transpondeur.",
+      );
+    }
+    if (team.courseFinished) {
+      throw new BadRequestException(
+        "Cette équipe a terminé la course : aucun transpondeur ne peut lui être attribué.",
+      );
+    }
+  }
+
+  /** Le coureur désigné comme détenteur doit appartenir à l'équipe. */
+  async assertHolderRunnerBelongsToTeam(teamId: number, runnerId: number): Promise<void> {
+    const r = await this.prisma.runner.findUnique({ where: { id: runnerId } });
+    if (!r || r.teamId !== teamId) {
+      throw new BadRequestException("Le coureur choisi doit appartenir à l'équipe.");
+    }
+  }
+
+  /** L'équipe doit appartenir au même parcours / édition que le transpondeur. */
+  async assertTeamMatchesTransponderEdition(transponderEditionId: number, teamId: number): Promise<void> {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: { course: true },
+    });
+    if (!team) {
+      throw new BadRequestException(`Équipe #${teamId} introuvable.`);
+    }
+    if (team.course.editionId !== transponderEditionId) {
+      throw new BadRequestException(
+        "Cette équipe n'appartient pas à la même édition que ce transpondeur.",
+      );
+    }
+  }
+
   async createTransponder(data: Prisma.TransponderCreateInput): Promise<Transponder> {
     return this.prisma.transponder.create({
       data,
-      include: { team: true },
+      include: { team: true, edition: true },
     });
   }
 
@@ -68,7 +121,7 @@ export class TransponderService {
     return this.prisma.transponder.update({
       data,
       where,
-      include: { team: true },
+      include: { team: true, edition: true },
     });
   }
 
@@ -87,7 +140,105 @@ export class TransponderService {
         ...(fields.status !== undefined ? { status: fields.status as any } : {}),
         ...(fields.teamId !== undefined ? { teamId: fields.teamId } : {}),
       },
-      include: { team: true },
+      include: { team: true, edition: true },
+    });
+  }
+
+  /**
+   * Met à jour le statut et/ou l'équipe d'une puce et enregistre une ligne d'historique
+   * (`TransponderTransaction`) dans la même transaction SQL que la mise à jour.
+   * Utilisé par assign / unassign depuis l'API transpondeurs.
+   *
+   * @param actorUserId Identifiant du bénévole ou admin connecté (JWT), auteur de l'opération.
+   */
+  async updateTransponderFieldsWithAudit(
+    id: number,
+    fields: { status?: string; teamId?: number | null },
+    actorUserId: number,
+    auditOptions?: {
+      teamIdForTransaction?: number | null;
+      /** Si défini, met l'équipe en course terminée (récupération de transpondeur). */
+      markTeamCourseFinishedForTeamId?: number | null;
+      /** Met à jour le coureur « Resp transpondeur » sur l'équipe (assign ou `null` si retrait). */
+      setTransponderHolderOnTeam?: { teamId: number; runnerId: number | null };
+    },
+  ): Promise<Transponder> {
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.transponder.update({
+        where: { id },
+        data: {
+          ...(fields.status !== undefined ? { status: fields.status as TransponderStatus } : {}),
+          ...(fields.teamId !== undefined ? { teamId: fields.teamId } : {}),
+        },
+        include: { team: true, edition: true },
+      });
+      const teamIdLogged =
+        auditOptions?.teamIdForTransaction !== undefined
+          ? auditOptions.teamIdForTransaction
+          : updated.teamId;
+      await tx.transponderTransaction.create({
+        data: {
+          transponderId: id,
+          teamId: teamIdLogged,
+          userId: actorUserId,
+          type: updated.status,
+          dateTime: new Date(),
+        },
+      });
+      const holder = auditOptions?.setTransponderHolderOnTeam;
+      if (holder != null) {
+        await tx.team.update({
+          where: { id: holder.teamId },
+          data: { transponderHolderRunnerId: holder.runnerId },
+        });
+      }
+      const finishId = auditOptions?.markTeamCourseFinishedForTeamId;
+      if (finishId != null) {
+        await tx.team.update({
+          where: { id: finishId },
+          data: { courseFinished: true },
+        });
+      }
+      return updated;
+    });
+  }
+
+  /**
+   * Met à jour un transpondeur via un `TransponderUpdateInput` Prisma et journalise
+   * le nouveau statut dans `TransponderTransaction` (ex. déclaration de perte).
+   */
+  async updateTransponderWithAudit(params: {
+    where: Prisma.TransponderWhereUniqueInput;
+    data: Prisma.TransponderUpdateInput;
+    actorUserId: number;
+    teamIdForTransaction?: number | null;
+    setTransponderHolderOnTeam?: { teamId: number; runnerId: number | null };
+  }): Promise<Transponder> {
+    const { where, data, actorUserId, teamIdForTransaction, setTransponderHolderOnTeam } = params;
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.transponder.update({
+        where,
+        data,
+        include: { team: true, edition: true },
+      });
+      const teamIdLogged =
+        teamIdForTransaction !== undefined ? teamIdForTransaction : updated.teamId;
+      await tx.transponderTransaction.create({
+        data: {
+          transponderId: updated.id,
+          teamId: teamIdLogged,
+          userId: actorUserId,
+          type: updated.status,
+          dateTime: new Date(),
+        },
+      });
+      if (setTransponderHolderOnTeam != null) {
+        await tx.team.update({
+          where: { id: setTransponderHolderOnTeam.teamId },
+          data: { transponderHolderRunnerId: setTransponderHolderOnTeam.runnerId },
+        });
+      }
+      return updated;
     });
   }
 

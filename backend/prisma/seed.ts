@@ -163,35 +163,99 @@ async function main() {
     createdTeams.push({ id: team.id, courseId: def.course.id });
   }
 
-  // Une équipe historique de 2025
+  // Une équipe historique de 2025 (au moins un coureur requis)
   const oldTeam = await prisma.team.create({
     data: { num: 1, name: "Anciens 2025", nbTour: 190, courseId: course2025_24h.id },
   });
+  const oldTeamRunner = await prisma.runner.create({
+    data: {
+      firstName: "Vintage",
+      lastName: "Coureur",
+      email: "runner_anciens2025@24h.fr",
+      phone: "0699000000",
+      teamId: oldTeam.id,
+    },
+  });
+  await prisma.team.update({ where: { id: oldTeam.id }, data: { respRunnerId: oldTeamRunner.id } });
+
   console.log("✅ Équipes et coureurs créés.");
 
   // ───────────────────────────────────────────────────────────────────────────
-  // 5. TRANSPONDEURS (40 puces)
+  // 5. TRANSPONDEURS (40 puces) + cohérence avec les transactions (§6)
+  //
+  // Règles alignées sur l’API : ATTRIBUE ⇒ teamId défini ; RECUPERE / PERDU ⇒ teamId null.
+  // L’équipe concernée par l’historique (transactions) est stockée dans historyTeamId pour
+  // RECUPERE et PERDU afin que les lignes d’audit restent cohérentes sans ré-attacher la puce.
   // ───────────────────────────────────────────────────────────────────────────
+
+  type TransponderSeed = {
+    status: TransponderStatus;
+    /** FK Transponder.teamId — null si la puce n’est plus chez une équipe (RECUPERE, PERDU, EN_ATTENTE). */
+    teamId: number | null;
+    /** Équipe pour les lignes TransponderTransaction (attrib / retour ou perte). */
+    historyTeamId: number | null;
+  };
+
+  const transponderSeeds: TransponderSeed[] = [];
+
+  for (let i = 0; i < 15; i++) {
+    const team = pick(createdTeams);
+    transponderSeeds.push({
+      status: TransponderStatus.ATTRIBUE,
+      teamId: team.id,
+      historyTeamId: team.id,
+    });
+  }
+  for (let i = 0; i < 10; i++) {
+    const team = pick(createdTeams);
+    transponderSeeds.push({
+      status: TransponderStatus.RECUPERE,
+      teamId: null,
+      historyTeamId: team.id,
+    });
+  }
+  for (let i = 0; i < 8; i++) {
+    transponderSeeds.push({
+      status: TransponderStatus.EN_ATTENTE,
+      teamId: null,
+      historyTeamId: null,
+    });
+  }
+  for (let i = 0; i < 7; i++) {
+    const team = pick(createdTeams);
+    transponderSeeds.push({
+      status: TransponderStatus.PERDU,
+      teamId: null,
+      historyTeamId: team.id,
+    });
+  }
 
   const transponders: { id: number; status: TransponderStatus }[] = [];
 
-  for (let i = 0; i < 40; i++) {
-    let status: TransponderStatus;
-
-    if (i < 15) status = TransponderStatus.ATTRIBUE;
-    else if (i < 25) status = TransponderStatus.RECUPERE;
-    else if (i < 33) status = TransponderStatus.EN_ATTENTE;
-    else status = TransponderStatus.PERDU;
-
-    const team = status !== TransponderStatus.EN_ATTENTE ? pick(createdTeams) : undefined;
-
+  for (const seed of transponderSeeds) {
     const t = await prisma.transponder.create({
       data: {
-        status, // Utilise la variable typée
-        teamId: team?.id,
+        status: seed.status,
+        edition: { connect: { id: edition2026.id } },
+        ...(seed.teamId != null ? { team: { connect: { id: seed.teamId } } } : {}),
       },
     });
     transponders.push({ id: t.id, status: t.status });
+  }
+
+  for (const seed of transponderSeeds) {
+    if (seed.status === TransponderStatus.ATTRIBUE && seed.teamId != null) {
+      const teamRow = await prisma.team.findUnique({
+        where: { id: seed.teamId },
+        select: { respRunnerId: true },
+      });
+      if (teamRow?.respRunnerId != null) {
+        await prisma.team.update({
+          where: { id: seed.teamId },
+          data: { transponderHolderRunnerId: teamRow.respRunnerId },
+        });
+      }
+    }
   }
 
   console.log("✅ Transpondeurs créés.");
@@ -200,42 +264,62 @@ async function main() {
   // 6. TRANSACTIONS (historique de distribution par les bénévoles)
   // ───────────────────────────────────────────────────────────────────────────
 
-  const baseDate = new Date("2026-05-16T13:00:00Z");
+  // Toutes les dateTime sont strictement avant le 15/03/2026 (UTC).
+  const TX_BEFORE = new Date("2026-03-15T00:00:00.000Z");
+  const baseDate = new Date("2026-03-01T10:00:00.000Z");
+
+  const clampBeforeMarch15 = (d: Date) =>
+    d.getTime() < TX_BEFORE.getTime() ? d : new Date(TX_BEFORE.getTime() - 60_000);
 
   for (let i = 0; i < transponders.length; i++) {
     const t = transponders[i];
+    const seed = transponderSeeds[i];
     const benevole = pick(benevoles);
-    const tDb = await prisma.transponder.findUnique({ where: { id: t.id } });
-    const teamId = tDb?.teamId || pick(createdTeams).id;
-    const txDate = new Date(baseDate.getTime() + i * 3 * 60 * 1000); // +3 min par transaction
+    const teamId = seed.historyTeamId;
+    const txDate = clampBeforeMarch15(new Date(baseDate.getTime() + i * 3 * 60 * 1000)); // +3 min par puce
 
-    if (t.status !== ("EN_ATTENTE" as any)) {
-      // Transaction de "ATTRIBUE" (distribution)
-      await prisma.transponderTransaction.create({
-        data: {
-          transponderId: t.id,
-          teamId: teamId,
-          userId: benevole.id,
-          type: "ATTRIBUE",
-          dateTime: txDate,
-        } as any,
-      });
-
-      // Pour les puces "RECUPERE" et "PERDU" : ajouter une deuxième transaction (retour ou perte)
-      if (t.status === ("RECUPERE" as any) || t.status === ("PERDU" as any)) {
-        const returnDate = new Date(txDate.getTime() + rand(60, 300) * 60 * 1000);
-        await prisma.transponderTransaction.create({
-          data: {
-            transponderId: t.id,
-            teamId: teamId,
-            userId: benevole.id,
-            type: t.status,
-            dateTime: returnDate,
-          } as any,
-        });
-      }
+    if (seed.status === TransponderStatus.EN_ATTENTE) {
+      continue;
     }
+
+    if (teamId == null) {
+      throw new Error(`Seed incohérente: transpondeur #${t.id} sans historyTeamId alors que status=${seed.status}`);
+    }
+
+    await prisma.transponderTransaction.create({
+      data: {
+        transponderId: t.id,
+        teamId,
+        userId: benevole.id,
+        type: TransponderStatus.ATTRIBUE,
+        dateTime: txDate,
+      },
+    });
+
+    if (seed.status === TransponderStatus.ATTRIBUE) {
+      continue;
+    }
+
+    const secondDate = clampBeforeMarch15(new Date(txDate.getTime() + rand(60, 300) * 60 * 1000));
+    await prisma.transponderTransaction.create({
+      data: {
+        transponderId: t.id,
+        teamId,
+        userId: benevole.id,
+        type: seed.status,
+        dateTime: secondDate,
+      },
+    });
   }
+
+  const teamsFinishedIds = [
+    ...new Set(
+      transponderSeeds.filter((s) => s.status === TransponderStatus.RECUPERE).map((s) => s.historyTeamId!),
+    ),
+  ];
+  await Promise.all(
+    teamsFinishedIds.map((id) => prisma.team.update({ where: { id }, data: { courseFinished: true } })),
+  );
 
   console.log("✅ Transactions créées.");
 
@@ -381,7 +465,7 @@ async function main() {
   console.log("\n🎉 Seed terminé avec succès !");
   console.log(`   👤 ${5 + benevoles.length + participantUsers.length} utilisateurs`);
   console.log(`   🏆 ${teamDefinitions.length + 1} équipes`);
-  console.log(`   🏃 ${createdRunners.length} coureurs`);
+  console.log(`   🏃 ${createdRunners.length + 1} coureurs`);
   console.log(`   📡 ${transponders.length} transpondeurs`);
   console.log(`   🔄 Transactions registrées`);
   console.log(`   💬 2 conversations + ${orgaMessages.length + 2} messages`);

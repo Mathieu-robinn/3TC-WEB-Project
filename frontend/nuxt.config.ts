@@ -24,6 +24,7 @@ const config = defineNuxtConfig({
       'features/participants/stores',
       'features/equipes/stores',
       'features/transpondeurs/stores',
+      'features/editions/stores',
     ],
   },
 
