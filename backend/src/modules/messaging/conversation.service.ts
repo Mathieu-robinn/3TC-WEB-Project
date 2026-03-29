@@ -18,15 +18,17 @@ export class ConversationService {
     cursor?: Prisma.ConversationWhereUniqueInput;
     where?: Prisma.ConversationWhereInput;
     orderBy?: Prisma.ConversationOrderByWithRelationInput;
+    include?: Prisma.ConversationInclude;
   }): Promise<Conversation[]> {
-    const { skip, take, cursor, where, orderBy } = params;
+    const { skip, take, cursor, where, orderBy, include } = params;
     return this.prisma.conversation.findMany({
       skip,
       take,
       cursor,
       where,
       orderBy,
-    });
+      include,
+    } as any);
   }
 
   async createConversation(data: Prisma.ConversationCreateInput): Promise<Conversation> {

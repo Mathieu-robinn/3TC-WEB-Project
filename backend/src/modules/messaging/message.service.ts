@@ -18,15 +18,17 @@ export class MessageService {
     cursor?: Prisma.MessageWhereUniqueInput;
     where?: Prisma.MessageWhereInput;
     orderBy?: Prisma.MessageOrderByWithRelationInput;
+    include?: Prisma.MessageInclude;
   }): Promise<Message[]> {
-    const { skip, take, cursor, where, orderBy } = params;
+    const { skip, take, cursor, where, orderBy, include } = params;
     return this.prisma.message.findMany({
       skip,
       take,
       cursor,
       where,
       orderBy,
-    });
+      include,
+    } as any);
   }
 
   async createMessage(data: Prisma.MessageCreateInput): Promise<Message> {
