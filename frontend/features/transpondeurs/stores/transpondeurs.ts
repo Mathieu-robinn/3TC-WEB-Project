@@ -2,7 +2,13 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { ApiTeam, ApiTransponder, TransponderStats, TransponderStatusApi, TransponderTransaction } from '~/types/api'
 
-const emptyStats = (): TransponderStats => ({ EN_ATTENTE: 0, ATTRIBUE: 0, PERDU: 0, RECUPERE: 0 })
+const emptyStats = (): TransponderStats => ({
+  EN_ATTENTE: 0,
+  ATTRIBUE: 0,
+  PERDU: 0,
+  RECUPERE: 0,
+  DEFAILLANT: 0,
+})
 
 export const useTranspondersStore = defineStore('transpondeurs', () => {
   const loading = ref(false)
@@ -37,7 +43,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     } catch {
       error.value = 'Mode démonstration — API non disponible'
       transponders.value = getMockTransponders()
-      stats.value = { EN_ATTENTE: 5, ATTRIBUE: 18, PERDU: 2, RECUPERE: 10 }
+      stats.value = { EN_ATTENTE: 5, ATTRIBUE: 18, PERDU: 2, RECUPERE: 10, DEFAILLANT: 1 }
     } finally {
       loading.value = false
     }
@@ -153,6 +159,35 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     }
   }
 
+  const markAsDefective = async (transponderId: number) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}`, { status: 'DEFAILLANT' })
+      const idx = transponders.value.findIndex((t) => t.id === transponderId)
+      if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
+      await Promise.all([fetchAll(), fetchUnassignedTeams()])
+      return updated
+    } finally {
+      saving.value = false
+    }
+  }
+
+  /** Remise en circulation (puce réparée / contrôlée). */
+  const markAsEnAttente = async (transponderId: number) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}`, { status: 'EN_ATTENTE' })
+      const idx = transponders.value.findIndex((t) => t.id === transponderId)
+      if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
+      await Promise.all([fetchAll(), fetchUnassignedTeams()])
+      return updated
+    } finally {
+      saving.value = false
+    }
+  }
+
   const fetchTransponderHistory = async (transponderId: number) => {
     transponderHistoryLoading.value = true
     transponderHistoryError.value = null
@@ -173,13 +208,25 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     transponderHistoryError.value = null
   }
 
-  const statuses: TransponderStatusApi[] = ['EN_ATTENTE', 'ATTRIBUE', 'PERDU', 'RECUPERE']
+  const statuses: TransponderStatusApi[] = ['EN_ATTENTE', 'ATTRIBUE', 'PERDU', 'RECUPERE', 'DEFAILLANT']
 
   const statusColor = (s: string) =>
-    ({ EN_ATTENTE: 'blue', ATTRIBUE: 'green', PERDU: 'red', RECUPERE: 'grey' } as Record<string, string>)[s] || 'grey'
+    ({
+      EN_ATTENTE: 'blue',
+      ATTRIBUE: 'green',
+      PERDU: 'red',
+      RECUPERE: 'grey',
+      DEFAILLANT: 'deep-orange',
+    } as Record<string, string>)[s] || 'grey'
 
   const statusLabel = (s: string) =>
-    ({ EN_ATTENTE: 'En attente', ATTRIBUE: 'Attribué', PERDU: 'Perdu', RECUPERE: 'Récupéré' } as Record<string, string>)[s] || s
+    ({
+      EN_ATTENTE: 'En attente',
+      ATTRIBUE: 'Attribué',
+      PERDU: 'Perdu',
+      RECUPERE: 'Récupéré',
+      DEFAILLANT: 'Défaillant',
+    } as Record<string, string>)[s] || s
 
   const filteredTransponders = computed(() => {
     let list = transponders.value
@@ -210,7 +257,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
       id: i + 1,
       editionId: 1,
       reference: `TR-${String(i + 1).padStart(3, '0')}`,
-      status: (['EN_ATTENTE', 'RECUPERE', 'ATTRIBUE', 'PERDU'] as const)[i % 4],
+      status: (['EN_ATTENTE', 'RECUPERE', 'ATTRIBUE', 'PERDU', 'DEFAILLANT'] as const)[i % 5],
     }))
 
   return {
@@ -241,6 +288,8 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     assignTransponder,
     unassignTransponder,
     markAsLost,
+    markAsDefective,
+    markAsEnAttente,
     fetchTransponderHistory,
     clearTransponderHistory,
     resetFilters,

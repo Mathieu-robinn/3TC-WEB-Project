@@ -236,6 +236,15 @@ async function main() {
       priorAssignment: i < 4,
     });
   }
+  for (let i = 0; i < 3; i++) {
+    const team = pick(createdTeams);
+    transponderSeeds.push({
+      status: TransponderStatus.DEFAILLANT,
+      teamId: null,
+      historyTeamId: team.id,
+      priorAssignment: true,
+    });
+  }
 
   const transponders: { id: number; status: TransponderStatus }[] = [];
 
@@ -294,7 +303,9 @@ async function main() {
     }
 
     const needsAssignmentFirst =
-      (seed.status === TransponderStatus.RECUPERE || seed.status === TransponderStatus.PERDU) &&
+      (seed.status === TransponderStatus.RECUPERE ||
+        seed.status === TransponderStatus.PERDU ||
+        seed.status === TransponderStatus.DEFAILLANT) &&
       seed.priorAssignment === true;
 
     if (seed.status === TransponderStatus.ATTRIBUE) {

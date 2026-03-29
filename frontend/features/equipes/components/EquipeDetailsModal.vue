@@ -126,6 +126,17 @@
                   Récupérer
                 </v-btn>
                 <v-btn
+                  color="deep-orange"
+                  variant="tonal"
+                  rounded="lg"
+                  size="small"
+                  prepend-icon="mdi-flash-alert"
+                  :loading="transpondersStore.saving"
+                  @click="onMarkAsDefective"
+                >
+                  Déclarer défaillant
+                </v-btn>
+                <v-btn
                   color="error"
                   variant="tonal"
                   rounded="lg"
@@ -402,12 +413,31 @@ async function onMarkAsLost() {
   }
 }
 
+async function onMarkAsDefective() {
+  const id = activeTransponder.value?.id
+  if (id == null) return
+  if (
+    !confirm(
+      `Marquer le transpondeur #${id} comme défaillant ? La puce sera retirée de l'équipe.`,
+    )
+  )
+    return
+  try {
+    await transpondersStore.markAsDefective(id)
+    showSnackbar('Transpondeur marqué comme défaillant.', 'deep-orange', 'mdi-flash-alert')
+    await refreshAfterTransponderAction()
+  } catch {
+    showSnackbar('Erreur lors de la mise à jour.', 'error', 'mdi-alert-circle')
+  }
+}
+
 function transactionTypeMeta(type: TransponderStatusApi) {
   const map: Record<TransponderStatusApi, { label: string; color: string }> = {
     EN_ATTENTE: { label: 'En attente', color: 'grey' },
     ATTRIBUE: { label: 'Attribué', color: 'primary' },
     PERDU: { label: 'Perdu', color: 'error' },
     RECUPERE: { label: 'Récupéré', color: 'success' },
+    DEFAILLANT: { label: 'Défaillant', color: 'deep-orange' },
   }
   return map[type] ?? { label: String(type), color: 'grey' }
 }

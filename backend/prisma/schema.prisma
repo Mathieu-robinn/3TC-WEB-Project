@@ -19,6 +19,8 @@ enum TransponderStatus {
   ATTRIBUE
   PERDU
   RECUPERE
+  /** Puce hors service (panne / défectueuse), retirée de l’équipe comme pour une perte. */
+  DEFAILLANT
 }
 
 enum ConversationType {

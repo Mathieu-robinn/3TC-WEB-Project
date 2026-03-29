@@ -39,12 +39,15 @@ export class TranspondersController {
   }
 
   @ApiOperation({ summary: "Statistiques des puces par statut" })
-  @ApiResponse({ status: 200, description: "Exemple: { EN_ATTENTE: 8, ATTRIBUE: 15, PERDU: 7, RECUPERE: 10 }" })
+  @ApiResponse({
+    status: 200,
+    description: "Exemple: { EN_ATTENTE, ATTRIBUE, PERDU, RECUPERE, DEFAILLANT }",
+  })
   @Get("transponders/stats")
   async getTransponderStats(): Promise<Record<string, number>> {
     const where = await this.transponderWhereForActiveEdition();
     const transponders = where == null ? [] : await this.transponderService.transponders({ where });
-    const stats: Record<string, number> = { EN_ATTENTE: 0, ATTRIBUE: 0, PERDU: 0, RECUPERE: 0 };
+    const stats: Record<string, number> = { EN_ATTENTE: 0, ATTRIBUE: 0, PERDU: 0, RECUPERE: 0, DEFAILLANT: 0 };
     for (const t of transponders) {
       stats[t.status] = (stats[t.status] ?? 0) + 1;
     }
@@ -75,6 +78,11 @@ export class TranspondersController {
     }
     if (current.status === ("RECUPERE" as any)) {
       throw new BadRequestException("On ne peut plus modifier l'état d'un transpondeur récupéré.");
+    }
+    if (current.status === ("DEFAILLANT" as any)) {
+      throw new BadRequestException(
+        "Transpondeur défaillant : remettez-le d'abord en « en attente » depuis la fiche transpondeur.",
+      );
     }
 
     if (data.teamId) {
@@ -168,9 +176,11 @@ export class TranspondersController {
     if (current?.status === ("RECUPERE" as any)) {
       throw new BadRequestException("On ne peut plus modifier l'état d'un transpondeur récupéré.");
     }
+    const clearsTeam =
+      data.status === ("PERDU" as any) || data.status === ("DEFAILLANT" as any);
     const prismaData: Prisma.TransponderUpdateInput = {
       status: data.status,
-      ...(data.status === ("PERDU" as any) ? { teamId: null } : {}),
+      ...(clearsTeam ? { teamId: null } : {}),
     };
     return this.transponderService.updateTransponderWithAudit({
       where: { id: Number(id) },
@@ -178,7 +188,7 @@ export class TranspondersController {
       actorUserId: req.user.userId,
       teamIdForTransaction: current?.teamId ?? null,
       setTransponderHolderOnTeam:
-        data.status === ("PERDU" as any) && current?.teamId != null
+        clearsTeam && current?.teamId != null
           ? { teamId: current.teamId, runnerId: null }
           : undefined,
     });

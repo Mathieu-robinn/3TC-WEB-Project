@@ -75,6 +75,9 @@
 .bg-purple-alpha {
   background: rgba(175, 82, 222, 0.3);
 }
+.bg-deep-orange-alpha {
+  background: rgba(255, 87, 34, 0.35);
+}
 
 .kpi-value {
   font-size: 1.2rem;

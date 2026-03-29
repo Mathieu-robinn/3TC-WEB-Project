@@ -8,6 +8,7 @@ export function transactionTypeMeta(type: TransponderStatusApi) {
     ATTRIBUE: { label: 'Attribué', color: 'primary' },
     PERDU: { label: 'Perdu', color: 'error' },
     RECUPERE: { label: 'Récupéré', color: 'success' },
+    DEFAILLANT: { label: 'Défaillant', color: 'deep-orange' },
   }
   return map[type] ?? { label: String(type), color: 'grey' }
 }

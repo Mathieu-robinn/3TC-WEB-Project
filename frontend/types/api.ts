@@ -8,7 +8,7 @@ export interface ApiEdition {
   endDate: string
 }
 
-export type TransponderStatusApi = 'EN_ATTENTE' | 'ATTRIBUE' | 'PERDU' | 'RECUPERE'
+export type TransponderStatusApi = 'EN_ATTENTE' | 'ATTRIBUE' | 'PERDU' | 'RECUPERE' | 'DEFAILLANT'
 
 export interface ApiTransponderRef {
   id?: number
@@ -63,6 +63,7 @@ export interface TransponderStats {
   ATTRIBUE: number
   PERDU: number
   RECUPERE: number
+  DEFAILLANT: number
 }
 
 /** Transaction telle que renvoyée par l’API (champs Prisma + include optionnel). */

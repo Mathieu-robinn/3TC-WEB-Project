@@ -88,7 +88,11 @@ export class TransponderTransactionService {
       );
     }
 
-    if (transponder.status === TransponderStatus.PERDU || transponder.status === TransponderStatus.RECUPERE) {
+    if (
+      transponder.status === TransponderStatus.PERDU ||
+      transponder.status === TransponderStatus.RECUPERE ||
+      transponder.status === TransponderStatus.DEFAILLANT
+    ) {
       throw new BadRequestException(
         `Le transpondeur #${transponderId} est marqué comme ${transponder.status} et ne peut pas être réutilisé.`,
       );

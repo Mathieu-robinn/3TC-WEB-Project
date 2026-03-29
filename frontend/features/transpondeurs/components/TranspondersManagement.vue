@@ -39,7 +39,7 @@
       </div>
 
       <v-row class="mt-4">
-        <v-col v-for="(kpi, i) in kpis" :key="i" cols="12" sm="6" md="3">
+        <v-col v-for="(kpi, i) in kpis" :key="i" cols="12" sm="6" md="4" lg="2">
           <div class="kpi-chip">
             <div class="kpi-icon" :class="kpi.iconBg">
               <v-icon size="18" color="white">{{ kpi.icon }}</v-icon>
@@ -143,7 +143,7 @@
               </v-chip>
             </td>
             <td class="font-weight-medium">
-              <div v-if="t.status === 'ATTRIBUE' && t.team" class="d-flex align-center gap-2 text-medium-emphasis">
+              <div v-if="t.team" class="d-flex align-center gap-2 text-medium-emphasis">
                 <v-icon size="16">mdi-account-group</v-icon>
                 <span>{{ t.team.name || `Équipe #${t.team.id}` }}</span>
               </div>
@@ -176,6 +176,18 @@
                 >
                   <v-icon size="18">mdi-arrow-u-left-bottom</v-icon>
                 </v-btn>
+                <v-btn
+                  v-if="t.status === 'ATTRIBUE'"
+                  icon
+                  variant="text"
+                  size="small"
+                  color="deep-orange"
+                  title="Déclarer défaillant (retire la puce de l'équipe)"
+                  :loading="store.saving"
+                  @click="onMarkAsDefective(t)"
+                >
+                  <v-icon size="18">mdi-flash-alert</v-icon>
+                </v-btn>
                 <!-- Bouton déclarer perdu -->
                 <v-btn
                   v-if="t.status === 'ATTRIBUE'"
@@ -188,6 +200,18 @@
                   @click="onMarkAsLost(t)"
                 >
                   <v-icon size="18">mdi-alert-circle</v-icon>
+                </v-btn>
+                <v-btn
+                  v-if="t.status === 'DEFAILLANT'"
+                  icon
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  title="Remettre en stock (en attente)"
+                  :loading="store.saving"
+                  @click="onMarkAsEnAttente(t)"
+                >
+                  <v-icon size="18">mdi-package-variant</v-icon>
                 </v-btn>
                 <v-btn
                   icon
@@ -436,6 +460,12 @@ const kpis = computed(() => [
     icon: 'mdi-arrow-u-left-bottom',
     iconBg: 'bg-orange-alpha',
   },
+  {
+    label: 'Défaillants',
+    value: String(store.totalStats.DEFAILLANT || 0),
+    icon: 'mdi-flash-alert',
+    iconBg: 'bg-deep-orange-alpha',
+  },
 ])
 
 function labelFor(t) {
@@ -502,9 +532,11 @@ function closeAssignDialog() {
 }
 
 function teamHasLostTransponder(team) {
-  // Vérifie si l'équipe a des transpondeurs tous perdus
   const transponders = team.transponders || []
-  return transponders.length > 0 && transponders.every((t) => t.status === 'PERDU')
+  return (
+    transponders.length > 0 &&
+    transponders.every((t) => t.status === 'PERDU' || t.status === 'DEFAILLANT')
+  )
 }
 
 async function onConfirmAssign() {
@@ -539,6 +571,31 @@ async function onMarkAsLost(transponder) {
     showSnackbar('Transpondeur déclaré comme perdu', 'warning', 'mdi-alert-circle')
   } catch {
     showSnackbar("Erreur lors de la mise à jour", 'error', 'mdi-alert-circle')
+  }
+}
+
+async function onMarkAsDefective(transponder) {
+  if (
+    !confirm(
+      `Marquer le transpondeur #${transponder.id} comme défaillant ? La puce sera retirée de l'équipe.`,
+    )
+  )
+    return
+  try {
+    await store.markAsDefective(transponder.id)
+    showSnackbar('Transpondeur marqué comme défaillant', 'deep-orange', 'mdi-flash-alert')
+  } catch {
+    showSnackbar('Erreur lors de la mise à jour', 'error', 'mdi-alert-circle')
+  }
+}
+
+async function onMarkAsEnAttente(transponder) {
+  if (!confirm(`Remettre le transpondeur #${transponder.id} en stock (en attente) ?`)) return
+  try {
+    await store.markAsEnAttente(transponder.id)
+    showSnackbar('Transpondeur remis en attente', 'success', 'mdi-package-variant')
+  } catch {
+    showSnackbar('Erreur lors de la mise à jour', 'error', 'mdi-alert-circle')
   }
 }
 
