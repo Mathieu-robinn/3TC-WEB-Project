@@ -1,11 +1,11 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Course, Prisma, Role } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { Public } from "../auth/public.decorator.js";
 import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
-import { CreateCourseDto } from "./dto/course.dto.js";
+import { CreateCourseDto, UpdateCourseDto } from "./dto/course.dto.js";
 import { CourseService } from "./course.service.js";
 import { EditionService } from "../editions/edition.service.js";
 
@@ -57,6 +57,32 @@ export class CoursesController {
       edition: { connect: { id: data.editionId } },
     };
     return this.courseService.createCourse(prismaData);
+  }
+
+  @ApiOperation({ summary: "Modifier un parcours (admin)" })
+  @ApiParam({ name: "id", description: "ID du parcours" })
+  @ApiResponse({ status: 200, description: "Parcours mis à jour." })
+  @Put("course/:id")
+  @Roles(Role.ADMIN)
+  async updateCourse(@Param("id") id: string, @Body() data: UpdateCourseDto): Promise<Course> {
+    return this.courseService.updateCourseSafe(Number(id), {
+      ...(data.name !== undefined ? { name: data.name } : {}),
+      ...(data.distanceTour !== undefined ? { distanceTour: data.distanceTour } : {}),
+      ...(data.dateAndTime !== undefined ? { dateAndTime: data.dateAndTime } : {}),
+      ...(data.editionId !== undefined ? { editionId: data.editionId } : {}),
+    });
+  }
+
+  @ApiOperation({
+    summary: "Supprimer un parcours (admin)",
+    description: "Supprime d’abord les équipes rattachées à ce parcours, puis le parcours.",
+  })
+  @ApiParam({ name: "id", description: "ID du parcours" })
+  @ApiResponse({ status: 200, description: "Parcours supprimé." })
+  @Delete("course/:id")
+  @Roles(Role.ADMIN)
+  async deleteCourse(@Param("id") id: string): Promise<Course> {
+    return this.courseService.deleteCourseCascade(Number(id));
   }
 }
 

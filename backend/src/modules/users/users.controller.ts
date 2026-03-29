@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+  Request,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Role, User } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
@@ -62,8 +74,11 @@ export class UsersController {
   @ApiResponse({ status: 200, description: "Utilisateur supprimé." })
   @Delete("user/:id")
   @Roles(Role.ADMIN)
-  async deleteUser(@Param("id") id: string): Promise<User> {
-    return this.userService.deleteUser({ id: Number(id) });
+  async deleteUser(
+    @Request() req: { user: { userId: number } },
+    @Param("id") id: string,
+  ): Promise<User> {
+    return this.userService.deleteStaffUser(req.user.userId, Number(id));
   }
 }
 

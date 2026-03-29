@@ -1,11 +1,11 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Edition, Prisma, Role } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { Public } from "../auth/public.decorator.js";
 import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
-import { CreateEditionDto } from "./dto/edition.dto.js";
+import { CreateEditionDto, UpdateEditionDto } from "./dto/edition.dto.js";
 import { EditionService } from "./edition.service.js";
 
 @ApiTags("Editions")
@@ -45,6 +45,32 @@ export class EditionsController {
   @Roles(Role.ADMIN)
   async activateEdition(@Param("id") id: string): Promise<Edition> {
     return this.editionService.setActiveEdition(Number(id));
+  }
+
+  @ApiOperation({ summary: "Modifier une édition (admin)" })
+  @ApiParam({ name: "id", description: "ID de l’édition" })
+  @ApiResponse({ status: 200, description: "Édition mise à jour." })
+  @Put("edition/:id")
+  @Roles(Role.ADMIN)
+  async updateEdition(@Param("id") id: string, @Body() data: UpdateEditionDto): Promise<Edition> {
+    return this.editionService.updateEditionSafe(Number(id), {
+      ...(data.name !== undefined ? { name: data.name } : {}),
+      ...(data.startDate !== undefined ? { startDate: data.startDate } : {}),
+      ...(data.endDate !== undefined ? { endDate: data.endDate } : {}),
+    });
+  }
+
+  @ApiOperation({
+    summary: "Supprimer une édition (admin)",
+    description:
+      "Supprime les équipes des parcours de cette édition, puis l’édition (transpondeurs de stock inclus en cascade).",
+  })
+  @ApiParam({ name: "id", description: "ID de l’édition" })
+  @ApiResponse({ status: 200, description: "Édition supprimée." })
+  @Delete("edition/:id")
+  @Roles(Role.ADMIN)
+  async deleteEdition(@Param("id") id: string): Promise<Edition> {
+    return this.editionService.deleteEditionCascade(Number(id));
   }
 }
 

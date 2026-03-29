@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../prisma.service.js";
 import { Prisma, Role, User } from "@prisma/client";
@@ -115,5 +115,13 @@ export class UserService {
     return this.prisma.user.delete({
       where,
     });
+  }
+
+  /** Suppression par un admin : interdit de supprimer son propre compte. */
+  async deleteStaffUser(actorUserId: number, targetUserId: number): Promise<User> {
+    if (actorUserId === targetUserId) {
+      throw new BadRequestException("Vous ne pouvez pas supprimer votre propre compte.");
+    }
+    return this.deleteUser({ id: targetUserId });
   }
 }

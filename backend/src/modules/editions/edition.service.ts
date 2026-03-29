@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
 import { Edition, Prisma } from "@prisma/client";
+import { TeamService } from "../teams/team.service.js";
 
 @Injectable()
 export class EditionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private teamService: TeamService,
+  ) {}
 
   /**
    * Édition utilisée pour filtrer équipes / coureurs / etc.
@@ -82,6 +86,60 @@ export class EditionService {
   async deleteEdition(where: Prisma.EditionWhereUniqueInput): Promise<Edition> {
     return this.prisma.edition.delete({
       where,
+    });
+  }
+
+  /**
+   * Supprime une édition après avoir supprimé toutes les équipes (et données liées) de ses courses.
+   * Les transpondeurs rattachés à l’édition sont supprimés en cascade côté Prisma.
+   */
+  async deleteEditionCascade(id: number): Promise<Edition> {
+    const edition = await this.prisma.edition.findUnique({
+      where: { id },
+      include: {
+        courses: {
+          include: {
+            teams: { select: { id: true } },
+          },
+        },
+      },
+    });
+    if (!edition) {
+      throw new NotFoundException(`Édition #${id} introuvable.`);
+    }
+    for (const course of edition.courses) {
+      for (const team of course.teams) {
+        await this.teamService.deleteTeam({ id: team.id });
+      }
+    }
+    return this.prisma.edition.delete({ where: { id } });
+  }
+
+  async updateEditionSafe(
+    id: number,
+    data: { name?: string; startDate?: Date; endDate?: Date },
+  ): Promise<Edition> {
+    const hasField =
+      data.name !== undefined || data.startDate !== undefined || data.endDate !== undefined;
+    if (!hasField) {
+      throw new BadRequestException("Aucun champ à mettre à jour.");
+    }
+    const existing = await this.prisma.edition.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Édition #${id} introuvable.`);
+    }
+    const start = data.startDate ?? existing.startDate;
+    const end = data.endDate ?? existing.endDate;
+    if (end.getTime() <= start.getTime()) {
+      throw new BadRequestException("La date de fin doit être après la date de début.");
+    }
+    return this.prisma.edition.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.startDate !== undefined ? { startDate: data.startDate } : {}),
+        ...(data.endDate !== undefined ? { endDate: data.endDate } : {}),
+      },
     });
   }
 }

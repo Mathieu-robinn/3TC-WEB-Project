@@ -1,65 +1,307 @@
 <template>
-  <v-container fluid class="pa-6">
-    <div class="d-flex align-center mb-6">
-      <v-icon size="32" color="grey-darken-2" class="mr-3">mdi-cog-outline</v-icon>
-      <h1 class="text-h4 font-weight-bold">Paramètres</h1>
+  <v-container fluid class="pa-0 parametres-page">
+    <div class="hero-header pa-6 pb-4">
+      <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
+        <div>
+          <div class="d-flex align-center mb-1">
+            <div class="hero-icon-wrap mr-3">
+              <v-icon color="white" size="22">mdi-cog</v-icon>
+            </div>
+            <h1 class="text-h5 font-weight-bold text-white">Paramètres</h1>
+          </div>
+          <p class="text-body-2 text-white-70 ml-13">
+            Édition active, structure de l’événement et parcours (disciplines).
+          </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 ml-13 ml-md-0">
+          <v-btn
+            variant="tonal"
+            color="white"
+            prepend-icon="mdi-refresh"
+            rounded="lg"
+            :loading="refreshingAll"
+            @click="refreshAll"
+          >
+            Actualiser
+          </v-btn>
+        </div>
+      </div>
+
+      <v-row class="mt-4">
+        <v-col v-for="(kpi, i) in kpis" :key="i" cols="12" sm="6" md="4">
+          <div class="kpi-chip">
+            <div class="kpi-icon" :class="kpi.iconBg">
+              <v-icon size="18" color="white">{{ kpi.icon }}</v-icon>
+            </div>
+            <div class="min-w-0">
+              <div class="kpi-value text-truncate">{{ kpi.value }}</div>
+              <div class="kpi-label">{{ kpi.label }}</div>
+            </div>
+          </div>
+        </v-col>
+      </v-row>
     </div>
 
-    <v-row>
-      <v-col cols="12" md="6">
-        <v-card rounded="lg" elevation="0" class="border pa-4">
-          <div class="text-subtitle-1 font-weight-bold mb-1">Édition active</div>
+    <div class="pa-6 pt-4">
+      <v-alert v-if="error" type="error" variant="tonal" class="mb-4" density="compact" rounded="lg">{{
+        error
+      }}</v-alert>
+      <v-alert v-if="successMsg" type="success" variant="tonal" class="mb-4" density="compact" rounded="lg">{{
+        successMsg
+      }}</v-alert>
+      <v-alert v-if="createEditionSuccess" type="success" variant="tonal" class="mb-4" density="compact" rounded="lg">{{
+        createEditionSuccess
+      }}</v-alert>
+
+      <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
+        <v-card-text class="pa-4">
+          <div class="text-subtitle-2 font-weight-bold mb-2">Édition affichée sur le site</div>
           <p class="text-body-2 text-medium-emphasis mb-4">
-            Tout le site (équipes, participants, transpondeurs, transactions) affiche uniquement les données
-            de l’édition marquée comme active. Seuls les administrateurs peuvent changer l’édition active.
+            Tout le site (équipes, participants, transpondeurs) utilise l’édition marquée comme active.
           </p>
 
-          <div v-if="!isAdmin" class="text-body-2 text-medium-emphasis mb-4">
+          <div v-if="!isAdmin" class="text-body-2 text-medium-emphasis d-flex align-center">
             <v-icon size="18" class="mr-1">mdi-information-outline</v-icon>
             Contactez un administrateur pour modifier l’édition affichée.
           </div>
 
           <template v-else>
+            <v-row>
+              <v-col cols="12" md="8">
+                <v-select
+                  v-model="selectedEditionId"
+                  :items="editionItems"
+                  item-title="title"
+                  item-value="value"
+                  label="Édition à activer"
+                  variant="outlined"
+                  density="comfortable"
+                  :loading="loading"
+                  :disabled="loading || saving"
+                  hide-details="auto"
+                />
+              </v-col>
+              <v-col cols="12" md="4" class="d-flex align-end">
+                <v-btn
+                  color="primary"
+                  variant="flat"
+                  rounded="lg"
+                  block
+                  :loading="saving"
+                  :disabled="!canApply || saving"
+                  @click="applyEdition"
+                >
+                  Appliquer
+                </v-btn>
+              </v-col>
+            </v-row>
+          </template>
+        </v-card-text>
+      </v-card>
+
+      <template v-if="isAdmin">
+        <v-row class="mb-5">
+          <v-col cols="12" sm="6" lg="4">
+            <v-card
+              class="action-tile"
+              rounded="xl"
+              elevation="0"
+              role="button"
+              tabindex="0"
+              @click="openCreateEditionDialog"
+              @keydown.enter="openCreateEditionDialog"
+            >
+              <v-card-text class="d-flex align-center pa-4">
+                <div class="action-tile-icon mr-4">
+                  <v-icon color="primary" size="28">mdi-calendar-plus</v-icon>
+                </div>
+                <div class="min-w-0 flex-grow-1">
+                  <div class="text-subtitle-1 font-weight-bold">Nouvelle édition</div>
+                  <div class="text-body-2 text-medium-emphasis">Créer une année ou un événement</div>
+                </div>
+                <v-icon class="text-medium-emphasis flex-shrink-0">mdi-chevron-right</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" sm="6" lg="4">
+            <v-card
+              class="action-tile"
+              rounded="xl"
+              elevation="0"
+              :class="{ 'action-tile--disabled': selectedEditionId == null }"
+              role="button"
+              :tabindex="selectedEditionId == null ? -1 : 0"
+              @click="selectedEditionId != null && openCreateCourseDialog()"
+              @keydown.enter="selectedEditionId != null && openCreateCourseDialog()"
+            >
+              <v-card-text class="d-flex align-center pa-4">
+                <div class="action-tile-icon mr-4">
+                  <v-icon color="primary" size="28">mdi-run-fast</v-icon>
+                </div>
+                <div class="min-w-0 flex-grow-1">
+                  <div class="text-subtitle-1 font-weight-bold">Ajouter une course</div>
+                  <div class="text-body-2 text-medium-emphasis">
+                    {{
+                      selectedEditionId == null
+                        ? 'Créez d’abord une édition'
+                        : `Pour « ${selectedEditionLabel} »`
+                    }}
+                  </div>
+                </div>
+                <v-icon class="text-medium-emphasis flex-shrink-0">mdi-chevron-right</v-icon>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <v-card class="list-card mb-5" rounded="xl" elevation="0">
+          <v-toolbar density="comfortable" color="transparent" class="px-2">
+            <v-toolbar-title class="text-subtitle-1 font-weight-bold">Éditions</v-toolbar-title>
+            <v-spacer />
+            <v-btn color="primary" variant="tonal" size="small" prepend-icon="mdi-plus" rounded="lg" @click="openCreateEditionDialog">
+              Ajouter
+            </v-btn>
+          </v-toolbar>
+          <v-divider />
+          <div class="pa-2">
+            <v-data-table
+              v-if="activeEditionStore.editions.length"
+              :headers="editionTableHeaders"
+              :items="activeEditionStore.editions"
+              class="elevation-0"
+              density="comfortable"
+              hide-default-footer
+              :items-per-page="-1"
+            >
+              <template #item.startDate="{ item }">
+                {{ formatCourseDate(item.startDate) }}
+              </template>
+              <template #item.endDate="{ item }">
+                {{ formatCourseDate(item.endDate) }}
+              </template>
+              <template #item.active="{ item }">
+                <v-chip v-if="item.active" size="small" color="success" variant="flat">Active</v-chip>
+                <span v-else class="text-medium-emphasis">—</span>
+              </template>
+              <template #item.actions="{ item }">
+                <v-btn
+                  icon="mdi-pencil"
+                  variant="text"
+                  size="small"
+                  aria-label="Modifier l’édition"
+                  @click="openEditionEdit(item)"
+                />
+                <v-btn
+                  icon="mdi-delete-outline"
+                  variant="text"
+                  size="small"
+                  color="error"
+                  aria-label="Supprimer l’édition"
+                  @click="askDeleteEdition(item)"
+                />
+              </template>
+            </v-data-table>
+            <div v-else class="text-body-2 text-medium-emphasis pa-4">Aucune édition.</div>
+          </div>
+        </v-card>
+
+        <v-card class="list-card" rounded="xl" elevation="0">
+          <v-toolbar density="comfortable" color="transparent" class="px-2 flex-wrap gap-2">
+            <v-toolbar-title class="text-subtitle-1 font-weight-bold">Courses</v-toolbar-title>
             <v-select
               v-model="selectedEditionId"
               :items="editionItems"
               item-title="title"
               item-value="value"
-              label="Édition à activer"
-              variant="outlined"
-              density="comfortable"
-              class="mb-4"
-              :loading="loading"
-              :disabled="loading || saving"
-              hide-details="auto"
+              label="Édition"
+              variant="solo-filled"
+              density="compact"
+              flat
+              rounded="lg"
+              hide-details
+              class="edition-toolbar-select"
+              style="max-width: 280px"
             />
-
+            <v-spacer />
             <v-btn
               color="primary"
-              variant="flat"
+              variant="tonal"
+              size="small"
+              prepend-icon="mdi-plus"
               rounded="lg"
-              :loading="saving"
-              :disabled="!canApply || saving"
-              @click="applyEdition"
+              :disabled="selectedEditionId == null"
+              @click="openCreateCourseDialog"
             >
-              Appliquer cette édition
+              Ajouter
             </v-btn>
-            <v-alert v-if="error" type="error" variant="tonal" class="mt-4" density="compact">{{ error }}</v-alert>
-            <v-alert v-if="successMsg" type="success" variant="tonal" class="mt-4" density="compact">{{
-              successMsg
+          </v-toolbar>
+          <v-divider />
+
+          <div v-if="selectedEditionId == null" class="text-body-2 text-medium-emphasis pa-6">
+            Aucune édition disponible. Créez une édition ou actualisez la page.
+          </div>
+
+          <div v-else class="pa-2">
+            <v-progress-linear v-if="coursesLoading" indeterminate class="mb-2" />
+
+            <v-data-table
+              v-else-if="courses.length"
+              :headers="courseTableHeaders"
+              :items="courses"
+              class="elevation-0"
+              density="comfortable"
+              hide-default-footer
+              :items-per-page="-1"
+            >
+              <template #item.distanceTour="{ item }">
+                {{ item.distanceTour != null ? String(item.distanceTour) : '—' }}
+              </template>
+              <template #item.dateAndTime="{ item }">
+                {{ formatCourseDate(item.dateAndTime) }}
+              </template>
+              <template #item.actions="{ item }">
+                <v-btn
+                  icon="mdi-pencil"
+                  variant="text"
+                  size="small"
+                  aria-label="Modifier la course"
+                  @click="openCourseEdit(item)"
+                />
+                <v-btn
+                  icon="mdi-delete-outline"
+                  variant="text"
+                  size="small"
+                  color="error"
+                  aria-label="Supprimer la course"
+                  @click="askDeleteCourse(item)"
+                />
+              </template>
+            </v-data-table>
+
+            <div v-else class="text-body-2 text-medium-emphasis pa-4">Aucune course pour cette édition.</div>
+
+            <v-alert v-if="courseError" type="error" variant="tonal" class="ma-2" density="compact" rounded="lg">{{
+              courseError
             }}</v-alert>
-          </template>
+            <v-alert v-if="courseSuccess" type="success" variant="tonal" class="ma-2" density="compact" rounded="lg">{{
+              courseSuccess
+            }}</v-alert>
+          </div>
         </v-card>
-      </v-col>
+      </template>
+    </div>
 
-      <v-col v-if="isAdmin" cols="12" md="6">
-        <v-card rounded="lg" elevation="0" class="border pa-4">
-          <div class="text-subtitle-1 font-weight-bold mb-1">Nouvelle édition</div>
-          <p class="text-body-2 text-medium-emphasis mb-4">
-            Créez une édition (ex. « 24h INSA 2027 »), puis ajoutez-y des courses ci-dessous après l’avoir
-            sélectionnée dans la liste.
-          </p>
-
+    <v-dialog v-model="createEditionDialogOpen" max-width="520" scrollable>
+      <v-card rounded="xl">
+        <div class="form-header pa-4 d-flex align-center">
+          <v-icon color="white" class="mr-2">mdi-calendar-plus</v-icon>
+          <span class="text-h6 text-white font-weight-bold">Nouvelle édition</span>
+          <v-spacer />
+          <v-btn icon variant="text" color="white" @click="createEditionDialogOpen = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+        <v-card-text class="pa-4 pt-4">
           <v-text-field
             v-model="newEditionName"
             label="Nom"
@@ -94,142 +336,246 @@
             label="Définir comme édition active après création"
             density="comfortable"
             hide-details
-            class="mb-2"
             :disabled="creatingEdition"
           />
-
+          <v-alert v-if="createEditionError" type="error" variant="tonal" class="mt-3" density="compact">{{
+            createEditionError
+          }}</v-alert>
+        </v-card-text>
+        <v-card-actions class="px-4 pb-4">
+          <v-spacer />
+          <v-btn variant="text" rounded="lg" @click="createEditionDialogOpen = false">Annuler</v-btn>
           <v-btn
             color="primary"
-            variant="tonal"
+            variant="flat"
             rounded="lg"
             :loading="creatingEdition"
             :disabled="!canCreateEdition || creatingEdition"
             @click="createEdition"
           >
-            Créer l’édition
+            Créer
           </v-btn>
-          <v-alert v-if="createEditionError" type="error" variant="tonal" class="mt-4" density="compact">{{
-            createEditionError
-          }}</v-alert>
-          <v-alert v-if="createEditionSuccess" type="success" variant="tonal" class="mt-4" density="compact">{{
-            createEditionSuccess
-          }}</v-alert>
-        </v-card>
-      </v-col>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-      <v-col v-if="isAdmin" cols="12">
-        <v-card rounded="lg" elevation="0" class="border pa-4">
-          <div class="text-subtitle-1 font-weight-bold mb-1">Courses (disciplines)</div>
-          <p class="text-body-2 text-medium-emphasis mb-4">
-            Les parcours sont rattachés à l’édition choisie dans « Édition à activer » ci-dessus. Sélectionnez
-            d’abord l’édition concernée, puis ajoutez les courses une par une.
+    <v-dialog v-model="createCourseDialogOpen" max-width="560" scrollable>
+      <v-card rounded="xl">
+        <div class="form-header pa-4 d-flex align-center">
+          <v-icon color="white" class="mr-2">mdi-run-fast</v-icon>
+          <span class="text-h6 text-white font-weight-bold">Nouvelle course</span>
+          <v-spacer />
+          <v-btn icon variant="text" color="white" @click="createCourseDialogOpen = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+        <v-card-text class="pa-4 pt-4">
+          <p v-if="selectedEditionLabel" class="text-body-2 text-medium-emphasis mb-4">
+            Édition :
+            <strong>{{ selectedEditionLabel }}</strong>
           </p>
+          <v-text-field
+            v-model="newCourseName"
+            label="Nom de la discipline"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+            hide-details="auto"
+            :disabled="creatingCourse"
+          />
+          <v-text-field
+            v-model="newCourseDistance"
+            type="number"
+            step="any"
+            min="0"
+            label="Distance par tour (km)"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+            hide-details="auto"
+            :disabled="creatingCourse"
+          />
+          <v-text-field
+            v-model="newCourseDateTime"
+            type="datetime-local"
+            label="Date et heure de la course"
+            variant="outlined"
+            density="comfortable"
+            hide-details="auto"
+            :disabled="creatingCourse"
+          />
+          <v-alert v-if="courseError" type="error" variant="tonal" class="mt-3" density="compact">{{ courseError }}</v-alert>
+        </v-card-text>
+        <v-card-actions class="px-4 pb-4">
+          <v-spacer />
+          <v-btn variant="text" rounded="lg" @click="createCourseDialogOpen = false">Annuler</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            rounded="lg"
+            :loading="creatingCourse"
+            :disabled="!canCreateCourse || creatingCourse || selectedEditionId == null"
+            @click="createCourse"
+          >
+            Ajouter
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-          <div v-if="selectedEditionId == null" class="text-body-2 text-medium-emphasis">
-            Aucune édition disponible. Créez une édition ou rechargez la page.
-          </div>
+    <v-dialog v-model="editionEditOpen" max-width="520">
+      <v-card rounded="lg">
+        <v-card-title class="text-h6">Modifier l’édition</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="editionEdit.name"
+            label="Nom"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+          />
+          <v-text-field
+            v-model="editionEdit.start"
+            type="datetime-local"
+            label="Début"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+          />
+          <v-text-field
+            v-model="editionEdit.end"
+            type="datetime-local"
+            label="Fin"
+            variant="outlined"
+            density="comfortable"
+          />
+          <v-alert v-if="editionEditError" type="error" variant="tonal" class="mt-3" density="compact">{{
+            editionEditError
+          }}</v-alert>
+        </v-card-text>
+        <v-card-actions class="px-4 pb-4">
+          <v-spacer />
+          <v-btn variant="text" rounded="lg" @click="editionEditOpen = false">Annuler</v-btn>
+          <v-btn color="primary" variant="flat" rounded="lg" :loading="editionEditSaving" @click="saveEditionEdit">
+            Enregistrer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-          <template v-else>
-            <div class="text-body-2 mb-4">
-              Édition ciblée :
-              <strong>{{ selectedEditionLabel }}</strong>
-            </div>
+    <v-dialog v-model="editionDeleteOpen" max-width="440">
+      <v-card rounded="lg">
+        <v-card-title class="text-h6">Supprimer cette édition ?</v-card-title>
+        <v-card-text v-if="editionDeleteTarget">
+          L’édition <strong>{{ editionDeleteTarget.name }}</strong> et les équipes de ses parcours seront
+          supprimées. Les transpondeurs liés à cette édition seront aussi supprimés.
+          <v-alert
+            v-if="editionDeleteError"
+            type="error"
+            variant="tonal"
+            class="mt-3"
+            density="compact"
+            >{{ editionDeleteError }}</v-alert
+          >
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="editionDeleteOpen = false">Annuler</v-btn>
+          <v-btn color="error" variant="flat" :loading="editionDeleteLoading" @click="confirmDeleteEdition">
+            Supprimer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-            <v-progress-linear v-if="coursesLoading" indeterminate class="mb-4" />
+    <v-dialog v-model="courseEditOpen" max-width="560">
+      <v-card rounded="lg">
+        <v-card-title class="text-h6">Modifier la course</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="courseEdit.name"
+            label="Nom"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+          />
+          <v-text-field
+            v-model="courseEdit.distance"
+            type="number"
+            step="any"
+            min="0"
+            label="Distance / tour (km)"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+          />
+          <v-text-field
+            v-model="courseEdit.dateTime"
+            type="datetime-local"
+            label="Date et heure"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+          />
+          <v-select
+            v-model="courseEdit.editionId"
+            :items="editionItems"
+            item-title="title"
+            item-value="value"
+            label="Édition"
+            variant="outlined"
+            density="comfortable"
+            hide-details="auto"
+          />
+          <v-alert v-if="courseEditError" type="error" variant="tonal" class="mt-3" density="compact">{{
+            courseEditError
+          }}</v-alert>
+        </v-card-text>
+        <v-card-actions class="px-4 pb-4">
+          <v-spacer />
+          <v-btn variant="text" rounded="lg" @click="courseEditOpen = false">Annuler</v-btn>
+          <v-btn color="primary" variant="flat" rounded="lg" :loading="courseEditSaving" @click="saveCourseEdit">
+            Enregistrer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-            <v-table v-else-if="courses.length" density="comfortable" class="border rounded mb-4">
-              <thead>
-                <tr>
-                  <th class="text-left">Nom</th>
-                  <th class="text-left">Distance / tour (km)</th>
-                  <th class="text-left">Date et heure</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="c in courses" :key="c.id">
-                  <td>{{ c.name }}</td>
-                  <td>{{ c.distanceTour != null ? String(c.distanceTour) : '—' }}</td>
-                  <td>{{ formatCourseDate(c.dateAndTime) }}</td>
-                </tr>
-              </tbody>
-            </v-table>
-
-            <div v-else class="text-body-2 text-medium-emphasis mb-4">Aucune course pour cette édition pour le moment.</div>
-
-            <v-divider class="mb-4" />
-
-            <div class="text-subtitle-2 font-weight-bold mb-3">Ajouter une course</div>
-            <v-row>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="newCourseName"
-                  label="Nom de la discipline"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details="auto"
-                  :disabled="creatingCourse"
-                />
-              </v-col>
-              <v-col cols="12" md="3">
-                <v-text-field
-                  v-model="newCourseDistance"
-                  type="number"
-                  step="any"
-                  min="0"
-                  label="Distance par tour (km)"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details="auto"
-                  :disabled="creatingCourse"
-                />
-              </v-col>
-              <v-col cols="12" md="5">
-                <v-text-field
-                  v-model="newCourseDateTime"
-                  type="datetime-local"
-                  label="Date et heure de la course"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details="auto"
-                  :disabled="creatingCourse"
-                />
-              </v-col>
-            </v-row>
-            <div class="d-flex justify-end mt-2">
-              <v-btn
-                color="primary"
-                variant="flat"
-                rounded="lg"
-                :loading="creatingCourse"
-                :disabled="!canCreateCourse || creatingCourse"
-                @click="createCourse"
-              >
-                Ajouter la course
-              </v-btn>
-            </div>
-            <v-alert v-if="courseError" type="error" variant="tonal" class="mt-4" density="compact">{{ courseError }}</v-alert>
-            <v-alert v-if="courseSuccess" type="success" variant="tonal" class="mt-4" density="compact">{{
-              courseSuccess
-            }}</v-alert>
-          </template>
-        </v-card>
-      </v-col>
-    </v-row>
+    <v-dialog v-model="courseDeleteOpen" max-width="420">
+      <v-card rounded="lg">
+        <v-card-title class="text-h6">Supprimer cette course ?</v-card-title>
+        <v-card-text v-if="courseDeleteTarget">
+          Les équipes du parcours <strong>{{ courseDeleteTarget.name }}</strong> seront supprimées en cascade.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="courseDeleteOpen = false">Annuler</v-btn>
+          <v-btn color="error" variant="flat" :loading="courseDeleteLoading" @click="confirmDeleteCourse">
+            Supprimer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useActiveEditionStore } from '~/features/editions/stores/activeEdition'
 import type { ApiCourse, ApiEdition } from '~/types/api'
 
 const { isAdmin } = useJwtAuth()
 const activeEditionStore = useActiveEditionStore()
+const api = useApi()
 
 const loading = ref(false)
 const saving = ref(false)
+const refreshingAll = ref(false)
 const error = ref<string | null>(null)
 const successMsg = ref<string | null>(null)
+
+const createEditionDialogOpen = ref(false)
+const createCourseDialogOpen = ref(false)
 
 const selectedEditionId = ref<number | null>(null)
 
@@ -250,6 +596,44 @@ const creatingCourse = ref(false)
 const courseError = ref<string | null>(null)
 const courseSuccess = ref<string | null>(null)
 
+const editionTableHeaders = [
+  { title: 'Nom', key: 'name' },
+  { title: 'Début', key: 'startDate' },
+  { title: 'Fin', key: 'endDate' },
+  { title: 'Statut', key: 'active', width: '110px' },
+  { title: '', key: 'actions', sortable: false, width: '108px' },
+]
+
+const courseTableHeaders = [
+  { title: 'Nom', key: 'name' },
+  { title: 'Distance / tour (km)', key: 'distanceTour' },
+  { title: 'Date et heure', key: 'dateAndTime' },
+  { title: '', key: 'actions', sortable: false, width: '108px' },
+]
+
+const editionEditOpen = ref(false)
+const editionEditSaving = ref(false)
+const editionEditError = ref<string | null>(null)
+const editionEdit = reactive({ id: 0, name: '', start: '', end: '' })
+const editionDeleteOpen = ref(false)
+const editionDeleteLoading = ref(false)
+const editionDeleteError = ref<string | null>(null)
+const editionDeleteTarget = ref<ApiEdition | null>(null)
+
+const courseEditOpen = ref(false)
+const courseEditSaving = ref(false)
+const courseEditError = ref<string | null>(null)
+const courseEdit = reactive({
+  id: 0,
+  name: '',
+  distance: '',
+  dateTime: '',
+  editionId: null as number | null,
+})
+const courseDeleteOpen = ref(false)
+const courseDeleteLoading = ref(false)
+const courseDeleteTarget = ref<ApiCourse | null>(null)
+
 const editionItems = computed(() =>
   activeEditionStore.editions.map((e: ApiEdition) => ({
     title: `${e.name}${e.active ? ' (actuelle)' : ''}`,
@@ -262,6 +646,59 @@ const selectedEditionLabel = computed(() => {
   const e = activeEditionStore.editions.find((x) => x.id === selectedEditionId.value)
   return e?.name ?? `#${selectedEditionId.value}`
 })
+
+const kpis = computed(() => {
+  const editions = activeEditionStore.editions.length
+  const active = activeEditionStore.editions.find((e) => e.active)
+  let activeLabel = active?.name ?? 'Aucune'
+  if (activeLabel.length > 28) activeLabel = `${activeLabel.slice(0, 28)}…`
+  const courseVal = isAdmin.value ? String(courses.value.length) : '—'
+  return [
+    {
+      label: 'Éditions',
+      value: String(editions),
+      icon: 'mdi-calendar-multiple',
+      iconBg: 'bg-blue-alpha',
+    },
+    {
+      label: 'Courses (sélection)',
+      value: courseVal,
+      icon: 'mdi-run',
+      iconBg: 'bg-green-alpha',
+    },
+    {
+      label: 'Édition active',
+      value: activeLabel,
+      icon: 'mdi-check-decagram',
+      iconBg: 'bg-orange-alpha',
+    },
+  ]
+})
+
+function openCreateEditionDialog() {
+  createEditionError.value = null
+  createEditionSuccess.value = null
+  createEditionDialogOpen.value = true
+}
+
+function openCreateCourseDialog() {
+  if (selectedEditionId.value == null) return
+  courseError.value = null
+  createCourseDialogOpen.value = true
+}
+
+async function refreshAll() {
+  refreshingAll.value = true
+  error.value = null
+  successMsg.value = null
+  try {
+    await activeEditionStore.load()
+    await loadCoursesForSelection()
+    await refreshAppData()
+  } finally {
+    refreshingAll.value = false
+  }
+}
 
 const canApply = computed(() => {
   if (selectedEditionId.value == null) return false
@@ -293,6 +730,137 @@ function formatCourseDate(iso: string | undefined) {
   }
 }
 
+function isoToDatetimeLocal(iso: string) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function openEditionEdit(e: ApiEdition) {
+  editionEditError.value = null
+  editionEdit.id = e.id
+  editionEdit.name = e.name
+  editionEdit.start = isoToDatetimeLocal(e.startDate)
+  editionEdit.end = isoToDatetimeLocal(e.endDate)
+  editionEditOpen.value = true
+}
+
+async function saveEditionEdit() {
+  if (!editionEdit.name.trim() || !editionEdit.start || !editionEdit.end) return
+  const start = new Date(editionEdit.start)
+  const end = new Date(editionEdit.end)
+  if (end.getTime() <= start.getTime()) {
+    editionEditError.value = 'La date de fin doit être après la date de début.'
+    return
+  }
+  editionEditSaving.value = true
+  editionEditError.value = null
+  try {
+    await api.put(`/edition/${editionEdit.id}`, {
+      name: editionEdit.name.trim(),
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+    })
+    editionEditOpen.value = false
+    await activeEditionStore.load()
+    await refreshAppData()
+  } catch (e: unknown) {
+    const err = e as { response?: { _data?: { message?: string } }; message?: string }
+    editionEditError.value = err.response?._data?.message || err.message || 'Impossible d’enregistrer.'
+  } finally {
+    editionEditSaving.value = false
+  }
+}
+
+function askDeleteEdition(e: ApiEdition) {
+  editionDeleteError.value = null
+  editionDeleteTarget.value = e
+  editionDeleteOpen.value = true
+}
+
+async function confirmDeleteEdition() {
+  if (!editionDeleteTarget.value) return
+  const deletedId = editionDeleteTarget.value.id
+  editionDeleteLoading.value = true
+  editionDeleteError.value = null
+  try {
+    await api.del(`/edition/${deletedId}`)
+    editionDeleteOpen.value = false
+    editionDeleteTarget.value = null
+    await activeEditionStore.load()
+    const stillThere = activeEditionStore.editions.some((x) => x.id === selectedEditionId.value)
+    if (!stillThere) {
+      const active = activeEditionStore.editions.find((ed) => ed.active)
+      selectedEditionId.value = active?.id ?? activeEditionStore.editions[0]?.id ?? null
+    }
+    await loadCoursesForSelection()
+    await refreshAppData()
+  } catch (e: unknown) {
+    const err = e as { response?: { _data?: { message?: string } }; message?: string }
+    editionDeleteError.value = err.response?._data?.message || err.message || 'Suppression impossible.'
+  } finally {
+    editionDeleteLoading.value = false
+  }
+}
+
+function openCourseEdit(c: ApiCourse) {
+  courseEditError.value = null
+  courseEdit.id = c.id
+  courseEdit.name = c.name
+  courseEdit.distance = c.distanceTour != null ? String(c.distanceTour) : ''
+  courseEdit.dateTime = c.dateAndTime ? isoToDatetimeLocal(c.dateAndTime) : ''
+  courseEdit.editionId = c.editionId ?? selectedEditionId.value
+  courseEditOpen.value = true
+}
+
+async function saveCourseEdit() {
+  if (!courseEdit.name.trim() || courseEdit.editionId == null) return
+  const dist = Number(courseEdit.distance)
+  if (!Number.isFinite(dist) || dist < 0 || !courseEdit.dateTime) return
+  courseEditSaving.value = true
+  courseEditError.value = null
+  try {
+    await api.put(`/course/${courseEdit.id}`, {
+      name: courseEdit.name.trim(),
+      distanceTour: dist,
+      dateAndTime: new Date(courseEdit.dateTime).toISOString(),
+      editionId: courseEdit.editionId,
+    })
+    courseEditOpen.value = false
+    await loadCoursesForSelection()
+    await activeEditionStore.load()
+    await refreshAppData()
+  } catch (e: unknown) {
+    const err = e as { response?: { _data?: { message?: string } }; message?: string }
+    courseEditError.value = err.response?._data?.message || err.message || 'Impossible d’enregistrer.'
+  } finally {
+    courseEditSaving.value = false
+  }
+}
+
+function askDeleteCourse(c: ApiCourse) {
+  courseDeleteTarget.value = c
+  courseDeleteOpen.value = true
+}
+
+async function confirmDeleteCourse() {
+  if (!courseDeleteTarget.value) return
+  courseDeleteLoading.value = true
+  try {
+    await api.del(`/course/${courseDeleteTarget.value.id}`)
+    courseDeleteOpen.value = false
+    courseDeleteTarget.value = null
+    await loadCoursesForSelection()
+    await refreshAppData()
+  } catch (e: unknown) {
+    const err = e as { response?: { _data?: { message?: string } }; message?: string }
+    courseError.value = err.response?._data?.message || err.message || 'Suppression impossible.'
+  } finally {
+    courseDeleteLoading.value = false
+  }
+}
+
 async function loadCoursesForSelection() {
   if (!isAdmin || selectedEditionId.value == null) {
     courses.value = []
@@ -300,7 +868,6 @@ async function loadCoursesForSelection() {
   }
   coursesLoading.value = true
   courseError.value = null
-  const api = useApi()
   try {
     const list = await api.get<ApiCourse[]>(`/edition/${selectedEditionId.value}/courses`)
     courses.value = Array.isArray(list) ? list : []
@@ -344,7 +911,6 @@ async function applyEdition() {
   saving.value = true
   error.value = null
   successMsg.value = null
-  const api = useApi()
   try {
     await api.patch(`/edition/${selectedEditionId.value}/activate`, {})
     await activeEditionStore.load()
@@ -364,7 +930,6 @@ async function createEdition() {
   createEditionError.value = null
   createEditionSuccess.value = null
   const shouldActivate = activateNewEditionAfterCreate.value
-  const api = useApi()
   try {
     const start = new Date(newEditionStart.value)
     const end = new Date(newEditionEnd.value)
@@ -391,6 +956,7 @@ async function createEdition() {
     createEditionSuccess.value = shouldActivate
       ? 'Édition créée et activée.'
       : 'Édition créée. Vous pouvez lui ajouter des courses ci-dessous.'
+    createEditionDialogOpen.value = false
     await loadCoursesForSelection()
   } catch (e: unknown) {
     const err = e as { response?: { _data?: { message?: string } }; message?: string }
@@ -405,7 +971,6 @@ async function createCourse() {
   creatingCourse.value = true
   courseError.value = null
   courseSuccess.value = null
-  const api = useApi()
   try {
     await api.post<ApiCourse>('/course', {
       name: newCourseName.value.trim(),
@@ -417,6 +982,7 @@ async function createCourse() {
     newCourseDistance.value = ''
     newCourseDateTime.value = ''
     courseSuccess.value = 'Course ajoutée.'
+    createCourseDialogOpen.value = false
     await loadCoursesForSelection()
     const wasActiveEdition = activeEditionStore.editions.find((e) => e.id === selectedEditionId.value)?.active
     if (wasActiveEdition) {
@@ -432,7 +998,121 @@ async function createCourse() {
 </script>
 
 <style scoped>
-.border {
-  border: 1px solid #e8e8e8 !important;
+.parametres-page {
+  background: transparent;
+  min-height: 100vh;
+}
+
+.hero-header {
+  background: linear-gradient(135deg, #1a1f36 0%, #2d3561 55%, #1a2040 100%);
+  position: relative;
+  overflow: hidden;
+}
+.hero-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.hero-icon-wrap {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.text-white-70 {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.kpi-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.kpi-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bg-blue-alpha {
+  background: rgba(66, 133, 244, 0.3);
+}
+.bg-green-alpha {
+  background: rgba(52, 199, 89, 0.3);
+}
+.bg-orange-alpha {
+  background: rgba(255, 149, 0, 0.3);
+}
+.kpi-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: white;
+  line-height: 1.2;
+}
+.kpi-label {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.65);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.controls-bar {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgb(var(--v-theme-surface));
+}
+
+.list-card {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgb(var(--v-theme-surface));
+}
+
+.action-tile {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgb(var(--v-theme-surface));
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.action-tile:hover:not(.action-tile--disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1) !important;
+}
+.action-tile--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.action-tile-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(var(--v-theme-primary), 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.edition-toolbar-select :deep(.v-field) {
+  box-shadow: none;
+}
+
+.form-header {
+  background: linear-gradient(135deg, #1a1f36 0%, #2d3561 100%);
+  border-radius: 12px 12px 0 0;
 }
 </style>
