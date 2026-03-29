@@ -81,5 +81,24 @@ describe("TransponderTransactionService", () => {
 
       await expect(service.createTransaction(mockData as any, 1)).rejects.toThrow(BadRequestException);
     });
+
+    it("should throw BadRequestException for ATTRIBUE without team", async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (prisma.transponder.findUnique as jest.Mock).mockResolvedValue({
+        ...mockTransponder,
+        status: TransponderStatus.EN_ATTENTE,
+        editionId: 1,
+      });
+
+      const attribueNoTeam = {
+        transponder: { connect: { id: 10 } },
+        user: { connect: { id: 1 } },
+        type: TransponderStatus.ATTRIBUE,
+      };
+
+      await expect(service.createTransaction(attribueNoTeam as any, 1)).rejects.toThrow(
+        "Une équipe est requise pour une transaction de type ATTRIBUE",
+      );
+    });
   });
 });

@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtStrategy } from "./jwt.strategy.js";
 import { AuthService } from "./auth.service.js";
 import { AuthController } from "./auth.controller.js";
+import { LoginRateLimitService } from "./login-rate-limit.service.js";
 import { PrismaService } from "../../prisma.service.js";
 
 /**
@@ -31,7 +32,7 @@ import { PrismaService } from "../../prisma.service.js";
     }),
   ],
   controllers: [AuthController],
-  providers: [JwtStrategy, AuthService, PrismaService],
+  providers: [JwtStrategy, AuthService, LoginRateLimitService, PrismaService],
   exports: [JwtModule],
 })
 export class AuthModule {}

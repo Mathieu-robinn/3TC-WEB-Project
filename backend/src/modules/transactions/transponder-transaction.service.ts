@@ -96,7 +96,12 @@ export class TransponderTransactionService {
 
     const teamConnect = (data as { team?: { connect?: { id: number } } }).team?.connect;
     const linkedTeamId = teamConnect?.id;
-    if (data.type === TransponderStatus.ATTRIBUE && linkedTeamId != null) {
+    if (data.type === TransponderStatus.ATTRIBUE) {
+      if (linkedTeamId == null) {
+        throw new BadRequestException(
+          "Une équipe est requise pour une transaction de type ATTRIBUE.",
+        );
+      }
       const team = await this.prisma.team.findUnique({
         where: { id: linkedTeamId },
         include: { course: true },

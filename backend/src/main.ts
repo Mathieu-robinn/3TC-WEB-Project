@@ -3,7 +3,6 @@ import { AppModule } from "./app.module.js";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -30,15 +29,6 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-    }),
-  );
-  app.use(
-    "/auth/login",
-    rateLimit({
-      windowMs: 60 * 1000,
-      limit: 10,
-      standardHeaders: true,
-      legacyHeaders: false,
     }),
   );
 

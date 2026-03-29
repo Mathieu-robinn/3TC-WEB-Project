@@ -1,6 +1,8 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from "@nestjs/common";
+import { Controller, Post, Body, HttpCode, HttpStatus, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiTags, ApiOperation, ApiBody, ApiResponse } from "@nestjs/swagger";
 import { AuthService } from "./auth.service.js";
+import { LoginRateLimitService } from "./login-rate-limit.service.js";
 import { Public } from "./public.decorator.js";
 import { LoginDto, RegisterDto } from "./dto/auth.dto.js";
 
@@ -10,7 +12,10 @@ import { LoginDto, RegisterDto } from "./dto/auth.dto.js";
 @ApiTags("Auth")
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly loginRateLimit: LoginRateLimitService,
+  ) {}
 
   /**
    * Inscription d'un nouvel utilisateur.
@@ -37,7 +42,10 @@ export class AuthController {
   @ApiBody({ schema: { example: { email: "admin@24h-insa.fr", password: "monMotDePasse" } } })
   @ApiResponse({ status: 200, description: "Connexion réussie. Retourne { accessToken, user }." })
   @ApiResponse({ status: 401, description: "Email ou mot de passe incorrect." })
-  async login(@Body() body: LoginDto) {
+  @ApiResponse({ status: 429, description: "Trop de tentatives depuis cette adresse IP." })
+  async login(@Req() req: Request, @Body() body: LoginDto) {
+    const ip = req.ip || req.socket?.remoteAddress || "unknown";
+    this.loginRateLimit.assertAllowed(ip);
     return this.authService.login(body.email, body.password);
   }
 }
