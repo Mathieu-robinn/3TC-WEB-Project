@@ -38,6 +38,7 @@ const config = defineNuxtConfig({
   css: [
     'vuetify/styles',
     '@mdi/font/css/materialdesignicons.css',
+    '~/assets/css/admin-pages.css',
   ],
 
   build: {

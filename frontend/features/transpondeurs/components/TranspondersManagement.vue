@@ -1,75 +1,124 @@
 <template>
-  <v-container fluid class="pa-6 transponders-page">
-    <!-- Header -->
-    <div class="d-flex justify-space-between align-center mb-6 flex-wrap gap-3">
-      <div class="d-flex align-center">
-        <v-icon size="32" color="grey-darken-2" class="mr-3">mdi-timer-outline</v-icon>
+  <v-container fluid class="pa-0 admin-page transponders-page">
+    <div class="hero-header pa-6 pb-4">
+      <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
         <div>
-          <h1 class="text-h4 font-weight-bold">Gestion des Transpondeurs</h1>
-          <p class="text-body-2 text-medium-emphasis mb-0">{{ store.totalStats.total }} puces · API</p>
+          <div class="d-flex align-center mb-1">
+            <div class="hero-icon-wrap mr-3">
+              <v-icon color="white" size="22">mdi-nfc-variant</v-icon>
+            </div>
+            <h1 class="text-h5 font-weight-bold text-white">Transpondeurs</h1>
+          </div>
+          <p class="text-body-2 text-white-70 ml-13">
+            {{ store.totalStats.total ?? 0 }} puces · {{ store.filteredTransponders.length }} affichée(s) avec les filtres
+          </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 ml-13 ml-md-0">
+          <v-btn
+            variant="tonal"
+            color="white"
+            prepend-icon="mdi-refresh"
+            rounded="lg"
+            :loading="store.loading"
+            @click="store.fetchAll()"
+          >
+            Actualiser
+          </v-btn>
+          <v-btn
+            color="white"
+            class="text-primary font-weight-bold"
+            variant="flat"
+            rounded="lg"
+            prepend-icon="mdi-plus"
+            :loading="store.saving"
+            @click="onAdd"
+          >
+            Ajouter une puce
+          </v-btn>
         </div>
       </div>
-      <div class="d-flex align-center gap-3 flex-wrap">
-        <v-text-field
-          v-model="store.search"
-          prepend-inner-icon="mdi-magnify"
-          placeholder="Référence, ID ou équipe..."
-          variant="outlined"
-          density="compact"
-          hide-details
-          rounded="lg"
-          clearable
-          style="max-width: 280px"
-        />
-        <v-select
-          v-model="store.filterStatus"
-          :items="statusFilterItems"
-          item-title="title"
-          item-value="value"
-          variant="outlined"
-          density="compact"
-          hide-details
-          rounded="lg"
-          clearable
-          style="max-width: 200px"
-          label="Statut"
-          @update:model-value="(v) => { if (v == null) store.filterStatus = 'tous' }"
-        />
-        <v-btn variant="tonal" rounded="lg" prepend-icon="mdi-refresh" :loading="store.loading" @click="store.fetchAll()">
-          Actualiser
-        </v-btn>
-        <v-btn color="primary" variant="flat" rounded="lg" prepend-icon="mdi-plus" :loading="store.saving" @click="onAdd">
-          Ajouter
-        </v-btn>
-      </div>
+
+      <v-row class="mt-4">
+        <v-col v-for="(kpi, i) in kpis" :key="i" cols="12" sm="6" md="3">
+          <div class="kpi-chip">
+            <div class="kpi-icon" :class="kpi.iconBg">
+              <v-icon size="18" color="white">{{ kpi.icon }}</v-icon>
+            </div>
+            <div class="min-w-0">
+              <div class="kpi-value text-truncate">{{ kpi.value }}</div>
+              <div class="kpi-label">{{ kpi.label }}</div>
+            </div>
+          </div>
+        </v-col>
+      </v-row>
     </div>
 
-    <v-alert v-if="store.error" type="warning" variant="tonal" rounded="lg" class="mb-4" density="compact">
-      {{ store.error }}
-    </v-alert>
+    <div class="pa-6 pt-4">
+      <v-alert v-if="store.error" type="warning" variant="tonal" rounded="lg" class="mb-4" density="compact">
+        {{ store.error }}
+      </v-alert>
 
-    <!-- Stats chips -->
-    <div class="d-flex gap-3 flex-wrap mb-5">
-      <v-chip color="blue" variant="tonal" prepend-icon="mdi-new-box">
-        <strong class="mr-1">{{ store.totalStats.EN_ATTENTE || 0 }}</strong> En attente
-      </v-chip>
-      <v-chip color="green" variant="tonal" prepend-icon="mdi-run">
-        <strong class="mr-1">{{ store.totalStats.ATTRIBUE || 0 }}</strong> Attribués
-      </v-chip>
-      <v-chip color="red" variant="tonal" prepend-icon="mdi-alert-circle">
-        <strong class="mr-1">{{ store.totalStats.PERDU || 0 }}</strong> Perdus
-      </v-chip>
-      <v-chip color="grey" variant="tonal" prepend-icon="mdi-arrow-u-left-bottom">
-        <strong class="mr-1">{{ store.totalStats.RECUPERE || 0 }}</strong> Récupérés
-      </v-chip>
-    </div>
+      <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
+        <v-card-text class="pa-3">
+          <v-row density="comfortable" align="center">
+            <v-col cols="12" md="5">
+              <v-text-field
+                v-model="store.search"
+                prepend-inner-icon="mdi-magnify"
+                placeholder="Référence, ID ou équipe…"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+              />
+            </v-col>
+            <v-col cols="12" sm="6" md="3">
+              <v-select
+                v-model="store.filterStatus"
+                :items="statusFilterItems"
+                item-title="title"
+                item-value="value"
+                label="Statut"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+                @update:model-value="(v) => { if (v == null) store.filterStatus = 'tous' }"
+              />
+            </v-col>
+            <v-col cols="12" sm="6" md="4">
+              <v-btn
+                variant="tonal"
+                color="secondary"
+                rounded="lg"
+                block
+                class="text-none"
+                prepend-icon="mdi-filter-off"
+                @click="store.resetFilters()"
+              >
+                Réinitialiser les filtres
+              </v-btn>
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </v-card>
 
-    <div v-if="store.loading" class="d-flex justify-center py-16">
-      <v-progress-circular indeterminate color="primary" size="48" />
-    </div>
+      <v-card class="list-card" rounded="xl" elevation="0">
+        <v-toolbar density="comfortable" color="transparent" class="px-2">
+          <v-toolbar-title class="text-subtitle-1 font-weight-bold">Liste des puces</v-toolbar-title>
+        </v-toolbar>
+        <v-divider />
 
-    <v-card v-else rounded="lg" elevation="0" class="data-border">
-      <v-table>
+        <div v-if="store.loading" class="d-flex justify-center py-16">
+          <v-progress-circular indeterminate color="primary" size="48" />
+        </div>
+
+        <div v-else class="pa-2">
+          <v-table>
         <thead>
           <tr>
             <th class="text-caption text-uppercase text-medium-emphasis">ID</th>
@@ -154,25 +203,26 @@
             </td>
           </tr>
         </tbody>
-      </v-table>
-      <div v-if="!store.filteredTransponders.length" class="text-center text-medium-emphasis py-12">
-        Aucun transpondeur ne correspond aux filtres.
-      </div>
-    </v-card>
+          </v-table>
+          <div v-if="!store.filteredTransponders.length" class="text-center text-medium-emphasis py-12">
+            Aucun transpondeur ne correspond aux filtres.
+          </div>
+        </div>
+      </v-card>
+    </div>
 
     <!-- Dialog d'assignation -->
     <v-dialog v-model="assignDialog" max-width="540" persistent>
       <v-card rounded="xl" elevation="8">
-        <v-card-title class="d-flex align-center gap-2 pt-5 px-6">
-          <v-icon color="primary">mdi-account-group-outline</v-icon>
-          <span>Assigner le transpondeur</span>
-        </v-card-title>
-        <v-card-subtitle class="px-6 pb-2">
-          Transpondeur <strong>#{{ selectedTransponder?.id }}</strong>
-          <span v-if="selectedTransponder?.reference"> · {{ selectedTransponder.reference }}</span>
-        </v-card-subtitle>
-
-        <v-divider />
+        <div class="form-header pa-4 d-flex align-center flex-wrap gap-2">
+          <v-icon color="white">mdi-account-group-outline</v-icon>
+          <span class="text-h6 text-white font-weight-bold">Assigner le transpondeur</span>
+          <v-spacer />
+          <span class="text-body-2 text-white-70">
+            #{{ selectedTransponder?.id }}
+            <span v-if="selectedTransponder?.reference"> · {{ selectedTransponder.reference }}</span>
+          </span>
+        </div>
 
         <v-card-text class="px-6 pt-4">
           <p class="text-body-2 text-medium-emphasis mb-4">
@@ -263,19 +313,15 @@
     <!-- Historique d'un transpondeur -->
     <v-dialog v-model="historyDialog" max-width="560" scrollable>
       <v-card rounded="xl" v-if="historyTransponder">
-        <v-card-title class="d-flex align-center justify-space-between pt-5 px-5">
-          <div class="d-flex align-center gap-2">
-            <v-icon color="primary">mdi-history</v-icon>
-            <span class="text-h6 font-weight-bold">Historique</span>
-          </div>
-          <v-btn icon variant="text" @click="historyDialog = false">
+        <div class="form-header pa-4 d-flex align-center">
+          <v-icon color="white" class="mr-2">mdi-history</v-icon>
+          <span class="text-h6 text-white font-weight-bold">Historique</span>
+          <span class="text-body-2 text-white-70 ml-3 d-none d-sm-inline">· {{ labelFor(historyTransponder) }}</span>
+          <v-spacer />
+          <v-btn icon variant="text" color="white" @click="historyDialog = false">
             <v-icon>mdi-close</v-icon>
           </v-btn>
-        </v-card-title>
-        <v-card-subtitle class="px-5 pb-2">
-          Puce <strong>{{ labelFor(historyTransponder) }}</strong>
-        </v-card-subtitle>
-        <v-divider />
+        </div>
         <v-card-text class="px-5 py-4">
           <div v-if="store.transponderHistoryLoading" class="d-flex justify-center py-8">
             <v-progress-circular indeterminate color="primary" size="40" />
@@ -363,6 +409,33 @@ watch(historyDialog, (open) => {
 const statusFilterItems = computed(() => [
   { title: 'Tous les statuts', value: 'tous' },
   ...store.statuses.map((s) => ({ title: store.statusLabel(s), value: s })),
+])
+
+const kpis = computed(() => [
+  {
+    label: 'En attente',
+    value: String(store.totalStats.EN_ATTENTE || 0),
+    icon: 'mdi-new-box',
+    iconBg: 'bg-blue-alpha',
+  },
+  {
+    label: 'Attribués',
+    value: String(store.totalStats.ATTRIBUE || 0),
+    icon: 'mdi-run',
+    iconBg: 'bg-green-alpha',
+  },
+  {
+    label: 'Perdus',
+    value: String(store.totalStats.PERDU || 0),
+    icon: 'mdi-alert-circle',
+    iconBg: 'bg-red-alpha',
+  },
+  {
+    label: 'Récupérés',
+    value: String(store.totalStats.RECUPERE || 0),
+    icon: 'mdi-arrow-u-left-bottom',
+    iconBg: 'bg-orange-alpha',
+  },
 ])
 
 function labelFor(t) {
@@ -482,10 +555,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.data-border {
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-}
-
 .team-list {
   max-height: 320px;
   overflow-y: auto;

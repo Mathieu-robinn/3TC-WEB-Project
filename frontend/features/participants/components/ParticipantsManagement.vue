@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-0 participants-page">
+  <v-container fluid class="pa-0 admin-page participants-page">
 
     <!-- Hero Header -->
     <div class="hero-header pa-6 pb-4">
@@ -11,14 +11,30 @@
             </div>
             <h1 class="text-h5 font-weight-bold text-white">Gestion des Participants</h1>
           </div>
-          <p class="text-body-2 text-white-70 ml-13">{{ store.stats.total }} coureurs inscrits • Édition 2026</p>
+          <p class="text-body-2 text-white-70 ml-13">
+            {{ store.stats.total }} coureur(s) inscrit(s) · {{ store.filteredParticipants.length }} affiché(s) avec les filtres
+          </p>
         </div>
-        <div class="d-flex gap-2">
-          <v-btn variant="tonal" color="white" rounded="pill" class="text-white font-weight-bold px-4" @click="store.fetchAll()" :loading="store.loading" prepend-icon="mdi-refresh">
+        <div class="d-flex flex-wrap gap-2">
+          <v-btn
+            variant="tonal"
+            color="white"
+            rounded="lg"
+            prepend-icon="mdi-refresh"
+            :loading="store.loading"
+            @click="store.fetchAll()"
+          >
             Actualiser
           </v-btn>
-          <v-btn variant="flat" color="white" rounded="pill" class="text-primary font-weight-bold px-5" @click="openCreate()" prepend-icon="mdi-plus">
-            Ajouter
+          <v-btn
+            variant="flat"
+            color="white"
+            rounded="lg"
+            prepend-icon="mdi-account-plus"
+            class="text-primary font-weight-bold"
+            @click="openCreate()"
+          >
+            Nouveau participant
           </v-btn>
         </div>
       </div>
@@ -45,11 +61,11 @@
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
           <v-row density="comfortable" align="center">
-            <v-col cols="12" md="2">
+            <v-col cols="12" md="4">
               <v-text-field
                 v-model="store.search"
                 prepend-inner-icon="mdi-magnify"
-                placeholder="Rechercher un participant ou une équipe..."
+                placeholder="Participant, équipe…"
                 variant="solo-filled"
                 density="compact"
                 hide-details
@@ -90,6 +106,22 @@
             </v-col>
             <v-col cols="6" sm="4" md="2">
               <v-select
+                v-model="store.filterRole"
+                :items="roleFilterItems"
+                item-title="title"
+                item-value="value"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+                label="Fonction"
+                @update:model-value="onRoleFilterChange"
+              />
+            </v-col>
+            <v-col cols="6" sm="4" md="2">
+              <v-select
                 v-model="store.filterStatus"
                 :items="statusOptions"
                 item-title="title"
@@ -105,7 +137,9 @@
                 @update:model-value="(v) => { if (v == null) store.filterStatus = 'tous' }"
               />
             </v-col>
-            <v-col cols="12" sm="4" md="2">
+          </v-row>
+          <v-row density="comfortable" align="center" class="mt-1">
+            <v-col cols="12" sm="6" md="4">
               <v-btn
                 variant="tonal"
                 color="secondary"
@@ -115,10 +149,10 @@
                 prepend-icon="mdi-filter-off"
                 @click="store.resetFilters()"
               >
-                Réinitialiser
+                Réinitialiser les filtres
               </v-btn>
             </v-col>
-            <v-col cols="12" sm="4" md="2">
+            <v-col cols="12" sm="6" md="4" class="ms-sm-auto">
               <v-btn-toggle v-model="viewMode" mandatory density="compact" rounded="lg" class="w-100 d-flex">
                 <v-btn value="list" icon="mdi-format-list-bulleted" class="flex-grow-1" />
                 <v-btn value="grid" icon="mdi-view-grid" class="flex-grow-1" />
@@ -366,6 +400,16 @@ const statusOptions = [
   { title: 'Course terminée', value: 'course_terminee' },
 ]
 
+const roleFilterItems = [
+  { title: 'Tous', value: 'tous' },
+  { title: 'Capitaines', value: 'capitaine' },
+  { title: 'Responsable transpondeur', value: 'resp_transpondeur' },
+]
+
+function onRoleFilterChange(v) {
+  if (v == null) store.filterRole = 'tous'
+}
+
 function participantStatusLabel(p) {
   if (p.status === 'course_terminee') return 'Terminé'
   if (p.status === 'en_piste') return 'En piste'
@@ -448,57 +492,6 @@ const executeDelete = async () => {
 </script>
 
 <style scoped>
-.participants-page {
-  background: transparent;
-  min-height: 100vh;
-}
-
-.hero-header {
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 55%, #0f2040 100%);
-  position: relative;
-  overflow: hidden;
-}
-
-.hero-header::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-
-.hero-icon-wrap {
-  width: 40px; height: 40px;
-  background: rgba(255,255,255,0.15);
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-}
-
-.text-white-70 { color: rgba(255,255,255,0.7); }
-
-.kpi-chip {
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 12px; padding: 10px 14px;
-}
-
-.kpi-icon {
-  width: 32px; height: 32px; border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-}
-
-.bg-blue-alpha { background: rgba(66,133,244,0.3); }
-.bg-green-alpha { background: rgba(52,199,89,0.3); }
-.bg-orange-alpha { background: rgba(255,149,0,0.3); }
-.bg-purple-alpha { background: rgba(175,82,222,0.3); }
-.bg-red-alpha { background: rgba(255,59,48,0.3); }
-
-.kpi-value { font-size: 1.2rem; font-weight: 800; color: white; line-height: 1; }
-.kpi-label { font-size: 0.7rem; color: rgba(255,255,255,0.65); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
-
-.controls-bar { border: 1px solid rgba(var(--v-theme-on-surface), 0.12); background: rgb(var(--v-theme-surface)); }
-
 .data-card { border: 1px solid rgba(var(--v-theme-on-surface), 0.12); background: rgb(var(--v-theme-surface)); }
 
 .participant-item {
@@ -525,11 +518,6 @@ const executeDelete = async () => {
 .accent-blue { background: #1976d2; }
 .accent-teal { background: #00897b; }
 .accent-grey { background: #bdbdbd; }
-
-.form-header {
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
-  border-radius: 12px 12px 0 0;
-}
 
 .empty-state {
   display: flex; flex-direction: column; align-items: center;

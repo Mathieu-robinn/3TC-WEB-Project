@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-0 parametres-page">
+  <v-container fluid class="pa-0 admin-page parametres-page">
     <div class="hero-header pa-6 pb-4">
       <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
         <div>
@@ -24,6 +24,29 @@
           >
             Actualiser
           </v-btn>
+          <template v-if="isAdmin">
+            <v-btn
+              variant="flat"
+              color="white"
+              rounded="lg"
+              prepend-icon="mdi-calendar-plus"
+              class="text-primary font-weight-bold"
+              @click="openCreateEditionDialog"
+            >
+              Nouvelle édition
+            </v-btn>
+            <v-btn
+              variant="flat"
+              color="white"
+              rounded="lg"
+              prepend-icon="mdi-run-fast"
+              class="text-primary font-weight-bold"
+              :disabled="selectedEditionId == null"
+              @click="openCreateCourseDialog"
+            >
+              Ajouter une course
+            </v-btn>
+          </template>
         </div>
       </div>
 
@@ -54,7 +77,7 @@
       }}</v-alert>
 
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
-        <v-card-text class="pa-4">
+        <v-card-text class="pa-3">
           <div class="text-subtitle-2 font-weight-bold mb-2">Édition affichée sur le site</div>
           <p class="text-body-2 text-medium-emphasis mb-4">
             Tout le site (équipes, participants, transpondeurs) utilise l’édition marquée comme active.
@@ -66,7 +89,7 @@
           </div>
 
           <template v-else>
-            <v-row>
+            <v-row align="end">
               <v-col cols="12" md="8">
                 <v-select
                   v-model="selectedEditionId"
@@ -74,11 +97,13 @@
                   item-title="title"
                   item-value="value"
                   label="Édition à activer"
-                  variant="outlined"
-                  density="comfortable"
+                  variant="solo-filled"
+                  density="compact"
+                  flat
+                  rounded="lg"
                   :loading="loading"
                   :disabled="loading || saving"
-                  hide-details="auto"
+                  hide-details
                 />
               </v-col>
               <v-col cols="12" md="4" class="d-flex align-end">
@@ -100,67 +125,9 @@
       </v-card>
 
       <template v-if="isAdmin">
-        <v-row class="mb-5">
-          <v-col cols="12" sm="6" lg="4">
-            <v-card
-              class="action-tile"
-              rounded="xl"
-              elevation="0"
-              role="button"
-              tabindex="0"
-              @click="openCreateEditionDialog"
-              @keydown.enter="openCreateEditionDialog"
-            >
-              <v-card-text class="d-flex align-center pa-4">
-                <div class="action-tile-icon mr-4">
-                  <v-icon color="primary" size="28">mdi-calendar-plus</v-icon>
-                </div>
-                <div class="min-w-0 flex-grow-1">
-                  <div class="text-subtitle-1 font-weight-bold">Nouvelle édition</div>
-                  <div class="text-body-2 text-medium-emphasis">Créer une année ou un événement</div>
-                </div>
-                <v-icon class="text-medium-emphasis flex-shrink-0">mdi-chevron-right</v-icon>
-              </v-card-text>
-            </v-card>
-          </v-col>
-          <v-col cols="12" sm="6" lg="4">
-            <v-card
-              class="action-tile"
-              rounded="xl"
-              elevation="0"
-              :class="{ 'action-tile--disabled': selectedEditionId == null }"
-              role="button"
-              :tabindex="selectedEditionId == null ? -1 : 0"
-              @click="selectedEditionId != null && openCreateCourseDialog()"
-              @keydown.enter="selectedEditionId != null && openCreateCourseDialog()"
-            >
-              <v-card-text class="d-flex align-center pa-4">
-                <div class="action-tile-icon mr-4">
-                  <v-icon color="primary" size="28">mdi-run-fast</v-icon>
-                </div>
-                <div class="min-w-0 flex-grow-1">
-                  <div class="text-subtitle-1 font-weight-bold">Ajouter une course</div>
-                  <div class="text-body-2 text-medium-emphasis">
-                    {{
-                      selectedEditionId == null
-                        ? 'Créez d’abord une édition'
-                        : `Pour « ${selectedEditionLabel} »`
-                    }}
-                  </div>
-                </div>
-                <v-icon class="text-medium-emphasis flex-shrink-0">mdi-chevron-right</v-icon>
-              </v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
-
         <v-card class="list-card mb-5" rounded="xl" elevation="0">
           <v-toolbar density="comfortable" color="transparent" class="px-2">
             <v-toolbar-title class="text-subtitle-1 font-weight-bold">Éditions</v-toolbar-title>
-            <v-spacer />
-            <v-btn color="primary" variant="tonal" size="small" prepend-icon="mdi-plus" rounded="lg" @click="openCreateEditionDialog">
-              Ajouter
-            </v-btn>
           </v-toolbar>
           <v-divider />
           <div class="pa-2">
@@ -222,18 +189,6 @@
               class="edition-toolbar-select"
               style="max-width: 280px"
             />
-            <v-spacer />
-            <v-btn
-              color="primary"
-              variant="tonal"
-              size="small"
-              prepend-icon="mdi-plus"
-              rounded="lg"
-              :disabled="selectedEditionId == null"
-              @click="openCreateCourseDialog"
-            >
-              Ajouter
-            </v-btn>
           </v-toolbar>
           <v-divider />
 
@@ -998,121 +953,7 @@ async function createCourse() {
 </script>
 
 <style scoped>
-.parametres-page {
-  background: transparent;
-  min-height: 100vh;
-}
-
-.hero-header {
-  background: linear-gradient(135deg, #1a1f36 0%, #2d3561 55%, #1a2040 100%);
-  position: relative;
-  overflow: hidden;
-}
-.hero-header::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-
-.hero-icon-wrap {
-  width: 40px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.text-white-70 {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.kpi-chip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  padding: 10px 14px;
-}
-.kpi-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.bg-blue-alpha {
-  background: rgba(66, 133, 244, 0.3);
-}
-.bg-green-alpha {
-  background: rgba(52, 199, 89, 0.3);
-}
-.bg-orange-alpha {
-  background: rgba(255, 149, 0, 0.3);
-}
-.kpi-value {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: white;
-  line-height: 1.2;
-}
-.kpi-label {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.65);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 2px;
-}
-
-.controls-bar {
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  background: rgb(var(--v-theme-surface));
-}
-
-.list-card {
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  background: rgb(var(--v-theme-surface));
-}
-
-.action-tile {
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  background: rgb(var(--v-theme-surface));
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.action-tile:hover:not(.action-tile--disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1) !important;
-}
-.action-tile--disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.action-tile-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(var(--v-theme-primary), 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
 .edition-toolbar-select :deep(.v-field) {
   box-shadow: none;
-}
-
-.form-header {
-  background: linear-gradient(135deg, #1a1f36 0%, #2d3561 100%);
-  border-radius: 12px 12px 0 0;
 }
 </style>

@@ -1,29 +1,169 @@
 <template>
-  <v-container fluid class="pa-6">
-    <div class="d-flex align-center justify-space-between flex-wrap gap-3 mb-6">
-      <div class="d-flex align-center">
-        <v-icon size="32" color="grey-darken-2" class="mr-3">mdi-account-supervisor-outline</v-icon>
+  <v-container fluid class="pa-0 admin-page comptes-page">
+    <div class="hero-header pa-6 pb-4">
+      <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
         <div>
-          <h1 class="text-h4 font-weight-bold">Comptes</h1>
-          <p class="text-body-2 text-medium-emphasis mb-0">Créer des comptes administrateurs ou bénévoles</p>
+          <div class="d-flex align-center mb-1">
+            <div class="hero-icon-wrap mr-3">
+              <v-icon color="white" size="22">mdi-account-supervisor</v-icon>
+            </div>
+            <h1 class="text-h5 font-weight-bold text-white">Comptes</h1>
+          </div>
+          <p class="text-body-2 text-white-70 ml-13">
+            {{ users.length }} compte(s) · {{ filteredUsers.length }} affiché(s) avec les filtres
+          </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 ml-13 ml-md-0">
+          <v-btn
+            variant="tonal"
+            color="white"
+            prepend-icon="mdi-refresh"
+            rounded="lg"
+            :loading="loading"
+            @click="fetchUsers"
+          >
+            Actualiser
+          </v-btn>
+          <v-btn
+            color="white"
+            class="text-primary font-weight-bold"
+            variant="flat"
+            rounded="lg"
+            prepend-icon="mdi-account-plus"
+            @click="openCreateDialog"
+          >
+            Nouveau compte
+          </v-btn>
         </div>
       </div>
-      <v-btn
-        color="primary"
-        variant="flat"
-        rounded="lg"
-        prepend-icon="mdi-refresh"
-        :loading="loading"
-        @click="fetchUsers"
-      >
-        Actualiser
-      </v-btn>
+
+      <v-row class="mt-4">
+        <v-col v-for="(kpi, i) in kpis" :key="i" cols="12" sm="6" md="4">
+          <div class="kpi-chip">
+            <div class="kpi-icon" :class="kpi.iconBg">
+              <v-icon size="18" color="white">{{ kpi.icon }}</v-icon>
+            </div>
+            <div class="min-w-0">
+              <div class="kpi-value text-truncate">{{ kpi.value }}</div>
+              <div class="kpi-label">{{ kpi.label }}</div>
+            </div>
+          </div>
+        </v-col>
+      </v-row>
     </div>
 
-    <v-row>
-      <v-col cols="12" lg="5">
-        <v-card rounded="lg" elevation="0" class="border pa-4">
-          <div class="text-subtitle-1 font-weight-bold mb-4">Nouveau compte</div>
+    <div class="pa-6 pt-4">
+      <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
+        <v-card-text class="pa-3">
+          <v-row density="comfortable" align="center">
+            <v-col cols="12" md="5">
+              <v-text-field
+                v-model="filterSearch"
+                prepend-inner-icon="mdi-magnify"
+                placeholder="Email, nom, prénom, téléphone…"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+              />
+            </v-col>
+            <v-col cols="12" sm="6" md="3">
+              <v-select
+                v-model="filterRole"
+                :items="roleFilterItems"
+                item-title="title"
+                item-value="value"
+                label="Rôle"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+                @update:model-value="onRoleFilterChange"
+              />
+            </v-col>
+            <v-col cols="12" sm="6" md="4">
+              <v-btn
+                variant="tonal"
+                color="secondary"
+                rounded="lg"
+                block
+                class="text-none"
+                prepend-icon="mdi-filter-off"
+                @click="resetCompteFilters"
+              >
+                Réinitialiser les filtres
+              </v-btn>
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </v-card>
+
+      <v-card class="list-card" rounded="xl" elevation="0">
+        <v-toolbar density="comfortable" color="transparent" class="px-2">
+          <v-toolbar-title class="text-subtitle-1 font-weight-bold">Comptes enregistrés</v-toolbar-title>
+        </v-toolbar>
+        <v-divider />
+        <v-data-table
+          :headers="headers"
+          :items="filteredUsers"
+          :loading="loading"
+          class="elevation-0"
+          density="comfortable"
+          hide-default-footer
+          :items-per-page="-1"
+        >
+          <template #item.role="{ item }">
+            <v-chip size="small" :color="item.role === 'ADMIN' ? 'red' : 'blue'" variant="flat">
+              {{ item.role === 'ADMIN' ? 'Admin' : 'Bénévole' }}
+            </v-chip>
+          </template>
+          <template #item.actions="{ item }">
+            <v-btn
+              icon="mdi-pencil"
+              variant="text"
+              size="small"
+              aria-label="Modifier"
+              @click="openEdit(item)"
+            />
+            <v-tooltip
+              :disabled="!deleteUserDisabled(item)"
+              location="top"
+              :text="deleteUserDisabledHint(item)"
+            >
+              <template #activator="{ props: tipProps }">
+                <span v-bind="tipProps" class="d-inline-flex">
+                  <v-btn
+                    icon="mdi-delete-outline"
+                    variant="text"
+                    size="small"
+                    color="error"
+                    :disabled="deleteUserDisabled(item)"
+                    aria-label="Supprimer"
+                    @click="askDelete(item)"
+                  />
+                </span>
+              </template>
+            </v-tooltip>
+          </template>
+        </v-data-table>
+      </v-card>
+    </div>
+
+    <v-dialog v-model="createOpen" max-width="520" scrollable>
+      <v-card rounded="xl">
+        <div class="form-header pa-4 d-flex align-center">
+          <v-icon color="white" class="mr-2">mdi-account-plus</v-icon>
+          <span class="text-h6 text-white font-weight-bold">Nouveau compte</span>
+          <v-spacer />
+          <v-btn icon variant="text" color="white" @click="createOpen = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+        <v-card-text class="pa-4 pt-4">
           <v-form @submit.prevent="submit">
             <v-text-field
               v-model="form.email"
@@ -78,55 +218,28 @@
               density="comfortable"
               class="mb-4"
             />
-            <v-btn type="submit" color="primary" block rounded="lg" :loading="submitting" :disabled="!canSubmit">
-              Créer le compte
-            </v-btn>
+            <div class="d-flex justify-end gap-2">
+              <v-btn variant="text" rounded="lg" @click="createOpen = false">Annuler</v-btn>
+              <v-btn type="submit" color="primary" rounded="lg" :loading="submitting" :disabled="!canSubmit">
+                Créer le compte
+              </v-btn>
+            </div>
           </v-form>
-        </v-card>
-      </v-col>
-      <v-col cols="12" lg="7">
-        <v-card rounded="lg" elevation="0" class="border pa-0">
-          <v-data-table
-            :headers="headers"
-            :items="users"
-            :loading="loading"
-            class="elevation-0"
-            density="comfortable"
-            hide-default-footer
-            :items-per-page="-1"
-          >
-            <template #item.role="{ item }">
-              <v-chip size="small" :color="item.role === 'ADMIN' ? 'red' : 'blue'" variant="flat">
-                {{ item.role === 'ADMIN' ? 'Admin' : 'Bénévole' }}
-              </v-chip>
-            </template>
-            <template #item.actions="{ item }">
-              <v-btn
-                icon="mdi-pencil"
-                variant="text"
-                size="small"
-                aria-label="Modifier"
-                @click="openEdit(item)"
-              />
-              <v-btn
-                icon="mdi-delete-outline"
-                variant="text"
-                size="small"
-                color="error"
-                :disabled="currentUserId != null && item.id === currentUserId"
-                aria-label="Supprimer"
-                @click="askDelete(item)"
-              />
-            </template>
-          </v-data-table>
-        </v-card>
-      </v-col>
-    </v-row>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
 
     <v-dialog v-model="editOpen" max-width="520" scrollable>
-      <v-card rounded="lg">
-        <v-card-title class="text-h6">Modifier le compte</v-card-title>
-        <v-card-text>
+      <v-card rounded="xl">
+        <div class="form-header pa-4 d-flex align-center">
+          <v-icon color="white" class="mr-2">mdi-pencil</v-icon>
+          <span class="text-h6 text-white font-weight-bold">Modifier le compte</span>
+          <v-spacer />
+          <v-btn icon variant="text" color="white" @click="editOpen = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+        <v-card-text class="pa-4 pt-4">
           <v-text-field
             v-model="editForm.email"
             label="Email"
@@ -187,22 +300,22 @@
     </v-dialog>
 
     <v-dialog v-model="deleteOpen" max-width="420">
-      <v-card rounded="lg">
-        <v-card-title class="text-h6">Supprimer le compte ?</v-card-title>
-        <v-card-text v-if="deleteTarget">
+      <v-card rounded="xl">
+        <v-card-title class="text-h6 pa-4">Supprimer le compte ?</v-card-title>
+        <v-card-text v-if="deleteTarget" class="px-4">
           Cette action est définitive pour
           <strong>{{ deleteTarget.email }}</strong>
           .
         </v-card-text>
-        <v-card-actions>
+        <v-card-actions class="px-4 pb-4">
           <v-spacer />
-          <v-btn variant="text" @click="deleteOpen = false">Annuler</v-btn>
-          <v-btn color="error" variant="flat" :loading="deleteLoading" @click="confirmDelete">Supprimer</v-btn>
+          <v-btn variant="text" rounded="lg" @click="deleteOpen = false">Annuler</v-btn>
+          <v-btn color="error" variant="flat" rounded="lg" :loading="deleteLoading" @click="confirmDelete">Supprimer</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000">
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000" rounded="lg" location="bottom right">
       {{ snackbar.text }}
     </v-snackbar>
   </v-container>
@@ -227,6 +340,7 @@ const api = useApi()
 const users = ref<StaffUser[]>([])
 const loading = ref(false)
 const submitting = ref(false)
+const createOpen = ref(false)
 
 const form = reactive({
   email: '',
@@ -270,6 +384,68 @@ const deleteTarget = ref<StaffUser | null>(null)
 
 const snackbar = reactive({ show: false, text: '', color: 'success' as string })
 
+const kpis = computed(() => {
+  const list = users.value
+  const admins = list.filter((u) => u.role === 'ADMIN').length
+  const ben = list.filter((u) => u.role === 'BENEVOLE').length
+  return [
+    {
+      label: 'Comptes',
+      value: String(list.length),
+      icon: 'mdi-account-multiple',
+      iconBg: 'bg-blue-alpha',
+    },
+    {
+      label: 'Administrateurs',
+      value: String(admins),
+      icon: 'mdi-shield-account',
+      iconBg: 'bg-red-alpha',
+    },
+    {
+      label: 'Bénévoles',
+      value: String(ben),
+      icon: 'mdi-account-heart',
+      iconBg: 'bg-green-alpha',
+    },
+  ]
+})
+
+const filterSearch = ref('')
+const filterRole = ref<'tous' | 'ADMIN' | 'BENEVOLE'>('tous')
+
+const roleFilterItems = [
+  { title: 'Tous les rôles', value: 'tous' },
+  { title: 'Administrateur', value: 'ADMIN' },
+  { title: 'Bénévole', value: 'BENEVOLE' },
+]
+
+const filteredUsers = computed(() => {
+  let list = users.value
+  const q = filterSearch.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter(
+      (u) =>
+        u.email.toLowerCase().includes(q) ||
+        u.firstName.toLowerCase().includes(q) ||
+        u.lastName.toLowerCase().includes(q) ||
+        (u.phone != null && u.phone.toLowerCase().includes(q)),
+    )
+  }
+  if (filterRole.value !== 'tous') {
+    list = list.filter((u) => u.role === filterRole.value)
+  }
+  return list
+})
+
+function resetCompteFilters() {
+  filterSearch.value = ''
+  filterRole.value = 'tous'
+}
+
+function onRoleFilterChange(v: 'tous' | 'ADMIN' | 'BENEVOLE' | null) {
+  filterRole.value = v ?? 'tous'
+}
+
 const canSubmit = computed(() => {
   return (
     !!form.email &&
@@ -279,6 +455,10 @@ const canSubmit = computed(() => {
     !!form.role
   )
 })
+
+function openCreateDialog() {
+  createOpen.value = true
+}
 
 function showSnackbar(text: string, color: string) {
   snackbar.text = text
@@ -318,6 +498,7 @@ async function submit() {
     form.lastName = ''
     form.phone = ''
     form.role = 'BENEVOLE'
+    createOpen.value = false
     await fetchUsers()
   } catch (e: any) {
     const msg =
@@ -379,13 +560,32 @@ async function saveEdit() {
   }
 }
 
+function deleteUserDisabled(u: StaffUser): boolean {
+  if (u.role === 'ADMIN') return true
+  if (currentUserId.value != null && u.id === currentUserId.value) return true
+  return false
+}
+
+function deleteUserDisabledHint(u: StaffUser): string {
+  if (u.role === 'ADMIN') return 'Les comptes administrateur ne peuvent pas être supprimés depuis cette interface.'
+  if (currentUserId.value != null && u.id === currentUserId.value)
+    return 'Vous ne pouvez pas supprimer votre propre compte.'
+  return ''
+}
+
 function askDelete(u: StaffUser) {
+  if (deleteUserDisabled(u)) return
   deleteTarget.value = u
   deleteOpen.value = true
 }
 
 async function confirmDelete() {
   if (!deleteTarget.value) return
+  if (deleteUserDisabled(deleteTarget.value)) {
+    deleteOpen.value = false
+    deleteTarget.value = null
+    return
+  }
   deleteLoading.value = true
   try {
     await api.del(`/user/${deleteTarget.value.id}`)
@@ -409,9 +609,3 @@ onMounted(() => {
   fetchUsers()
 })
 </script>
-
-<style scoped>
-.border {
-  border: 1px solid rgba(0, 0, 0, 0.12) !important;
-}
-</style>

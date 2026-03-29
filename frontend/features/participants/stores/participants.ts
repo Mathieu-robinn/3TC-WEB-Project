@@ -31,6 +31,8 @@ export const useParticipantsStore = defineStore('participants', () => {
   const search = ref('')
   const filterEquipe = ref<number | null>(null)
   const filterCourseId = ref<number | null>(null)
+  /** Tous les coureurs, uniquement capitaines d’équipe, ou responsable transpondeur */
+  const filterRole = ref<'tous' | 'capitaine' | 'resp_transpondeur'>('tous')
   const filterStatus = ref<'tous' | 'en_piste' | 'au_repos' | 'course_terminee'>('tous')
   const loading = ref(false)
   const saving = ref(false)
@@ -161,6 +163,9 @@ export const useParticipantsStore = defineStore('participants', () => {
     }
     if (filterEquipe.value != null)
       list = list.filter((p) => (p.teamId ?? p.team?.id) === filterEquipe.value)
+    if (filterRole.value === 'capitaine') list = list.filter((p) => p.isCaptain)
+    if (filterRole.value === 'resp_transpondeur')
+      list = list.filter((p) => p.isTransponderHolder)
     if (filterStatus.value === 'en_piste') list = list.filter((p) => p.status === 'en_piste')
     if (filterStatus.value === 'au_repos') list = list.filter((p) => p.status === 'au_repos')
     if (filterStatus.value === 'course_terminee')
@@ -218,6 +223,7 @@ export const useParticipantsStore = defineStore('participants', () => {
     search,
     filterEquipe,
     filterCourseId,
+    filterRole,
     filterStatus,
     loading,
     saving,

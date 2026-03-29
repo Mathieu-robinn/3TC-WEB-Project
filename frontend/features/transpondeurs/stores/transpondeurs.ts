@@ -200,6 +200,11 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     ...stats.value,
   }))
 
+  const resetFilters = () => {
+    search.value = ''
+    filterStatus.value = 'tous'
+  }
+
   const getMockTransponders = (): ApiTransponder[] =>
     Array.from({ length: 10 }, (_, i) => ({
       id: i + 1,
@@ -238,5 +243,6 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     markAsLost,
     fetchTransponderHistory,
     clearTransponderHistory,
+    resetFilters,
   }
 })
