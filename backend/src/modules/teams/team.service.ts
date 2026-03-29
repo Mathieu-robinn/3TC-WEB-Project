@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
-import { Team, Prisma } from "@prisma/client";
+import { Prisma, Team, TransponderStatus } from "@prisma/client";
 
 @Injectable()
 export class TeamService {
@@ -80,8 +80,26 @@ export class TeamService {
   }
 
   async deleteTeam(where: Prisma.TeamWhereUniqueInput): Promise<Team> {
-    return this.prisma.team.delete({
-      where,
+    const existing = await this.prisma.team.findUnique({ where });
+    if (!existing) {
+      throw new NotFoundException(`Équipe introuvable.`);
+    }
+    const id = existing.id;
+    return this.prisma.$transaction(async (tx) => {
+      await tx.team.update({
+        where: { id },
+        data: { respRunnerId: null, transponderHolderRunnerId: null },
+      });
+      await tx.transponder.updateMany({
+        where: { teamId: id, status: TransponderStatus.ATTRIBUE },
+        data: { teamId: null, status: TransponderStatus.EN_ATTENTE },
+      });
+      await tx.transponder.updateMany({
+        where: { teamId: id },
+        data: { teamId: null },
+      });
+      await tx.runner.deleteMany({ where: { teamId: id } });
+      return tx.team.delete({ where: { id } });
     });
   }
 }

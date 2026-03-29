@@ -194,6 +194,11 @@ async function main() {
     teamId: number | null;
     /** Équipe pour les lignes TransponderTransaction (attrib / retour ou perte). */
     historyTeamId: number | null;
+    /**
+     * Si true et status RECUPERE ou PERDU : historique ATTRIBUE puis événement final.
+     * Si false : une seule transaction au type final (pas d’attribution fictive).
+     */
+    priorAssignment?: boolean;
   };
 
   const transponderSeeds: TransponderSeed[] = [];
@@ -212,6 +217,7 @@ async function main() {
       status: TransponderStatus.RECUPERE,
       teamId: null,
       historyTeamId: team.id,
+      priorAssignment: i < 5,
     });
   }
   for (let i = 0; i < 8; i++) {
@@ -227,6 +233,7 @@ async function main() {
       status: TransponderStatus.PERDU,
       teamId: null,
       historyTeamId: team.id,
+      priorAssignment: i < 4,
     });
   }
 
@@ -286,28 +293,53 @@ async function main() {
       throw new Error(`Seed incohérente: transpondeur #${t.id} sans historyTeamId alors que status=${seed.status}`);
     }
 
-    await prisma.transponderTransaction.create({
-      data: {
-        transponderId: t.id,
-        teamId,
-        userId: benevole.id,
-        type: TransponderStatus.ATTRIBUE,
-        dateTime: txDate,
-      },
-    });
+    const needsAssignmentFirst =
+      (seed.status === TransponderStatus.RECUPERE || seed.status === TransponderStatus.PERDU) &&
+      seed.priorAssignment === true;
 
     if (seed.status === TransponderStatus.ATTRIBUE) {
+      await prisma.transponderTransaction.create({
+        data: {
+          transponderId: t.id,
+          teamId,
+          userId: benevole.id,
+          type: TransponderStatus.ATTRIBUE,
+          dateTime: txDate,
+        },
+      });
       continue;
     }
 
-    const secondDate = clampBeforeMarch15(new Date(txDate.getTime() + rand(60, 300) * 60 * 1000));
+    if (needsAssignmentFirst) {
+      await prisma.transponderTransaction.create({
+        data: {
+          transponderId: t.id,
+          teamId,
+          userId: benevole.id,
+          type: TransponderStatus.ATTRIBUE,
+          dateTime: txDate,
+        },
+      });
+      const secondDate = clampBeforeMarch15(new Date(txDate.getTime() + rand(60, 300) * 60 * 1000));
+      await prisma.transponderTransaction.create({
+        data: {
+          transponderId: t.id,
+          teamId,
+          userId: benevole.id,
+          type: seed.status,
+          dateTime: secondDate,
+        },
+      });
+      continue;
+    }
+
     await prisma.transponderTransaction.create({
       data: {
         transponderId: t.id,
         teamId,
         userId: benevole.id,
         type: seed.status,
-        dateTime: secondDate,
+        dateTime: txDate,
       },
     });
   }

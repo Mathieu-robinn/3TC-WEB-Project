@@ -124,7 +124,8 @@ model Runner {
   email     String? @unique
   phone     String?
 
-  team Team @relation("TeamRunners", fields: [teamId], references: [id], onDelete: Cascade)
+  /** RESTRICT : supprimer l’équipe impose de traiter coureurs / transpondeurs d’abord (voir TeamService.deleteTeam). */
+  team Team @relation("TeamRunners", fields: [teamId], references: [id], onDelete: Restrict)
 
   responsibleForTeam Team? @relation("TeamResponsible")
   transponderHolderForTeam Team? @relation("TeamTransponderHolder")

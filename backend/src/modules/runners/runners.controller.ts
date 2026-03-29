@@ -58,10 +58,8 @@ export class RunnersController {
       ...(data.lastName !== undefined ? { lastName: data.lastName } : {}),
       ...(data.email !== undefined ? { email: data.email } : {}),
       ...(data.phone !== undefined ? { phone: data.phone } : {}),
+      ...(data.teamId !== undefined ? { team: { connect: { id: data.teamId } } } : {}),
     };
-    if (data.teamId !== undefined) {
-      prismaData.team = { connect: { id: data.teamId } };
-    }
     return this.runnerService.updateRunner({
       where: { id: Number(id) },
       data: prismaData,
