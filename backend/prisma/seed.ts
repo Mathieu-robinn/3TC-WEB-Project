@@ -9,10 +9,31 @@ const prisma = new PrismaClient({ adapter });
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-/** Retourne un entier aléatoire entre min et max (inclus) */
-const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+/** PRNG déterministe (mulberry32) pour obtenir une seed 100% reproductible. */
+const createSeededRandom = (seed: number) => {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6D2B79F5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const seededRandom = createSeededRandom(0x24_68_20_26);
+/** Retourne un entier pseudo-aléatoire déterministe entre min et max (inclus). */
+const rand = (min: number, max: number) => Math.floor(seededRandom() * (max - min + 1)) + min;
 /** Retourne un élément aléatoire d'un tableau */
 const pick = <T>(arr: T[]): T => arr[rand(0, arr.length - 1)];
+/** Mélange déterministe de tableau (Fisher-Yates). */
+const shuffle = <T>(arr: T[]): T[] => {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = rand(0, i);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
 
 async function main() {
   console.log("🌱 Démarrage du seed...");
@@ -181,74 +202,117 @@ async function main() {
   console.log("✅ Équipes et coureurs créés.");
 
   // ───────────────────────────────────────────────────────────────────────────
-  // 5. TRANSPONDEURS (40 puces) + cohérence avec les transactions (§6)
-  //
-  // Règles alignées sur l’API : ATTRIBUE ⇒ teamId défini ; RECUPERE / PERDU ⇒ teamId null.
-  // L’équipe concernée par l’historique (transactions) est stockée dans historyTeamId pour
-  // RECUPERE et PERDU afin que les lignes d’audit restent cohérentes sans ré-attacher la puce.
+  // 5. TRANSPONDEURS + TRANSACTIONS (scénario déterministe centré équipe)
   // ───────────────────────────────────────────────────────────────────────────
 
-  type TransponderSeed = {
-    status: TransponderStatus;
-    /** FK Transponder.teamId — null si la puce n’est plus chez une équipe (RECUPERE, PERDU, EN_ATTENTE). */
-    teamId: number | null;
-    /** Équipe pour les lignes TransponderTransaction (attrib / retour ou perte). */
-    historyTeamId: number | null;
-    /**
-     * Si true et status RECUPERE ou PERDU : historique ATTRIBUE puis événement final.
-     * Si false : une seule transaction au type final (pas d’attribution fictive).
-     */
-    priorAssignment?: boolean;
+  type TeamFinalState = "FINISHED" | "ACTIVE_STABLE" | "ACTIVE_AFTER_ISSUE";
+  type TeamScenario = {
+    teamId: number;
+    finalState: TeamFinalState;
+    issueType?: "PERDU" | "DEFAILLANT";
   };
 
-  const transponderSeeds: TransponderSeed[] = [];
+  type SeededTransponder = {
+    status: TransponderStatus;
+    teamId: number | null;
+    events: { type: TransponderStatus; teamId: number }[];
+  };
 
-  for (let i = 0; i < 15; i++) {
-    const team = pick(createdTeams);
-    transponderSeeds.push({
-      status: TransponderStatus.ATTRIBUE,
+  const RECOVERED_COUNT = 8;
+  const ISSUE_COUNT = 4;
+  const TOTAL_TRANSPONDERS = 40;
+
+  if (RECOVERED_COUNT > createdTeams.length) {
+    throw new Error("Seed incohérente: RECOVERED_COUNT dépasse le nombre d'équipes.");
+  }
+
+  const shuffledTeams = shuffle(createdTeams);
+  const finishedTeams = shuffledTeams.slice(0, RECOVERED_COUNT);
+  const nonFinishedTeams = shuffledTeams.slice(RECOVERED_COUNT);
+  if (ISSUE_COUNT > nonFinishedTeams.length) {
+    throw new Error("Seed incohérente: ISSUE_COUNT dépasse le nombre d'équipes non terminées.");
+  }
+
+  const issueTeams = nonFinishedTeams.slice(0, ISSUE_COUNT);
+  const stableActiveTeams = nonFinishedTeams.slice(ISSUE_COUNT);
+  const issueTypes: ("PERDU" | "DEFAILLANT")[] = [
+    TransponderStatus.PERDU,
+    TransponderStatus.PERDU,
+    TransponderStatus.DEFAILLANT,
+    TransponderStatus.DEFAILLANT,
+  ];
+  if (issueTypes.length !== ISSUE_COUNT) {
+    throw new Error("Seed incohérente: issueTypes doit avoir ISSUE_COUNT éléments.");
+  }
+
+  const scenarios: TeamScenario[] = [
+    ...finishedTeams.map((team) => ({ teamId: team.id, finalState: "FINISHED" as const })),
+    ...issueTeams.map((team, i) => ({
       teamId: team.id,
-      historyTeamId: team.id,
+      finalState: "ACTIVE_AFTER_ISSUE" as const,
+      issueType: issueTypes[i],
+    })),
+    ...stableActiveTeams.map((team) => ({ teamId: team.id, finalState: "ACTIVE_STABLE" as const })),
+  ];
+
+  const seededTransponders: SeededTransponder[] = [];
+
+  for (const scenario of scenarios) {
+    if (scenario.finalState === "FINISHED") {
+      seededTransponders.push({
+        status: TransponderStatus.RECUPERE,
+        teamId: null,
+        events: [
+          { type: TransponderStatus.ATTRIBUE, teamId: scenario.teamId },
+          { type: TransponderStatus.RECUPERE, teamId: scenario.teamId },
+        ],
+      });
+      continue;
+    }
+
+    if (scenario.finalState === "ACTIVE_AFTER_ISSUE") {
+      const issueType = scenario.issueType;
+      if (!issueType) {
+        throw new Error(`Seed incohérente: issueType manquant pour l'équipe #${scenario.teamId}.`);
+      }
+      seededTransponders.push({
+        status: issueType,
+        teamId: null,
+        events: [
+          { type: TransponderStatus.ATTRIBUE, teamId: scenario.teamId },
+          { type: issueType, teamId: scenario.teamId },
+        ],
+      });
+      seededTransponders.push({
+        status: TransponderStatus.ATTRIBUE,
+        teamId: scenario.teamId,
+        events: [{ type: TransponderStatus.ATTRIBUE, teamId: scenario.teamId }],
+      });
+      continue;
+    }
+
+    seededTransponders.push({
+      status: TransponderStatus.ATTRIBUE,
+      teamId: scenario.teamId,
+      events: [{ type: TransponderStatus.ATTRIBUE, teamId: scenario.teamId }],
     });
   }
-  for (let i = 0; i < 10; i++) {
-    const team = pick(createdTeams);
-    transponderSeeds.push({
-      status: TransponderStatus.RECUPERE,
-      teamId: null,
-      historyTeamId: team.id,
-      priorAssignment: i < 5,
-    });
-  }
-  for (let i = 0; i < 8; i++) {
-    transponderSeeds.push({
+
+  while (seededTransponders.length < TOTAL_TRANSPONDERS) {
+    seededTransponders.push({
       status: TransponderStatus.EN_ATTENTE,
       teamId: null,
-      historyTeamId: null,
+      events: [],
     });
   }
-  for (let i = 0; i < 7; i++) {
-    const team = pick(createdTeams);
-    transponderSeeds.push({
-      status: TransponderStatus.PERDU,
-      teamId: null,
-      historyTeamId: team.id,
-      priorAssignment: i < 4,
-    });
-  }
-  for (let i = 0; i < 3; i++) {
-    const team = pick(createdTeams);
-    transponderSeeds.push({
-      status: TransponderStatus.DEFAILLANT,
-      teamId: null,
-      historyTeamId: team.id,
-      priorAssignment: true,
-    });
+  if (seededTransponders.length !== TOTAL_TRANSPONDERS) {
+    throw new Error(
+      `Seed incohérente: ${seededTransponders.length} transpondeurs générés au lieu de ${TOTAL_TRANSPONDERS}.`,
+    );
   }
 
-  const transponders: { id: number; status: TransponderStatus }[] = [];
-
-  for (const seed of transponderSeeds) {
+  const transponderRows: { id: number; status: TransponderStatus; teamId: number | null }[] = [];
+  for (const seed of seededTransponders) {
     const t = await prisma.transponder.create({
       data: {
         status: seed.status,
@@ -256,113 +320,149 @@ async function main() {
         ...(seed.teamId != null ? { team: { connect: { id: seed.teamId } } } : {}),
       },
     });
-    transponders.push({ id: t.id, status: t.status });
+    transponderRows.push({ id: t.id, status: t.status, teamId: t.teamId });
   }
 
-  for (const seed of transponderSeeds) {
-    if (seed.status === TransponderStatus.ATTRIBUE && seed.teamId != null) {
-      const teamRow = await prisma.team.findUnique({
-        where: { id: seed.teamId },
-        select: { respRunnerId: true },
+  const activeTeamIds = [
+    ...new Set(
+      transponderRows
+        .filter((t) => t.status === TransponderStatus.ATTRIBUE && t.teamId != null)
+        .map((t) => t.teamId as number),
+    ),
+  ];
+  for (const teamId of activeTeamIds) {
+    const teamRow = await prisma.team.findUnique({
+      where: { id: teamId },
+      select: { respRunnerId: true },
+    });
+    if (teamRow?.respRunnerId != null) {
+      await prisma.team.update({
+        where: { id: teamId },
+        data: { transponderHolderRunnerId: teamRow.respRunnerId },
       });
-      if (teamRow?.respRunnerId != null) {
-        await prisma.team.update({
-          where: { id: seed.teamId },
-          data: { transponderHolderRunnerId: teamRow.respRunnerId },
-        });
-      }
     }
   }
 
   console.log("✅ Transpondeurs créés.");
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // 6. TRANSACTIONS (historique de distribution par les bénévoles)
-  // ───────────────────────────────────────────────────────────────────────────
-
   // Toutes les dateTime sont strictement avant le 15/03/2026 (UTC).
   const TX_BEFORE = new Date("2026-03-15T00:00:00.000Z");
-  const baseDate = new Date("2026-03-01T10:00:00.000Z");
-
+  const TEAM_TX_BASE = new Date("2026-03-01T10:00:00.000Z");
+  const TEAM_SLOT_MS = 3 * 60 * 60 * 1000; // 3h par équipe pour garder l’ordre local explicite.
+  const EVENT_STEP_MS = 20 * 60 * 1000; // +20 min entre événements d'une même équipe.
   const clampBeforeMarch15 = (d: Date) =>
     d.getTime() < TX_BEFORE.getTime() ? d : new Date(TX_BEFORE.getTime() - 60_000);
 
-  for (let i = 0; i < transponders.length; i++) {
-    const t = transponders[i];
-    const seed = transponderSeeds[i];
-    const benevole = pick(benevoles);
-    const teamId = seed.historyTeamId;
-    const txDate = clampBeforeMarch15(new Date(baseDate.getTime() + i * 3 * 60 * 1000)); // +3 min par puce
-
-    if (seed.status === TransponderStatus.EN_ATTENTE) {
+  const transpondersByTeam = new Map<number, { transponderId: number; events: { type: TransponderStatus }[] }[]>();
+  for (let i = 0; i < seededTransponders.length; i++) {
+    const def = seededTransponders[i];
+    if (def.events.length === 0 || def.events[0]?.teamId == null) {
       continue;
     }
-
-    if (teamId == null) {
-      throw new Error(`Seed incohérente: transpondeur #${t.id} sans historyTeamId alors que status=${seed.status}`);
-    }
-
-    const needsAssignmentFirst =
-      (seed.status === TransponderStatus.RECUPERE ||
-        seed.status === TransponderStatus.PERDU ||
-        seed.status === TransponderStatus.DEFAILLANT) &&
-      seed.priorAssignment === true;
-
-    if (seed.status === TransponderStatus.ATTRIBUE) {
-      await prisma.transponderTransaction.create({
-        data: {
-          transponderId: t.id,
-          teamId,
-          userId: benevole.id,
-          type: TransponderStatus.ATTRIBUE,
-          dateTime: txDate,
-        },
-      });
-      continue;
-    }
-
-    if (needsAssignmentFirst) {
-      await prisma.transponderTransaction.create({
-        data: {
-          transponderId: t.id,
-          teamId,
-          userId: benevole.id,
-          type: TransponderStatus.ATTRIBUE,
-          dateTime: txDate,
-        },
-      });
-      const secondDate = clampBeforeMarch15(new Date(txDate.getTime() + rand(60, 300) * 60 * 1000));
-      await prisma.transponderTransaction.create({
-        data: {
-          transponderId: t.id,
-          teamId,
-          userId: benevole.id,
-          type: seed.status,
-          dateTime: secondDate,
-        },
-      });
-      continue;
-    }
-
-    await prisma.transponderTransaction.create({
-      data: {
-        transponderId: t.id,
-        teamId,
-        userId: benevole.id,
-        type: seed.status,
-        dateTime: txDate,
-      },
+    const teamId = def.events[0].teamId;
+    const list = transpondersByTeam.get(teamId) ?? [];
+    list.push({
+      transponderId: transponderRows[i].id,
+      events: def.events.map((ev) => ({ type: ev.type })),
     });
+    transpondersByTeam.set(teamId, list);
   }
 
-  const teamsFinishedIds = [
-    ...new Set(
-      transponderSeeds.filter((s) => s.status === TransponderStatus.RECUPERE).map((s) => s.historyTeamId!),
-    ),
-  ];
+  const scenarioOrder = new Map<number, number>();
+  scenarios.forEach((s, idx) => scenarioOrder.set(s.teamId, idx));
+  for (const [teamId, teamTransponders] of transpondersByTeam.entries()) {
+    const orderedTeamTransponders = teamTransponders.sort((a, b) => {
+      const aLast = a.events[a.events.length - 1]?.type;
+      const bLast = b.events[b.events.length - 1]?.type;
+      const score = (s?: TransponderStatus) => (s === TransponderStatus.ATTRIBUE ? 2 : 1);
+      return score(aLast) - score(bLast);
+    });
+    const base = new Date(
+      TEAM_TX_BASE.getTime() + ((scenarioOrder.get(teamId) ?? 0) * TEAM_SLOT_MS),
+    );
+    let cursorMs = base.getTime();
+    for (const teamTransponder of orderedTeamTransponders) {
+      for (const event of teamTransponder.events) {
+        await prisma.transponderTransaction.create({
+          data: {
+            transponderId: teamTransponder.transponderId,
+            teamId,
+            userId: pick(benevoles).id,
+            type: event.type,
+            dateTime: clampBeforeMarch15(new Date(cursorMs)),
+          },
+        });
+        cursorMs += EVENT_STEP_MS;
+      }
+    }
+  }
+
+  const finishedTeamIds = finishedTeams.map((team) => team.id);
   await Promise.all(
-    teamsFinishedIds.map((id) => prisma.team.update({ where: { id }, data: { courseFinished: true } })),
+    finishedTeamIds.map((id) => prisma.team.update({ where: { id }, data: { courseFinished: true } })),
   );
+
+  // Assertions d'invariants métier post-seed.
+  const activeTransponders = await prisma.transponder.findMany({
+    where: { status: TransponderStatus.ATTRIBUE, editionId: edition2026.id },
+    select: { id: true, teamId: true },
+  });
+  const activeCountByTeam = new Map<number, number>();
+  for (const tp of activeTransponders) {
+    if (tp.teamId == null) {
+      throw new Error(`Seed incohérente: transpondeur actif #${tp.id} sans teamId.`);
+    }
+    activeCountByTeam.set(tp.teamId, (activeCountByTeam.get(tp.teamId) ?? 0) + 1);
+  }
+  for (const [teamId, count] of activeCountByTeam.entries()) {
+    if (count > 1) {
+      throw new Error(`Seed incohérente: équipe #${teamId} a ${count} transpondeurs actifs.`);
+    }
+  }
+
+  const finishedTeamsWithActive = await prisma.team.findMany({
+    where: {
+      courseFinished: true,
+      transponders: { some: { status: TransponderStatus.ATTRIBUE } },
+    },
+    select: { id: true },
+  });
+  if (finishedTeamsWithActive.length > 0) {
+    throw new Error(
+      `Seed incohérente: équipes terminées avec puce active: ${finishedTeamsWithActive.map((t) => t.id).join(", ")}`,
+    );
+  }
+
+  for (const scenario of scenarios) {
+    const tx = await prisma.transponderTransaction.findMany({
+      where: { teamId: scenario.teamId },
+      orderBy: { dateTime: "asc" },
+      select: { type: true },
+    });
+    for (let i = 1; i < tx.length; i++) {
+      if (tx[i - 1].type === TransponderStatus.ATTRIBUE && tx[i].type === TransponderStatus.ATTRIBUE) {
+        throw new Error(
+          `Seed incohérente: équipe #${scenario.teamId} a deux ATTRIBUE consécutifs dans l'historique.`,
+        );
+      }
+    }
+    const lastType = tx[tx.length - 1]?.type;
+    if (scenario.finalState === "FINISHED" && lastType !== TransponderStatus.RECUPERE) {
+      throw new Error(
+        `Seed incohérente: équipe #${scenario.teamId} terminée mais dernier event=${String(lastType)}.`,
+      );
+    }
+    if (
+      scenario.finalState !== "FINISHED" &&
+      lastType !== TransponderStatus.ATTRIBUE &&
+      lastType !== TransponderStatus.PERDU &&
+      lastType !== TransponderStatus.DEFAILLANT
+    ) {
+      throw new Error(
+        `Seed incohérente: équipe #${scenario.teamId} non terminée avec dernier event inattendu=${String(lastType)}.`,
+      );
+    }
+  }
 
   console.log("✅ Transactions créées.");
 
@@ -501,7 +601,7 @@ async function main() {
   console.log(`   👤 ${5 + benevoles.length + participantUsers.length} utilisateurs`);
   console.log(`   🏆 ${teamDefinitions.length + 1} équipes`);
   console.log(`   🏃 ${createdRunners.length + 1} coureurs`);
-  console.log(`   📡 ${transponders.length} transpondeurs`);
+  console.log(`   📡 ${transponderRows.length} transpondeurs`);
   console.log(`   🔄 Transactions registrées`);
   console.log(`   💬 1 conversation + ${orgaMessages.length} messages`);
 }
