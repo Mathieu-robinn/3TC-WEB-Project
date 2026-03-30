@@ -2,8 +2,8 @@
   <v-container fluid class="pa-0 dashboard-page">
 
     <!-- Hero Header -->
-    <div class="dashboard-hero pa-6 pb-5">
-      <div class="d-flex align-center justify-space-between flex-wrap gap-3 mb-4">
+    <div class="dashboard-hero pa-4 pa-md-6 pb-5">
+      <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between flex-wrap gap-3 mb-4">
         <div>
           <h1 class="text-h5 font-weight-black text-white">Dashboard</h1>
           <p class="text-body-2 text-white-70 mt-1">
@@ -11,7 +11,7 @@
             Données en temps réel · {{ new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) }}
           </p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2 w-100 w-sm-auto">
           <v-btn icon="mdi-refresh" variant="tonal" color="white" size="small" @click="refreshAll" :loading="loading" />
           <v-chip color="green" variant="flat" size="small" class="font-weight-bold">
             <v-icon start size="10">mdi-circle</v-icon>
@@ -22,12 +22,12 @@
 
       <!-- Countdown -->
       <v-card class="countdown-card pa-4" rounded="xl" elevation="0">
-        <div class="d-flex align-center justify-space-between">
-          <div>
+        <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-3">
+          <div class="min-w-0">
             <div class="text-caption text-medium-emphasis text-uppercase font-weight-bold mb-1">
               <v-icon size="12" class="mr-1">mdi-flag-checkered</v-icon>Temps restant
             </div>
-            <div class="countdown-display d-flex align-center gap-1">
+            <div class="countdown-display d-flex align-center flex-wrap gap-1">
               <div class="countdown-box">
                 <span class="countdown-num">{{ countdown.hours }}</span>
                 <span class="countdown-lbl">h</span>
@@ -49,12 +49,12 @@
       </v-card>
     </div>
 
-    <div class="pa-6 pt-4">
+    <div class="pa-4 pa-md-6 pt-4">
 
       <!-- KPI Row -->
       <v-row class="mb-4">
         <v-col cols="6" sm="3" v-for="kpi in kpis" :key="kpi.label">
-          <v-card class="kpi-card pa-4" rounded="xl" elevation="0">
+          <v-card class="kpi-card pa-3 pa-sm-4" rounded="xl" elevation="0">
             <div class="d-flex align-center justify-space-between mb-3">
               <div class="kpi-icon-wrap" :style="`background: ${kpi.bgColor}`">
                 <v-icon size="18" :color="kpi.color">{{ kpi.icon }}</v-icon>
@@ -63,7 +63,7 @@
                 {{ kpi.trend > 0 ? '+' : '' }}{{ kpi.trend }}
               </v-chip>
             </div>
-            <div class="text-h4 font-weight-black mb-1">{{ kpi.value }}</div>
+            <div class="text-h4 font-weight-black mb-1 dashboard-kpi-value">{{ kpi.value }}</div>
             <div class="text-caption text-medium-emphasis">{{ kpi.label }}</div>
           </v-card>
         </v-col>
@@ -72,8 +72,8 @@
       <v-row>
         <!-- Transponder Stats -->
         <v-col cols="12" md="5">
-          <v-card class="data-card pa-5" rounded="xl" elevation="0" height="100%">
-            <div class="d-flex align-center justify-space-between mb-4">
+          <v-card class="data-card pa-4 pa-md-5" rounded="xl" elevation="0" height="100%">
+            <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-2 mb-4">
               <div class="text-subtitle-1 font-weight-bold">État des Transpondeurs</div>
               <v-btn size="x-small" variant="text" color="primary" to="/transpondeurs">Voir tout</v-btn>
             </div>
@@ -102,8 +102,8 @@
 
         <!-- Live Ranking Top 5 -->
         <v-col cols="12" md="7">
-          <v-card class="data-card pa-5" rounded="xl" elevation="0" height="100%">
-            <div class="d-flex align-center justify-space-between mb-4">
+          <v-card class="data-card pa-4 pa-md-5" rounded="xl" elevation="0" height="100%">
+            <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-2 mb-4">
               <div class="text-subtitle-1 font-weight-bold">🏆 Classement en direct</div>
               <v-btn size="x-small" variant="text" color="primary" to="/equipes">Voir tout</v-btn>
             </div>
@@ -138,8 +138,8 @@
       <!-- Recent Transactions -->
       <v-row class="mt-1">
         <v-col cols="12">
-          <v-card class="data-card pa-5" rounded="xl" elevation="0">
-            <div class="d-flex align-center justify-space-between mb-4">
+          <v-card class="data-card pa-4 pa-md-5" rounded="xl" elevation="0">
+            <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-2 mb-4">
               <div class="text-subtitle-1 font-weight-bold">Dernières transactions</div>
               <v-btn size="x-small" variant="text" color="primary" to="/transpondeurs">Historique complet</v-btn>
             </div>
@@ -174,7 +174,7 @@
       <!-- Quick Action Row -->
       <v-row class="mt-1">
         <v-col cols="12" sm="4" v-for="action in quickActions" :key="action.label">
-          <v-card class="action-card pa-5" rounded="xl" elevation="0" :to="action.to">
+          <v-card class="action-card pa-4 pa-md-5" rounded="xl" elevation="0" :to="action.to">
             <div class="d-flex align-center gap-3 mb-3">
               <div class="action-icon-wrap" :style="`background: ${action.bgColor}`">
                 <v-icon :color="action.color" size="22">{{ action.icon }}</v-icon>
@@ -360,4 +360,10 @@ const startCountdown = () => {
 }
 .action-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08) !important; }
 .action-icon-wrap { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+@media (max-width: 600px) {
+  .countdown-num { font-size: 1.35rem; }
+  .countdown-sep { font-size: 1.1rem; }
+  .dashboard-kpi-value { font-size: 1.35rem !important; line-height: 1.2; }
+}
 </style>

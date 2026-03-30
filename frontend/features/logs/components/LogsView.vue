@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="pa-0 admin-page logs-page">
-    <div class="hero-header pa-6 pb-4">
+    <div class="hero-header pa-4 pa-md-6 pb-4">
       <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
         <div>
           <div class="d-flex align-center mb-1">
@@ -9,11 +9,11 @@
             </div>
             <h1 class="text-h5 font-weight-bold text-white">Logs</h1>
           </div>
-          <p class="text-body-2 text-white-70 ml-13">
+          <p class="text-body-2 text-white-70 ml-0 ml-md-13">
             Journal d’audit · {{ total }} entrée(s) · réservé aux administrateurs
           </p>
         </div>
-        <div class="d-flex flex-wrap gap-2 ml-13 ml-md-0">
+        <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
           <v-btn
             variant="tonal"
             color="white"
@@ -28,7 +28,7 @@
       </div>
     </div>
 
-    <div class="pa-6 pt-4">
+    <div class="pa-4 pa-md-6 pt-4">
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
           <v-row density="comfortable" align="center">
@@ -130,8 +130,9 @@
           <v-toolbar-title class="text-subtitle-1 font-weight-bold">Entrées</v-toolbar-title>
         </v-toolbar>
         <v-divider />
+        <div class="table-scroll-x">
         <v-data-table
-          :headers="headers"
+          :headers="tableHeaders"
           :items="items"
           item-value="id"
           :loading="loading"
@@ -156,13 +157,14 @@
             <span class="text-body-2 message-preview">{{ truncate(item.message, 120) }}</span>
           </template>
         </v-data-table>
+        </div>
         <v-divider />
         <div class="d-flex flex-wrap align-center justify-space-between gap-3 pa-4">
           <span class="text-body-2 text-medium-emphasis">Page {{ page }} / {{ pageCount || 1 }}</span>
           <v-pagination
             v-model="page"
             :length="pageCount"
-            :total-visible="7"
+            :total-visible="paginationTotalVisible"
             rounded="lg"
             density="comfortable"
             @update:model-value="() => fetchLogs()"
@@ -171,7 +173,7 @@
       </v-card>
     </div>
 
-    <v-dialog v-model="detailOpen" max-width="560" scrollable>
+    <v-dialog v-model="detailOpen" v-bind="detailDialogAttrs" scrollable>
       <v-card rounded="xl">
         <v-card-title class="d-flex align-center justify-space-between">
           <span>Détail du log</span>
@@ -218,7 +220,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useDisplay } from 'vuetify/framework'
 import { useApi } from '~/composables/useApi'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 
 interface LogUser {
   id: number
@@ -259,6 +263,7 @@ const sortItems = [
 ]
 
 const api = useApi()
+const display = useDisplay()
 const loading = ref(false)
 const items = ref<LogRow[]>([])
 const total = ref(0)
@@ -284,12 +289,21 @@ const snackbar = reactive({ show: false, text: '', color: 'success' })
 
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
-const headers = [
+const logHeadersBase = [
   { title: 'Date / heure', key: 'dateTime', sortable: false, width: '170px' },
   { title: 'Type', key: 'type', sortable: false, width: '200px' },
   { title: 'Utilisateur', key: 'user', sortable: false, width: '180px' },
   { title: 'Message', key: 'message', sortable: false },
 ]
+
+const tableHeaders = computed(() => {
+  if (display.smAndDown.value) return logHeadersBase.filter((h) => h.key !== 'user')
+  return logHeadersBase
+})
+
+const paginationTotalVisible = computed(() => (display.smAndDown.value ? 5 : 7))
+
+const detailDialogAttrs = useMobileDialogAttrs(560)
 
 function logTypeLabel(type: string) {
   return LOG_TYPE_LABELS[type] ?? type

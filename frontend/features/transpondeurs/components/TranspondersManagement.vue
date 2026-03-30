@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="pa-0 admin-page transponders-page">
-    <div class="hero-header pa-6 pb-4">
+    <div class="hero-header pa-4 pa-md-6 pb-4">
       <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
         <div>
           <div class="d-flex align-center mb-1">
@@ -9,16 +9,17 @@
             </div>
             <h1 class="text-h5 font-weight-bold text-white">Transpondeurs</h1>
           </div>
-          <p class="text-body-2 text-white-70 ml-13">
+          <p class="text-body-2 text-white-70 ml-0 ml-md-13">
             {{ store.totalStats.total ?? 0 }} puces · {{ store.filteredTransponders.length }} affichée(s) avec les filtres
           </p>
         </div>
-        <div class="d-flex flex-wrap gap-2 ml-13 ml-md-0">
+        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
           <v-btn
             variant="tonal"
             color="white"
             prepend-icon="mdi-refresh"
             rounded="lg"
+            class="flex-grow-1 flex-sm-grow-0"
             :loading="store.loading"
             @click="store.fetchAll()"
           >
@@ -30,6 +31,7 @@
             variant="flat"
             rounded="lg"
             prepend-icon="mdi-delete-sweep"
+            class="flex-grow-1 flex-sm-grow-0"
             :disabled="!selectedIds.length"
             :loading="store.saving"
             @click="onBulkDelete"
@@ -39,7 +41,7 @@
           <v-btn
             v-if="canCreateTransponder"
             color="white"
-            class="text-primary font-weight-bold"
+            class="text-primary font-weight-bold flex-grow-1 flex-sm-grow-0"
             variant="flat"
             rounded="lg"
             prepend-icon="mdi-plus"
@@ -66,7 +68,7 @@
       </v-row>
     </div>
 
-    <div class="pa-6 pt-4">
+    <div class="pa-4 pa-md-6 pt-4">
       <v-alert v-if="store.error" type="warning" variant="tonal" rounded="lg" class="mb-4" density="compact">
         {{ store.error }}
       </v-alert>
@@ -126,9 +128,10 @@
         </v-toolbar>
         <v-divider />
 
+        <div class="table-scroll-x">
         <v-data-table
           v-model="selectedIds"
-          :headers="headers"
+          :headers="tableHeaders"
           :items="tableItems"
           :loading="store.loading"
           item-value="id"
@@ -254,11 +257,12 @@
             </div>
           </template>
         </v-data-table>
+        </div>
       </v-card>
     </div>
 
     <!-- Dialog d'assignation -->
-    <v-dialog v-model="assignDialog" max-width="540">
+    <v-dialog v-model="assignDialog" v-bind="assignDialogAttrs">
       <v-card rounded="xl" elevation="8">
         <div class="form-header pa-4 d-flex align-center flex-wrap gap-2">
           <v-icon color="white">mdi-account-group-outline</v-icon>
@@ -357,7 +361,7 @@
 
 
     <!-- Historique d'un transpondeur -->
-    <v-dialog v-model="historyDialog" max-width="560" scrollable>
+    <v-dialog v-model="historyDialog" v-bind="historyDialogAttrs" scrollable>
       <v-card rounded="xl" v-if="historyTransponder">
         <div class="form-header pa-4 d-flex align-center">
           <v-icon color="white" class="mr-2">mdi-history</v-icon>
@@ -416,7 +420,7 @@
     </v-dialog>
 
     <!-- Ajout en lot -->
-    <v-dialog v-model="batchDialog" max-width="520">
+    <v-dialog v-model="batchDialog" v-bind="batchDialogAttrs">
       <v-card rounded="xl" elevation="8">
         <div class="form-header pa-4 d-flex align-center gap-2">
           <v-icon color="white">mdi-nfc-variant</v-icon>
@@ -468,6 +472,8 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useDisplay } from 'vuetify/framework'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
 import { usePermissions } from '~/composables/usePermissions'
 import { transponderNumeroLabel } from '~/utils/transponder'
@@ -481,15 +487,25 @@ import {
 
 const store = useTranspondersStore()
 const { isAdmin, canOperateTransponders, canCreateTransponder, canRestockTransponder } = usePermissions()
+const display = useDisplay()
 
 const selectedIds = ref([])
 
-const headers = [
+const transponderHeadersBase = [
   { title: 'Numéro', key: 'numero', sortable: true },
   { title: 'Statut', key: 'status', sortable: true },
   { title: 'Équipe assignée', key: 'teamName', sortable: true },
   { title: '', key: 'actions', sortable: false, align: 'end', width: '200px' },
 ]
+
+const tableHeaders = computed(() => {
+  if (display.smAndDown.value) return transponderHeadersBase.filter((h) => h.key !== 'teamName')
+  return transponderHeadersBase
+})
+
+const assignDialogAttrs = useMobileDialogAttrs(540)
+const historyDialogAttrs = useMobileDialogAttrs(560)
+const batchDialogAttrs = useMobileDialogAttrs(520)
 
 const tableItems = computed(() =>
   store.filteredTransponders.map((t) => ({

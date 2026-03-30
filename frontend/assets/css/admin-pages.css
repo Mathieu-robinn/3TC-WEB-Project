@@ -113,3 +113,10 @@
   background: linear-gradient(135deg, #1a1f36 0%, #2d3561 100%);
   border-radius: 12px 12px 0 0;
 }
+
+/* Tableaux larges : défilement horizontal sur petits écrans */
+.table-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}

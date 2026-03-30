@@ -9,7 +9,7 @@
       aria-label="Envoyer une notification"
       @click="open = true"
     />
-    <v-dialog v-model="open" max-width="480" scrollable>
+    <v-dialog v-model="open" v-bind="notifFabDialogAttrs" scrollable>
       <v-card>
         <v-card-title class="text-h6">Nouvelle notification</v-card-title>
         <v-card-text>
@@ -55,6 +55,7 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { useAuthStore } from '~/features/auth/stores/auth'
 import { useJwtAuth } from '~/composables/useJwtAuth'
 import { useNotificationsStore } from '../stores/notifications.store'
@@ -62,6 +63,8 @@ import { useNotificationsStore } from '../stores/notifications.store'
 const authStore = useAuthStore()
 const { token } = useJwtAuth()
 const notifStore = useNotificationsStore()
+
+const notifFabDialogAttrs = useMobileDialogAttrs(480)
 
 const open = ref(false)
 const sending = ref(false)
@@ -117,8 +120,8 @@ async function submit() {
 <style scoped>
 .notification-fab {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  right: max(20px, env(safe-area-inset-right, 0px));
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
   z-index: 10040;
 }
 

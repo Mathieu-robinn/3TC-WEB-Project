@@ -1,5 +1,10 @@
 <template>
-  <v-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" max-width="600" scrollable>
+  <v-dialog
+    :model-value="modelValue"
+    @update:model-value="$emit('update:modelValue', $event)"
+    v-bind="detailModalAttrs"
+    scrollable
+  >
     <v-card rounded="xl" v-if="participant">
 
       <!-- Header -->
@@ -133,7 +138,7 @@
   </v-dialog>
 
   <!-- Assignation équipe + détenteur = ce coureur -->
-  <v-dialog v-model="assignTeamDialog" max-width="480">
+  <v-dialog v-model="assignTeamDialog" v-bind="assignTeamDialogAttrs">
     <v-card rounded="xl" elevation="8">
       <div class="modal-header pa-4 d-flex align-center gap-2">
         <v-icon color="white">mdi-nfc-variant</v-icon>
@@ -201,6 +206,10 @@ import {
   transactionTypeMeta,
   transponderLabelFromTransaction,
 } from '~/utils/transponderTransactionDisplay'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+
+const detailModalAttrs = useMobileDialogAttrs(600)
+const assignTeamDialogAttrs = useMobileDialogAttrs(480)
 
 const props = defineProps({
   modelValue: Boolean,

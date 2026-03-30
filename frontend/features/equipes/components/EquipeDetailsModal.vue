@@ -1,5 +1,10 @@
 <template>
-  <v-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" max-width="760" scrollable>
+  <v-dialog
+    :model-value="modelValue"
+    @update:model-value="$emit('update:modelValue', $event)"
+    v-bind="equipeDetailDialogAttrs"
+    scrollable
+  >
     <v-card rounded="xl" v-if="equipe">
 
       <!-- Modal Header (always dark gradient – works in both modes) -->
@@ -239,7 +244,7 @@
   </v-dialog>
 
   <!-- Dialog séparé : évite l’imbrication v-dialog dans v-dialog -->
-  <v-dialog v-model="assignDialog" max-width="520">
+  <v-dialog v-model="assignDialog" v-bind="assignTransponderDialogAttrs">
       <v-card rounded="xl" elevation="8">
         <v-card-title class="d-flex align-center gap-2 pt-5 px-6">
           <v-icon color="primary">mdi-timer-plus-outline</v-icon>
@@ -315,11 +320,15 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { transponderNumeroLabel } from '~/utils/transponder'
 import { useEquipesStore } from '~/features/equipes/stores/equipes'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
 import { actorLabelFromTransaction, transponderLabelFromTransaction } from '~/utils/transponderTransactionDisplay'
 import type { ApiRunner, ApiTransponderRef, TransponderStatusApi, TransponderTransaction } from '~/types/api'
+
+const equipeDetailDialogAttrs = useMobileDialogAttrs(760)
+const assignTransponderDialogAttrs = useMobileDialogAttrs(520)
 
 const props = defineProps({
   modelValue: Boolean,

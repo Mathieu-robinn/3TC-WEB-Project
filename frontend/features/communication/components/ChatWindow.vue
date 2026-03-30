@@ -2,7 +2,15 @@
   <v-card class="chat-window d-flex flex-column fill-height elevation-3 rounded-lg overflow-hidden border">
     
     <!-- Header -->
-    <v-toolbar color="surface" elevation="1" class="px-4 header-glass">
+    <v-toolbar color="surface" elevation="1" class="px-2 px-sm-4 header-glass">
+      <v-btn
+        v-if="showMobileBack"
+        icon="mdi-arrow-left"
+        variant="text"
+        class="mr-1"
+        aria-label="Retour à la liste des conversations"
+        @click="emit('mobileBack')"
+      />
       <v-avatar :color="conversation?.type === 'GROUP' ? 'secondary' : 'primary'" size="40" class="mr-3 elevation-2">
         <v-icon :icon="conversation?.type === 'GROUP' ? 'mdi-account-group' : 'mdi-account'" color="white"></v-icon>
       </v-avatar>
@@ -80,15 +88,20 @@ import type { Conversation, Message } from '../types/communication'
 import MessageBubble from './MessageBubble.vue'
 import ConversationInfoModal from './ConversationInfoModal.vue'
 
-const props = defineProps<{
-  conversation: Conversation;
-  messages: Message[];
-  currentUserId: number;
-}>()
+const props = withDefaults(
+  defineProps<{
+    conversation: Conversation
+    messages: Message[]
+    currentUserId: number
+    showMobileBack?: boolean
+  }>(),
+  { showMobileBack: false },
+)
 
 const emit = defineEmits<{
   (e: 'send', content: string, type: 'TEXT' | 'IMAGE'): void
   (e: 'groupUpdated'): void
+  (e: 'mobileBack'): void
 }>()
 
 const newMessage = ref('')

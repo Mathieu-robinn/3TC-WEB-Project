@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="pa-0 admin-page parametres-page">
-    <div class="hero-header pa-6 pb-4">
+    <div class="hero-header pa-4 pa-md-6 pb-4">
       <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
         <div>
           <div class="d-flex align-center mb-1">
@@ -9,16 +9,17 @@
             </div>
             <h1 class="text-h5 font-weight-bold text-white">Paramètres</h1>
           </div>
-          <p class="text-body-2 text-white-70 ml-13">
+          <p class="text-body-2 text-white-70 ml-0 ml-md-13">
             Édition active, structure de l’événement et parcours (disciplines).
           </p>
         </div>
-        <div class="d-flex flex-wrap gap-2 ml-13 ml-md-0">
+        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
           <v-btn
             variant="tonal"
             color="white"
             prepend-icon="mdi-refresh"
             rounded="lg"
+            class="flex-grow-1 flex-sm-grow-0"
             :loading="refreshingAll"
             @click="refreshAll"
           >
@@ -30,7 +31,7 @@
               color="white"
               rounded="lg"
               prepend-icon="mdi-calendar-plus"
-              class="text-primary font-weight-bold"
+              class="text-primary font-weight-bold flex-grow-1 flex-sm-grow-0"
               @click="openCreateEditionDialog"
             >
               Nouvelle édition
@@ -40,7 +41,7 @@
               color="white"
               rounded="lg"
               prepend-icon="mdi-run-fast"
-              class="text-primary font-weight-bold"
+              class="text-primary font-weight-bold flex-grow-1 flex-sm-grow-0"
               :disabled="selectedEditionId == null"
               @click="openCreateCourseDialog"
             >
@@ -65,7 +66,7 @@
       </v-row>
     </div>
 
-    <div class="pa-6 pt-4">
+    <div class="pa-4 pa-md-6 pt-4">
       <v-alert v-if="error" type="error" variant="tonal" class="mb-4" density="compact" rounded="lg">{{
         error
       }}</v-alert>
@@ -130,7 +131,7 @@
             <v-toolbar-title class="text-subtitle-1 font-weight-bold">Éditions</v-toolbar-title>
           </v-toolbar>
           <v-divider />
-          <div class="pa-2">
+          <div class="pa-2 table-scroll-x">
             <v-data-table
               v-if="activeEditionStore.editions.length"
               :headers="editionTableHeaders"
@@ -196,7 +197,7 @@
             Aucune édition disponible. Créez une édition ou actualisez la page.
           </div>
 
-          <div v-else class="pa-2">
+          <div v-else class="pa-2 table-scroll-x">
             <v-progress-linear v-if="coursesLoading" indeterminate class="mb-2" />
 
             <v-data-table
@@ -246,7 +247,7 @@
       </template>
     </div>
 
-    <v-dialog v-model="createEditionDialogOpen" max-width="520" scrollable>
+    <v-dialog v-model="createEditionDialogOpen" v-bind="paramDialog520" scrollable>
       <v-card rounded="xl">
         <div class="form-header pa-4 d-flex align-center">
           <v-icon color="white" class="mr-2">mdi-calendar-plus</v-icon>
@@ -314,7 +315,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="createCourseDialogOpen" max-width="560" scrollable>
+    <v-dialog v-model="createCourseDialogOpen" v-bind="paramDialog560" scrollable>
       <v-card rounded="xl">
         <div class="form-header pa-4 d-flex align-center">
           <v-icon color="white" class="mr-2">mdi-run-fast</v-icon>
@@ -378,7 +379,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="editionEditOpen" max-width="520">
+    <v-dialog v-model="editionEditOpen" v-bind="paramDialog520">
       <v-card rounded="lg">
         <v-card-title class="text-h6">Modifier l’édition</v-card-title>
         <v-card-text>
@@ -418,7 +419,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="editionDeleteOpen" max-width="440">
+    <v-dialog v-model="editionDeleteOpen" v-bind="paramDialog440">
       <v-card rounded="lg">
         <v-card-title class="text-h6">Supprimer cette édition ?</v-card-title>
         <v-card-text v-if="editionDeleteTarget">
@@ -443,7 +444,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="courseEditOpen" max-width="560">
+    <v-dialog v-model="courseEditOpen" v-bind="paramDialog560">
       <v-card rounded="lg">
         <v-card-title class="text-h6">Modifier la course</v-card-title>
         <v-card-text>
@@ -496,7 +497,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="courseDeleteOpen" max-width="420">
+    <v-dialog v-model="courseDeleteOpen" v-bind="paramDialog420">
       <v-card rounded="lg">
         <v-card-title class="text-h6">Supprimer cette course ?</v-card-title>
         <v-card-text v-if="courseDeleteTarget">
@@ -516,12 +517,19 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useDisplay } from 'vuetify/framework'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { useActiveEditionStore } from '~/features/editions/stores/activeEdition'
 import type { ApiCourse, ApiEdition } from '~/types/api'
 
 const { isAdmin } = useJwtAuth()
 const activeEditionStore = useActiveEditionStore()
 const api = useApi()
+const display = useDisplay()
+const paramDialog520 = useMobileDialogAttrs(520)
+const paramDialog560 = useMobileDialogAttrs(560)
+const paramDialog440 = useMobileDialogAttrs(440)
+const paramDialog420 = useMobileDialogAttrs(420)
 
 const loading = ref(false)
 const saving = ref(false)
@@ -551,7 +559,7 @@ const creatingCourse = ref(false)
 const courseError = ref<string | null>(null)
 const courseSuccess = ref<string | null>(null)
 
-const editionTableHeaders = [
+const editionHeadersBase = [
   { title: 'Nom', key: 'name' },
   { title: 'Début', key: 'startDate' },
   { title: 'Fin', key: 'endDate' },
@@ -559,12 +567,22 @@ const editionTableHeaders = [
   { title: '', key: 'actions', sortable: false, width: '108px' },
 ]
 
-const courseTableHeaders = [
+const editionTableHeaders = computed(() => {
+  if (!display.smAndDown.value) return editionHeadersBase
+  return editionHeadersBase.filter((h) => h.key !== 'startDate' && h.key !== 'endDate')
+})
+
+const courseHeadersBase = [
   { title: 'Nom', key: 'name' },
   { title: 'Distance / tour (km)', key: 'distanceTour' },
   { title: 'Date et heure', key: 'dateAndTime' },
   { title: '', key: 'actions', sortable: false, width: '108px' },
 ]
+
+const courseTableHeaders = computed(() => {
+  if (!display.smAndDown.value) return courseHeadersBase
+  return courseHeadersBase.filter((h) => h.key !== 'distanceTour')
+})
 
 const editionEditOpen = ref(false)
 const editionEditSaving = ref(false)

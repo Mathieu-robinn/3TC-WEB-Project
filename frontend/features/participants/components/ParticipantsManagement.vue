@@ -2,8 +2,8 @@
   <v-container fluid class="pa-0 admin-page participants-page">
 
     <!-- Hero Header -->
-    <div class="hero-header pa-6 pb-4">
-      <div class="d-flex align-center justify-space-between flex-wrap gap-3">
+    <div class="hero-header pa-4 pa-md-6 pb-4">
+      <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-3">
         <div>
           <div class="d-flex align-center mb-1">
             <div class="hero-icon-wrap mr-3">
@@ -11,16 +11,17 @@
             </div>
             <h1 class="text-h5 font-weight-bold text-white">Gestion des Participants</h1>
           </div>
-          <p class="text-body-2 text-white-70 ml-13">
+          <p class="text-body-2 text-white-70 ml-0 ml-md-13">
             {{ store.stats.total }} coureur(s) inscrit(s) · {{ store.filteredParticipants.length }} affiché(s) avec les filtres
           </p>
         </div>
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
           <v-btn
             variant="tonal"
             color="white"
             rounded="lg"
             prepend-icon="mdi-refresh"
+            class="flex-grow-1 flex-sm-grow-0"
             :loading="store.loading"
             @click="store.fetchAll()"
           >
@@ -32,7 +33,7 @@
             color="white"
             rounded="lg"
             prepend-icon="mdi-account-plus"
-            class="text-primary font-weight-bold"
+            class="text-primary font-weight-bold flex-grow-1 flex-sm-grow-0"
             @click="openCreate()"
           >
             Nouveau participant
@@ -56,7 +57,7 @@
       </v-row>
     </div>
 
-    <div class="pa-6 pt-4">
+    <div class="pa-4 pa-md-6 pt-4">
 
       <!-- Controls Bar -->
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
@@ -280,7 +281,7 @@
     </div>
 
     <!-- Create / Edit Dialog -->
-    <v-dialog v-model="showForm" max-width="520">
+    <v-dialog v-model="showForm" v-bind="participantFormDialogAttrs">
       <v-card rounded="xl">
         <div class="form-header pa-5">
           <div class="d-flex justify-space-between align-center">
@@ -333,7 +334,7 @@
     </v-dialog>
 
     <!-- Delete Confirmation -->
-    <v-dialog v-model="showDeleteConfirm" max-width="420">
+    <v-dialog v-model="showDeleteConfirm" v-bind="participantDeleteDialogAttrs">
       <v-card rounded="xl">
         <v-card-text class="pa-6 text-center">
           <v-alert v-if="deleteError" type="error" variant="tonal" density="compact" rounded="lg" class="mb-4 text-start">
@@ -364,6 +365,10 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useParticipantsStore } from '~/features/participants/stores/participants'
 import { usePermissions } from '~/composables/usePermissions'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+
+const participantFormDialogAttrs = useMobileDialogAttrs(520)
+const participantDeleteDialogAttrs = useMobileDialogAttrs(420)
 
 const store = useParticipantsStore()
 const { canManageRunners } = usePermissions()

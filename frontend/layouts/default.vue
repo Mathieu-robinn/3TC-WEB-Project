@@ -1,10 +1,11 @@
 <template>
-  <div class="default-layout">
+  <div class="default-layout" :style="layoutCssVars">
     <v-navigation-drawer
       v-model="drawer"
-      rail
-      expand-on-hover
-      permanent
+      :rail="!isMobileNav"
+      :expand-on-hover="!isMobileNav"
+      :permanent="!isMobileNav"
+      :temporary="isMobileNav"
       class="sidebar-drawer"
       color="#1a1f36"
     >
@@ -87,7 +88,13 @@
                 <span class="sidebar__label">Notifications</span>
               </button>
             </template>
-            <v-card class="notif-menu-card" min-width="400" max-width="480" max-height="560">
+            <v-card
+              class="notif-menu-card"
+              :class="{ 'notif-menu-card--mobile': isMobileNav }"
+              :min-width="isMobileNav ? undefined : 400"
+              :max-width="isMobileNav ? undefined : 480"
+              max-height="560"
+            >
               <v-card-title class="text-subtitle-1 py-3">Notifications</v-card-title>
               <v-divider />
               <div class="px-3 pt-2 pb-2 notif-menu-toolbar">
@@ -200,7 +207,28 @@
       </div>
     </v-navigation-drawer>
 
-    <v-main class="layout-main" :class="themeStore.isDark ? 'main-content-dark' : 'main-content'">
+    <header
+      v-if="isMobileNav"
+      class="mobile-top-bar"
+      :class="themeStore.isDark ? 'mobile-top-bar--dark' : 'mobile-top-bar--light'"
+    >
+      <v-btn
+        icon="mdi-menu"
+        variant="text"
+        color="white"
+        aria-label="Ouvrir le menu"
+        @click="drawer = true"
+      />
+      <span class="mobile-top-bar__title text-body-1 font-weight-bold text-truncate">{{ pageTitle }}</span>
+    </header>
+
+    <v-main
+      class="layout-main"
+      :class="[
+        themeStore.isDark ? 'main-content-dark' : 'main-content',
+        { 'layout-main--mobile-bar': isMobileNav },
+      ]"
+    >
       <slot />
     </v-main>
 
@@ -211,6 +239,8 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { MOBILE_TOP_BAR_PX } from '~/composables/useMobileNav'
+import { useDisplay } from 'vuetify/framework'
 import { useCommunicationStore } from '~/features/communication/stores/communication.store'
 import { useNotificationsStore } from '~/features/notifications/stores/notifications.store'
 import NotificationToastStack from '~/features/notifications/components/NotificationToastStack.vue'
@@ -219,6 +249,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/features/auth/stores/auth'
 import { useThemeStore } from '~/features/theme/stores/theme'
 import { useActiveEditionStore } from '~/features/editions/stores/activeEdition'
+
+const display = useDisplay()
+const isMobileNav = computed(() => display.mdAndDown.value)
 
 const drawer = ref(true)
 const route = useRoute()
@@ -326,6 +359,33 @@ const allNavItems = [
 ]
 
 const navItems = computed(() => allNavItems.filter((item) => !item.adminOnly || isAdmin.value))
+
+const pageTitle = computed(() => {
+  const found = navItems.value.find((item) => isNavActive(item.path))
+  return found?.title ?? '24h INSA'
+})
+
+/** Espace réservé en haut du viewport (barre mobile + encoche) — hérité par le contenu (ex. communication). */
+const layoutCssVars = computed(() => ({
+  '--layout-mobile-top': isMobileNav.value
+    ? `calc(${MOBILE_TOP_BAR_PX}px + env(safe-area-inset-top, 0px))`
+    : '0px',
+}))
+
+watch(
+  isMobileNav,
+  (mobile) => {
+    drawer.value = !mobile
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.path,
+  () => {
+    if (isMobileNav.value) drawer.value = false
+  },
+)
 </script>
 
 <style scoped>
@@ -513,9 +573,45 @@ const navItems = computed(() => allNavItems.filter((item) => !item.adminOnly || 
   gap: 0;
 }
 
-/* Plus de v-app-bar : pas de décalage réservé en haut */
+/* Barre mobile (hors chaîne v-app car layout enveloppé dans un div) */
+.mobile-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1005;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 56px;
+  padding: env(safe-area-inset-top, 0px) 8px 0 max(8px, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+}
+
+.mobile-top-bar--light {
+  background: linear-gradient(135deg, #1a1f36 0%, #2d3561 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.mobile-top-bar--dark {
+  background: #1a1f36;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.mobile-top-bar__title {
+  flex: 1;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.95);
+}
+
 .layout-main {
   padding-top: 0 !important;
+}
+
+.layout-main--mobile-bar {
+  padding-top: calc(var(--layout-mobile-top)) !important;
 }
 
 .main-content {
@@ -546,5 +642,11 @@ const navItems = computed(() => allNavItems.filter((item) => !item.adminOnly || 
 
 .notif-menu-toolbar .notif-toolbar-field--last {
   margin-bottom: 0;
+}
+
+.notif-menu-card--mobile {
+  width: min(480px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  min-width: 0 !important;
 }
 </style>

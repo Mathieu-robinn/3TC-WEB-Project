@@ -2,8 +2,8 @@
   <v-container fluid class="pa-0 admin-page equipes-page">
 
     <!-- Hero Header -->
-    <div class="hero-header pa-6 pb-4">
-      <div class="d-flex align-center justify-space-between flex-wrap gap-3">
+    <div class="hero-header pa-4 pa-md-6 pb-4">
+      <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-3">
         <div>
           <div class="d-flex align-center mb-1">
             <div class="hero-icon-wrap mr-3">
@@ -11,11 +11,18 @@
             </div>
             <h1 class="text-h5 font-weight-bold text-white">Gestion des Équipes</h1>
           </div>
-          <p class="text-body-2 text-white-70 ml-13">{{ store.stats.total }} équipes inscrites • Édition 2026</p>
+          <p class="text-body-2 text-white-70 ml-0 ml-md-13">{{ store.stats.total }} équipes inscrites • Édition 2026</p>
         </div>
-        <div class="d-flex gap-2">
-          <v-btn variant="tonal" color="white" rounded="lg" prepend-icon="mdi-refresh"
-            @click="store.fetchEquipes()" :loading="store.loading">
+        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
+          <v-btn
+            variant="tonal"
+            color="white"
+            rounded="lg"
+            prepend-icon="mdi-refresh"
+            class="flex-grow-1 flex-sm-grow-0"
+            @click="store.fetchEquipes()"
+            :loading="store.loading"
+          >
             Actualiser
           </v-btn>
           <v-btn
@@ -24,7 +31,7 @@
             color="white"
             rounded="lg"
             prepend-icon="mdi-plus"
-            class="text-primary font-weight-bold"
+            class="text-primary font-weight-bold flex-grow-1 flex-sm-grow-0"
             @click="openCreate()"
           >
             Nouvelle équipe
@@ -48,7 +55,7 @@
       </v-row>
     </div>
 
-    <div class="pa-6 pt-4">
+    <div class="pa-4 pa-md-6 pt-4">
 
       <!-- Controls Bar -->
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
@@ -286,12 +293,13 @@
             </div>
           </div>
 
+          <div class="table-scroll-x">
           <v-table>
             <thead>
               <tr>
                 <th class="text-center" style="width:60px">#</th>
                 <th>Équipe</th>
-                <th class="text-center">Coureurs</th>
+                <th class="text-center d-none d-sm-table-cell">Coureurs</th>
                 <th class="text-center">Tours</th>
               </tr>
             </thead>
@@ -313,7 +321,7 @@
                     <span class="font-weight-medium">{{ team.name }}</span>
                   </div>
                 </td>
-                <td class="text-center">
+                <td class="text-center d-none d-sm-table-cell">
                   <span class="text-body-2 text-medium-emphasis">
                     {{ store.equipesWithStatus.find(e => e.id === team.id)?.membres?.length || 0 }}
                   </span>
@@ -324,6 +332,7 @@
               </tr>
             </tbody>
           </v-table>
+          </div>
         </v-card>
       </div>
     </div>
@@ -340,7 +349,7 @@
     />
 
     <!-- Create / Edit Dialog -->
-    <v-dialog v-model="showForm" max-width="520">
+    <v-dialog v-model="showForm" v-bind="equipeFormDialogAttrs">
       <v-card rounded="xl">
         <div class="form-header pa-5">
           <div class="text-h6 font-weight-bold text-white">{{ editingTeam ? 'Modifier l\'équipe' : 'Nouvelle équipe' }}</div>
@@ -397,7 +406,7 @@
     </v-dialog>
 
     <!-- Delete Confirm Dialog -->
-    <v-dialog v-model="showDeleteConfirm" max-width="420">
+    <v-dialog v-model="showDeleteConfirm" v-bind="equipeDeleteDialogAttrs">
       <v-card rounded="xl">
         <v-card-title class="pt-5 px-5 text-h6 font-weight-bold">Supprimer l'équipe ?</v-card-title>
         <v-card-text class="px-5">
@@ -423,6 +432,10 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useEquipesStore } from '~/features/equipes/stores/equipes'
 import { usePermissions } from '~/composables/usePermissions'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+
+const equipeFormDialogAttrs = useMobileDialogAttrs(520)
+const equipeDeleteDialogAttrs = useMobileDialogAttrs(420)
 
 const store = useEquipesStore()
 const { canManageTeams } = usePermissions()

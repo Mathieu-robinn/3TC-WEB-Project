@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="pa-0 admin-page comptes-page">
-    <div class="hero-header pa-6 pb-4">
+    <div class="hero-header pa-4 pa-md-6 pb-4">
       <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
         <div>
           <div class="d-flex align-center mb-1">
@@ -9,14 +9,15 @@
             </div>
             <h1 class="text-h5 font-weight-bold text-white">Comptes</h1>
           </div>
-          <p class="text-body-2 text-white-70 ml-13">{{ comptesHeroSubtitle }}</p>
+          <p class="text-body-2 text-white-70 ml-0 ml-md-13">{{ comptesHeroSubtitle }}</p>
         </div>
-        <div class="d-flex flex-wrap gap-2 ml-13 ml-md-0">
+        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
           <v-btn
             variant="tonal"
             color="white"
             prepend-icon="mdi-refresh"
             rounded="lg"
+            class="flex-grow-1 flex-sm-grow-0"
             :loading="loading"
             @click="fetchUsers"
           >
@@ -24,7 +25,7 @@
           </v-btn>
           <v-btn
             color="white"
-            class="text-primary font-weight-bold"
+            class="text-primary font-weight-bold flex-grow-1 flex-sm-grow-0"
             variant="flat"
             rounded="lg"
             prepend-icon="mdi-account-plus"
@@ -50,7 +51,7 @@
       </v-row>
     </div>
 
-    <div class="pa-6 pt-4">
+    <div class="pa-4 pa-md-6 pt-4">
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
           <v-row density="comfortable" align="center">
@@ -105,8 +106,9 @@
           <v-toolbar-title class="text-subtitle-1 font-weight-bold">Comptes enregistrés</v-toolbar-title>
         </v-toolbar>
         <v-divider />
+        <div class="table-scroll-x">
         <v-data-table
-          :headers="headers"
+          :headers="tableHeaders"
           :items="filteredUsers"
           :loading="loading"
           class="elevation-0"
@@ -148,10 +150,11 @@
             </v-tooltip>
           </template>
         </v-data-table>
+        </div>
       </v-card>
     </div>
 
-    <v-dialog v-model="createOpen" max-width="520" scrollable>
+    <v-dialog v-model="createOpen" v-bind="compteFormDialogAttrs" scrollable>
       <v-card rounded="xl">
         <div class="form-header pa-4 d-flex align-center">
           <v-icon color="white" class="mr-2">mdi-account-plus</v-icon>
@@ -227,7 +230,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="editOpen" max-width="520" scrollable>
+    <v-dialog v-model="editOpen" v-bind="compteFormDialogAttrs" scrollable>
       <v-card rounded="xl">
         <div class="form-header pa-4 d-flex align-center">
           <v-icon color="white" class="mr-2">mdi-pencil</v-icon>
@@ -297,7 +300,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="deleteOpen" max-width="420">
+    <v-dialog v-model="deleteOpen" v-bind="compteDeleteDialogAttrs">
       <v-card rounded="xl">
         <v-card-title class="text-h6 pa-4">Supprimer le compte ?</v-card-title>
         <v-card-text v-if="deleteTarget" class="px-4">
@@ -321,8 +324,13 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useDisplay } from 'vuetify/framework'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 
 const { currentUserId } = useJwtAuth()
+const display = useDisplay()
+const compteFormDialogAttrs = useMobileDialogAttrs(520)
+const compteDeleteDialogAttrs = useMobileDialogAttrs(420)
 
 type StaffUser = {
   id: number
@@ -354,7 +362,7 @@ const roleItems = [
   { title: 'Administrateur', value: 'ADMIN' },
 ]
 
-const headers = [
+const comptesHeadersBase = [
   { title: 'ID', key: 'id', width: '72px' },
   { title: 'Email', key: 'email' },
   { title: 'Prénom', key: 'firstName' },
@@ -363,6 +371,12 @@ const headers = [
   { title: 'Rôle', key: 'role' },
   { title: '', key: 'actions', sortable: false, width: '108px' },
 ]
+
+const tableHeaders = computed(() => {
+  if (!display.smAndDown.value) return comptesHeadersBase
+  const drop = new Set(['id', 'phone', 'firstName', 'lastName'])
+  return comptesHeadersBase.filter((h) => !drop.has(h.key))
+})
 
 const editOpen = ref(false)
 const editSaving = ref(false)

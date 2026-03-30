@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="internalValue" max-width="480" transition="dialog-bottom-transition">
+  <v-dialog v-model="internalValue" v-bind="convInfoDialogAttrs" transition="dialog-bottom-transition">
     <v-card class="glass-modal rounded-xl overflow-hidden">
       <v-toolbar color="transparent" class="px-2">
         <v-toolbar-title class="text-h6 font-weight-bold">Détails de la conversation</v-toolbar-title>
@@ -150,6 +150,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import type { Conversation, ConversationParticipant, UserSnippet } from '../types/communication'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+
+const convInfoDialogAttrs = useMobileDialogAttrs(480)
 
 const props = defineProps<{
   modelValue: boolean;
