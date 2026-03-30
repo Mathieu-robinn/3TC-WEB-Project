@@ -135,6 +135,8 @@ model Runner {
 
 model Transponder {
   id        Int               @id @default(autoincrement())
+  /** Numéro métier de la puce, unique par édition (ex. même n° en 2025 et 2026 possible). */
+  numero    Int
   status    TransponderStatus @default(EN_ATTENTE)
   teamId    Int?
   editionId Int
@@ -143,6 +145,8 @@ model Transponder {
   edition Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
 
   transactions TransponderTransaction[]
+
+  @@unique([editionId, numero])
 }
 
 model TransponderTransaction {

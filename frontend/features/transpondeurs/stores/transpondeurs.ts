@@ -59,14 +59,41 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     }
   }
 
-  const createTransponder = async (data: { status?: TransponderStatusApi } = {}) => {
+  const createTransponder = async (data: { numero: number; status?: TransponderStatusApi }) => {
     saving.value = true
     const api = useApi()
     try {
-      const created = await api.post<ApiTransponder>('/transponder', { status: data.status || 'EN_ATTENTE' })
+      const created = await api.post<ApiTransponder>('/transponder', {
+        numero: data.numero,
+        status: data.status || 'EN_ATTENTE',
+      })
       transponders.value.push(created)
       await fetchAll()
       return created
+    } finally {
+      saving.value = false
+    }
+  }
+
+  const createTranspondersBatch = async (numeros: number[]) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const created = await api.post<ApiTransponder[]>('/transponders/batch', { numeros })
+      await fetchAll()
+      return created
+    } finally {
+      saving.value = false
+    }
+  }
+
+  const deleteTranspondersBatch = async (ids: number[]) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const res = await api.post<{ deleted: number }>('/transponders/delete-batch', { ids })
+      await fetchAll()
+      return res
     } finally {
       saving.value = false
     }
@@ -235,6 +262,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
       list = list.filter(
         (t) =>
           t.reference?.toLowerCase().includes(s) ||
+          String(t.numero).includes(s) ||
           String(t.id).includes(s) ||
           t.team?.name?.toLowerCase().includes(s),
       )
@@ -255,6 +283,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
   const getMockTransponders = (): ApiTransponder[] =>
     Array.from({ length: 10 }, (_, i) => ({
       id: i + 1,
+      numero: i + 1,
       editionId: 1,
       reference: `TR-${String(i + 1).padStart(3, '0')}`,
       status: (['EN_ATTENTE', 'RECUPERE', 'ATTRIBUE', 'PERDU', 'DEFAILLANT'] as const)[i % 5],
@@ -283,6 +312,8 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     fetchTransactions,
     fetchUnassignedTeams,
     createTransponder,
+    createTranspondersBatch,
+    deleteTranspondersBatch,
     updateTransponder,
     createTransaction,
     assignTransponder,

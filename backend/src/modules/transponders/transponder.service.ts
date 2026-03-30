@@ -113,6 +113,36 @@ export class TransponderService {
     });
   }
 
+  /** Crée plusieurs transpondeurs « en attente » pour l’édition active. Vérifie l’unicité (editionId, numero). */
+  async createTranspondersBatch(editionId: number, numeros: number[]): Promise<Transponder[]> {
+    const unique = new Set(numeros);
+    if (unique.size !== numeros.length) {
+      throw new BadRequestException("La liste contient des numéros en double.");
+    }
+    const existing = await this.prisma.transponder.findMany({
+      where: { editionId, numero: { in: numeros } },
+      select: { numero: true },
+    });
+    if (existing.length > 0) {
+      const taken = existing.map((e) => e.numero).join(", ");
+      throw new BadRequestException(
+        `Numéro(s) déjà utilisé(s) pour cette édition : ${taken}.`,
+      );
+    }
+    return this.prisma.$transaction(
+      numeros.map((numero) =>
+        this.prisma.transponder.create({
+          data: {
+            numero,
+            status: TransponderStatus.EN_ATTENTE,
+            edition: { connect: { id: editionId } },
+          },
+          include: { team: true, edition: true },
+        }),
+      ),
+    );
+  }
+
   async updateTransponder(params: {
     where: Prisma.TransponderWhereUniqueInput;
     data: Prisma.TransponderUpdateInput;
@@ -246,5 +276,32 @@ export class TransponderService {
     return this.prisma.transponder.delete({
       where,
     });
+  }
+
+  /** Suppression en masse (édition active uniquement). Impossible si une puce est encore ATTRIBUE. */
+  async deleteTranspondersBatch(editionId: number, ids: number[]): Promise<{ deleted: number }> {
+    const unique = [...new Set(ids)];
+    if (unique.length === 0) {
+      return { deleted: 0 };
+    }
+    const rows = await this.prisma.transponder.findMany({
+      where: { id: { in: unique }, editionId },
+      select: { id: true, status: true },
+    });
+    if (rows.length !== unique.length) {
+      throw new BadRequestException(
+        "Un ou plusieurs transpondeurs n'appartiennent pas à l'édition active.",
+      );
+    }
+    if (rows.some((t) => t.status === TransponderStatus.ATTRIBUE)) {
+      throw new BadRequestException(
+        "Impossible de supprimer une puce encore attribuée à une équipe. Détachez-la d'abord.",
+      );
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.transponderTransaction.deleteMany({ where: { transponderId: { in: unique } } });
+      await tx.transponder.deleteMany({ where: { id: { in: unique }, editionId } });
+    });
+    return { deleted: unique.length };
   }
 }

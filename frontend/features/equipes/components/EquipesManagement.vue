@@ -18,8 +18,15 @@
             @click="store.fetchEquipes()" :loading="store.loading">
             Actualiser
           </v-btn>
-          <v-btn variant="flat" color="white" rounded="lg" prepend-icon="mdi-plus"
-            class="text-primary font-weight-bold" @click="openCreate()">
+          <v-btn
+            v-if="canManageTeams"
+            variant="flat"
+            color="white"
+            rounded="lg"
+            prepend-icon="mdi-plus"
+            class="text-primary font-weight-bold"
+            @click="openCreate()"
+          >
             Nouvelle équipe
           </v-btn>
         </div>
@@ -178,8 +185,10 @@
               <v-card-actions class="px-5 pb-4 pt-0" @click.stop>
                 <v-btn size="x-small" variant="text" color="primary" prepend-icon="mdi-eye" @click="openDetails(equipe)">Détails</v-btn>
                 <v-spacer />
-                <v-btn size="x-small" icon="mdi-pencil" variant="text" color="grey" @click="openEdit(equipe)" />
-                <v-btn size="x-small" icon="mdi-delete" variant="text" color="error" @click="confirmDelete(equipe)" />
+                <template v-if="canManageTeams">
+                  <v-btn size="x-small" icon="mdi-pencil" variant="text" color="grey" @click="openEdit(equipe)" />
+                  <v-btn size="x-small" icon="mdi-delete" variant="text" color="error" @click="confirmDelete(equipe)" />
+                </template>
               </v-card-actions>
             </v-card>
           </v-col>
@@ -189,7 +198,7 @@
             <div class="empty-state py-16 d-flex flex-column align-center">
               <v-icon size="56" color="grey" class="mb-4">mdi-clipboard-text-search-outline</v-icon>
               <p class="text-subtitle-1 text-medium-emphasis">Aucune équipe ne correspond aux filtres.</p>
-              <v-btn class="mt-4" variant="tonal" color="primary" @click="openCreate()">Créer une équipe</v-btn>
+              <v-btn v-if="canManageTeams" class="mt-4" variant="tonal" color="primary" @click="openCreate()">Créer une équipe</v-btn>
             </div>
           </v-col>
         </v-row>
@@ -221,8 +230,10 @@
                     <v-chip :color="getStatutColor(equipe.statut)" size="x-small" variant="flat" class="font-weight-bold">
                       {{ getStatutLabel(equipe.statut) }}
                     </v-chip>
-                    <v-btn icon="mdi-pencil" size="x-small" variant="text" color="grey" @click.stop="openEdit(equipe)" />
-                    <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="confirmDelete(equipe)" />
+                    <template v-if="canManageTeams">
+                      <v-btn icon="mdi-pencil" size="x-small" variant="text" color="grey" @click.stop="openEdit(equipe)" />
+                      <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="confirmDelete(equipe)" />
+                    </template>
                   </div>
                 </template>
               </v-list-item>
@@ -306,7 +317,8 @@
     <EquipeDetailsModal 
       v-if="selectedEquipe"
       v-model="isModalOpen" 
-      :equipe="selectedEquipe" 
+      :equipe="selectedEquipe"
+      :can-manage-teams="canManageTeams"
       @edit="openEdit"
       @equipe-updated="onEquipeUpdated"
       @change-captain="onCaptainChange"
@@ -395,8 +407,10 @@
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useEquipesStore } from '~/features/equipes/stores/equipes'
+import { usePermissions } from '~/composables/usePermissions'
 
 const store = useEquipesStore()
+const { canManageTeams } = usePermissions()
 
 const viewMode = ref('grid')
 const isModalOpen = ref(false)
@@ -424,6 +438,7 @@ const deleteError = ref('')
 const captainSavingId = ref(null)
 
 async function onCaptainChange({ teamId, runnerId }) {
+  if (!canManageTeams.value) return
   if (runnerId == null || teamId == null) return
   const equipe = store.equipesWithStatus.find((e) => e.id === teamId)
   if (!equipe || runnerId === equipe.respRunnerId) return
@@ -483,6 +498,7 @@ const openDetailById = (id) => {
 }
 
 const openCreate = () => {
+  if (!canManageTeams.value) return
   editingTeam.value = null
   formError.value = ''
   Object.assign(form, { name: '', num: null, courseId: coursesOptions.value[0]?.id ?? null, nbTour: 0 })
@@ -490,6 +506,7 @@ const openCreate = () => {
 }
 
 const openEdit = (equipe) => {
+  if (!canManageTeams.value) return
   isModalOpen.value = false
   editingTeam.value = equipe
   formError.value = ''
@@ -498,6 +515,7 @@ const openEdit = (equipe) => {
 }
 
 const submitForm = async () => {
+  if (!canManageTeams.value) return
   formError.value = ''
   try {
     if (editingTeam.value) {
@@ -514,12 +532,14 @@ const submitForm = async () => {
 }
 
 const confirmDelete = (equipe) => {
+  if (!canManageTeams.value) return
   deletingTeam.value = equipe
   deleteError.value = ''
   showDeleteConfirm.value = true
 }
 
 const executeDelete = async () => {
+  if (!canManageTeams.value) return
   deleteError.value = ''
   try {
     await store.deleteTeam(deletingTeam.value.id)

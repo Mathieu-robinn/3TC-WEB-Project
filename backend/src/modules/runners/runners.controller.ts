@@ -31,7 +31,7 @@ export class RunnersController {
   @ApiOperation({ summary: "Créer un nouveau coureur" })
   @ApiBody({ schema: { example: { firstName: "Marie", lastName: "Curie", email: "m.curie@insa.fr", teamId: 1 } } })
   @Post("runner")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN)
   async createRunner(@Body() data: CreateRunnerDto): Promise<Runner> {
     const prismaData: Prisma.RunnerCreateInput = {
       firstName: data.firstName,
@@ -51,7 +51,7 @@ export class RunnersController {
     },
   })
   @Put("runner/:id")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN)
   async updateRunner(@Param("id") id: string, @Body() data: UpdateRunnerDto): Promise<Runner> {
     const prismaData: Prisma.RunnerUpdateInput = {
       ...(data.firstName !== undefined ? { firstName: data.firstName } : {}),
@@ -69,7 +69,7 @@ export class RunnersController {
   @ApiOperation({ summary: "Supprimer un coureur" })
   @ApiParam({ name: "id", description: "ID du coureur" })
   @Delete("runner/:id")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN)
   async deleteRunner(@Param("id") id: string): Promise<Runner> {
     return this.runnerService.deleteRunner({ id: Number(id) });
   }

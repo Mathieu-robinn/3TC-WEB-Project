@@ -12,6 +12,7 @@ export type TransponderStatusApi = 'EN_ATTENTE' | 'ATTRIBUE' | 'PERDU' | 'RECUPE
 
 export interface ApiTransponderRef {
   id?: number
+  numero?: number
   reference?: string
   status?: string
 }
@@ -84,6 +85,8 @@ export interface TransponderTransaction {
 
 export interface ApiTransponder {
   id: number
+  /** Numéro métier unique pour l’édition (affichage principal). */
+  numero: number
   reference?: string
   status: TransponderStatusApi
   editionId: number

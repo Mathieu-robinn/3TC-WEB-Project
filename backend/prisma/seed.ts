@@ -312,9 +312,12 @@ async function main() {
   }
 
   const transponderRows: { id: number; status: TransponderStatus; teamId: number | null }[] = [];
+  let numeroSeq = 0;
   for (const seed of seededTransponders) {
+    numeroSeq += 1;
     const t = await prisma.transponder.create({
       data: {
+        numero: numeroSeq,
         status: seed.status,
         edition: { connect: { id: edition2026.id } },
         ...(seed.teamId != null ? { team: { connect: { id: seed.teamId } } } : {}),

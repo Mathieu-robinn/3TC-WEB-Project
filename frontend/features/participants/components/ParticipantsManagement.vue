@@ -27,6 +27,7 @@
             Actualiser
           </v-btn>
           <v-btn
+            v-if="canManageRunners"
             variant="flat"
             color="white"
             rounded="lg"
@@ -61,7 +62,7 @@
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
           <v-row density="comfortable" align="center">
-            <v-col cols="12" md="4">
+            <v-col cols="12" sm="6" md="4" lg="3">
               <v-text-field
                 v-model="store.search"
                 prepend-inner-icon="mdi-magnify"
@@ -74,7 +75,7 @@
                 clearable
               />
             </v-col>
-            <v-col cols="6" sm="4" md="2">
+            <v-col cols="12" sm="6" md="4" lg="2">
               <v-select
                 v-model="store.filterCourseId"
                 :items="courseFilterItems"
@@ -89,7 +90,7 @@
                 label="Discipline"
               />
             </v-col>
-            <v-col cols="6" sm="4" md="2">
+            <v-col cols="12" sm="6" md="4" lg="2">
               <v-select
                 v-model="store.filterEquipe"
                 :items="[{ title: 'Toutes les équipes', value: null }, ...store.availableTeams]"
@@ -104,7 +105,7 @@
                 label="Équipe"
               />
             </v-col>
-            <v-col cols="6" sm="4" md="2">
+            <v-col cols="12" sm="6" md="4" lg="2">
               <v-select
                 v-model="store.filterRole"
                 :items="roleFilterItems"
@@ -120,7 +121,7 @@
                 @update:model-value="onRoleFilterChange"
               />
             </v-col>
-            <v-col cols="6" sm="4" md="2">
+            <v-col cols="12" sm="6" md="4" lg="2">
               <v-select
                 v-model="store.filterStatus"
                 :items="statusOptions"
@@ -137,25 +138,21 @@
                 @update:model-value="(v) => { if (v == null) store.filterStatus = 'tous' }"
               />
             </v-col>
-          </v-row>
-          <v-row density="comfortable" align="center" class="mt-1">
-            <v-col cols="12" sm="6" md="4">
+            <v-col cols="12" md="auto" class="d-flex flex-wrap justify-md-end align-center gap-2 ms-md-auto">
               <v-btn
                 variant="tonal"
                 color="secondary"
                 rounded="lg"
-                block
-                class="text-none"
+                class="text-none flex-grow-1 flex-sm-grow-0"
+                min-width="160"
                 prepend-icon="mdi-filter-off"
                 @click="store.resetFilters()"
               >
-                Réinitialiser les filtres
+                Réinitialiser
               </v-btn>
-            </v-col>
-            <v-col cols="12" sm="6" md="4" class="ms-sm-auto">
-              <v-btn-toggle v-model="viewMode" mandatory density="compact" rounded="lg" class="w-100 d-flex">
-                <v-btn value="list" icon="mdi-format-list-bulleted" class="flex-grow-1" />
-                <v-btn value="grid" icon="mdi-view-grid" class="flex-grow-1" />
+              <v-btn-toggle v-model="viewMode" mandatory density="compact" rounded="lg" class="flex-grow-1 flex-sm-grow-0">
+                <v-btn value="list" icon="mdi-format-list-bulleted" />
+                <v-btn value="grid" icon="mdi-view-grid" />
               </v-btn-toggle>
             </v-col>
           </v-row>
@@ -176,17 +173,14 @@
       <v-card v-if="!store.loading && viewMode === 'list'" rounded="xl" elevation="0" class="data-card">
         <v-list lines="two" class="pa-0">
           <template v-for="(p, idx) in store.filteredParticipants" :key="p.id">
-            <v-list-item class="participant-item px-5 py-3">
+            <v-list-item class="participant-item px-5 py-3" @click="openDetails(p)">
               <template #prepend>
                 <v-avatar
-                  :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : 'grey-lighten-2'"
+                  :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : p.status === 'au_repos' ? 'error' : 'grey-lighten-2'"
                   size="44"
                   class="mr-2"
                 >
-                  <span
-                    class="text-body-2 font-weight-bold"
-                    :class="p.status === 'au_repos' ? 'text-grey-darken-2' : 'text-white'"
-                  >
+                  <span class="text-body-2 font-weight-bold text-white">
                     {{ initials(p) }}
                   </span>
                 </v-avatar>
@@ -198,21 +192,21 @@
               </v-list-item-subtitle>
 
               <template #append>
-                <div class="d-flex align-center gap-2 flex-wrap justify-end">
+                <div class="d-flex align-center flex-wrap justify-end participant-badges">
                   <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
                   <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
                   <v-chip v-if="p.activeTransponder" color="blue" size="x-small" variant="tonal" prepend-icon="mdi-timer">
                     {{ p.activeTransponder }}
                   </v-chip>
-                  <v-chip v-else-if="p.status === 'course_terminee'" color="teal" size="x-small" variant="tonal">Course terminée</v-chip>
-                  <v-chip v-else color="grey" size="x-small" variant="tonal">Au repos</v-chip>
-                  <v-chip :color="participantStatusColor(p)" size="x-small" variant="flat" class="font-weight-bold d-none d-sm-flex">
+                  <v-chip :color="participantStatusColor(p)" size="x-small" variant="flat" class="font-weight-bold">
                     {{ participantStatusLabel(p) }}
                   </v-chip>
-                  <div class="d-flex gap-1">
+                  <div class="d-flex gap-1" @click.stop>
                     <v-btn icon="mdi-eye-outline" size="x-small" variant="text" color="primary" @click="openDetails(p)" />
-                    <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="grey" @click="openEdit(p)" />
-                    <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="red" @click="confirmDelete(p)" />
+                    <template v-if="canManageRunners">
+                      <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="grey" @click="openEdit(p)" />
+                      <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="red" @click="confirmDelete(p)" />
+                    </template>
                   </div>
                 </div>
               </template>
@@ -230,43 +224,48 @@
       <!-- GRID VIEW -->
       <v-row v-if="!store.loading && viewMode === 'grid'">
         <v-col v-for="p in store.filteredParticipants" :key="p.id" cols="12" sm="6" md="4" lg="3">
-          <v-card class="participant-card" rounded="xl" elevation="0">
+          <v-card class="participant-card" rounded="xl" elevation="0" role="button" tabindex="0" @click="openDetails(p)">
             <div
               class="participant-card-accent"
               :class="
-                p.status === 'en_piste' ? 'accent-blue' : p.status === 'course_terminee' ? 'accent-teal' : 'accent-grey'
+                p.status === 'en_piste'
+                  ? 'accent-blue'
+                  : p.status === 'course_terminee'
+                    ? 'accent-teal'
+                    : p.status === 'au_repos'
+                      ? 'accent-error'
+                      : 'accent-grey'
               "
             ></div>
             <v-card-text class="pa-4 text-center">
               <v-avatar
-                :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : 'grey-lighten-2'"
+                :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : p.status === 'au_repos' ? 'error' : 'grey-lighten-2'"
                 size="60"
                 class="mb-3"
               >
-                <span
-                  class="text-h6 font-weight-bold"
-                  :class="p.status === 'au_repos' ? 'text-grey-darken-2' : 'text-white'"
-                >
+                <span class="text-h6 font-weight-bold text-white">
                   {{ initials(p) }}
                 </span>
               </v-avatar>
               <div class="text-subtitle-1 font-weight-bold">{{ p.fullName }}</div>
               <div class="text-caption text-medium-emphasis mb-2">{{ p.teamName }}</div>
-              <div class="d-flex flex-wrap justify-center gap-1 mb-2">
+              <div class="d-flex flex-wrap justify-center participant-badges mb-2">
                 <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
                 <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
               </div>
-              <v-chip v-if="p.activeTransponder" color="blue" size="small" variant="flat" prepend-icon="mdi-timer" class="mb-3">
+              <v-chip v-if="p.activeTransponder" color="blue" size="small" variant="flat" prepend-icon="mdi-timer" class="mb-2">
                 {{ p.activeTransponder }}
               </v-chip>
-              <v-chip v-else-if="p.status === 'course_terminee'" color="teal" size="small" variant="tonal" class="mb-3">Course terminée</v-chip>
-              <v-chip v-else color="grey" size="small" variant="tonal" class="mb-3">Au repos</v-chip>
-              
+              <v-chip :color="participantStatusColor(p)" size="small" variant="flat" class="font-weight-bold mb-3">
+                {{ participantStatusLabel(p) }}
+              </v-chip>
               <v-divider class="mb-3" />
-              <div class="d-flex justify-center gap-1">
+              <div class="d-flex justify-center gap-1" @click.stop>
                 <v-btn icon="mdi-eye-outline" size="small" variant="text" color="primary" @click="openDetails(p)" />
-                <v-btn icon="mdi-pencil-outline" size="small" variant="text" color="grey" @click="openEdit(p)" />
-                <v-btn icon="mdi-delete-outline" size="small" variant="text" color="red" @click="confirmDelete(p)" />
+                <template v-if="canManageRunners">
+                  <v-btn icon="mdi-pencil-outline" size="small" variant="text" color="grey" @click="openEdit(p)" />
+                  <v-btn icon="mdi-delete-outline" size="small" variant="text" color="red" @click="confirmDelete(p)" />
+                </template>
               </div>
             </v-card-text>
           </v-card>
@@ -281,7 +280,7 @@
     </div>
 
     <!-- Create / Edit Dialog -->
-    <v-dialog v-model="showForm" max-width="520" persistent>
+    <v-dialog v-model="showForm" max-width="520">
       <v-card rounded="xl">
         <div class="form-header pa-5">
           <div class="d-flex justify-space-between align-center">
@@ -357,15 +356,17 @@
     </v-dialog>
 
     <!-- Details Modal -->
-    <ParticipantDetailsModal v-model="showDetails" :participant="selectedParticipant" />
+    <ParticipantDetailsModal v-model="showDetails" :participant="selectedParticipant" @participant-updated="store.fetchAll()" />
   </v-container>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useParticipantsStore } from '~/features/participants/stores/participants'
+import { usePermissions } from '~/composables/usePermissions'
 
 const store = useParticipantsStore()
+const { canManageRunners } = usePermissions()
 const viewMode = ref('list')
 
 // Form state
@@ -388,7 +389,7 @@ onMounted(() => store.fetchAll())
 const kpis = computed(() => [
   { label: 'Total', value: store.stats.total, icon: 'mdi-account', color: 'blue' },
   { label: 'En piste', value: store.stats.enPiste, icon: 'mdi-run', color: 'green' },
-  { label: 'Au repos', value: store.stats.auRepos, icon: 'mdi-sleep', color: 'orange' },
+  { label: 'Sans puce', value: store.stats.auRepos, icon: 'mdi-timer-off', color: 'error' },
   { label: 'Course terminée', value: store.stats.courseTerminee, icon: 'mdi-flag-checkered', color: 'teal' },
   { label: 'Équipes', value: store.stats.equipes, icon: 'mdi-account-group', color: 'purple' },
 ])
@@ -396,7 +397,7 @@ const kpis = computed(() => [
 const statusOptions = [
   { title: 'Tous les statuts', value: 'tous' },
   { title: 'En piste', value: 'en_piste' },
-  { title: 'Au repos', value: 'au_repos' },
+  { title: 'Sans puce', value: 'au_repos' },
   { title: 'Course terminée', value: 'course_terminee' },
 ]
 
@@ -411,15 +412,15 @@ function onRoleFilterChange(v) {
 }
 
 function participantStatusLabel(p) {
-  if (p.status === 'course_terminee') return 'Terminé'
+  if (p.status === 'course_terminee') return 'Course terminée'
   if (p.status === 'en_piste') return 'En piste'
-  return 'Au repos'
+  return 'Sans puce'
 }
 
 function participantStatusColor(p) {
   if (p.status === 'course_terminee') return 'teal'
   if (p.status === 'en_piste') return 'green'
-  return 'grey'
+  return 'error'
 }
 
 const courseFilterItems = computed(() => [
@@ -434,6 +435,7 @@ const initials = (p) => {
 }
 
 const openCreate = () => {
+  if (!canManageRunners.value) return
   editingRunner.value = null
   form.firstName = ''
   form.lastName = ''
@@ -443,6 +445,7 @@ const openCreate = () => {
 }
 
 const openEdit = (p) => {
+  if (!canManageRunners.value) return
   editingRunner.value = p
   form.firstName = p.firstName || p.prenom || ''
   form.lastName = p.lastName || p.nom || ''
@@ -457,12 +460,14 @@ const openDetails = (p) => {
 }
 
 const confirmDelete = (p) => {
+  if (!canManageRunners.value) return
   deletingRunner.value = p
   deleteError.value = ''
   showDeleteConfirm.value = true
 }
 
 const submitForm = async () => {
+  if (!canManageRunners.value) return
   formError.value = ''
   try {
     if (editingRunner.value) {
@@ -479,6 +484,7 @@ const submitForm = async () => {
 }
 
 const executeDelete = async () => {
+  if (!canManageRunners.value) return
   deleteError.value = ''
   try {
     await store.deleteRunner(deletingRunner.value.id)
@@ -517,10 +523,19 @@ const executeDelete = async () => {
 }
 .accent-blue { background: #1976d2; }
 .accent-teal { background: #00897b; }
+.accent-error { background: rgb(var(--v-theme-error)); }
 .accent-grey { background: #bdbdbd; }
 
 .empty-state {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; text-align: center;
+}
+
+.participant-badges {
+  gap: 10px;
+  row-gap: 8px;
+}
+.participant-badges .v-chip {
+  margin: 0;
 }
 </style>

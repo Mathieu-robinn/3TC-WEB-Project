@@ -10,7 +10,7 @@
               :color="avatarColor"
               size="52"
             >
-              <span class="text-h6 font-weight-bold" :class="participant.status === 'au_repos' ? 'text-grey-darken-2' : 'text-white'">
+              <span class="text-h6 font-weight-bold text-white">
                 {{ initials }}
               </span>
             </v-avatar>
@@ -117,8 +117,71 @@
       <v-card-actions class="px-5 pb-5 pt-0">
         <v-btn variant="text" color="grey" @click="$emit('update:modelValue', false)">Fermer</v-btn>
         <v-spacer />
-        <v-btn color="primary" variant="flat" rounded="lg" prepend-icon="mdi-timer-plus">
-          Assigner puce
+        <v-btn
+          v-if="showAssignTeamTransponder"
+          color="primary"
+          variant="flat"
+          rounded="lg"
+          prepend-icon="mdi-nfc-variant"
+          :loading="transpondersStore.saving"
+          @click="openAssignTeamDialog"
+        >
+          Assigner une puce à l'équipe
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Assignation équipe + détenteur = ce coureur -->
+  <v-dialog v-model="assignTeamDialog" max-width="480">
+    <v-card rounded="xl" elevation="8">
+      <div class="modal-header pa-4 d-flex align-center gap-2">
+        <v-icon color="white">mdi-nfc-variant</v-icon>
+        <span class="text-h6 text-white font-weight-bold">Assigner une puce</span>
+      </div>
+      <v-card-text class="px-6 pt-4">
+        <p class="text-body-2 text-medium-emphasis mb-4">
+          Choisissez une puce <strong>en attente</strong> pour l’équipe ; elle sera remise à
+          <strong>{{ participant?.fullName }}</strong>.
+        </p>
+        <div v-if="transpondersStore.loading" class="d-flex justify-center py-6">
+          <v-progress-circular indeterminate color="primary" size="36" />
+        </div>
+        <v-alert
+          v-else-if="!assignSelectItems.length"
+          type="warning"
+          variant="tonal"
+          rounded="lg"
+          density="compact"
+        >
+          Aucune puce en attente disponible.
+        </v-alert>
+        <v-select
+          v-else
+          v-model="selectedTransponderId"
+          :items="assignSelectItems"
+          item-title="title"
+          item-value="value"
+          label="Puce à assigner"
+          variant="outlined"
+          density="comfortable"
+          rounded="lg"
+          hide-details="auto"
+        />
+      </v-card-text>
+      <v-card-actions class="px-6 py-4 gap-2">
+        <v-spacer />
+        <v-btn variant="text" rounded="lg" @click="assignTeamDialog = false">Annuler</v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          rounded="lg"
+          :disabled="selectedTransponderId == null"
+          :loading="transpondersStore.saving"
+          prepend-icon="mdi-check"
+          @click="onConfirmAssignTeam"
+        >
+          Confirmer
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -128,6 +191,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { transponderDisplay } from '~/utils/transponder'
+import { useParticipantsStore } from '~/features/participants/stores/participants'
+import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
+import { usePermissions } from '~/composables/usePermissions'
+import type { ApiTeam, ApiTransponderRef } from '~/types/api'
 import {
   actorLabelFromTransaction,
   formatTransactionDate,
@@ -137,10 +204,17 @@ import {
 
 const props = defineProps({
   modelValue: Boolean,
-  participant: Object
+  participant: Object,
 })
 
-defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'participant-updated'])
+
+const participantsStore = useParticipantsStore()
+const transpondersStore = useTranspondersStore()
+const { canOperateTransponders } = usePermissions()
+
+const assignTeamDialog = ref(false)
+const selectedTransponderId = ref<number | null>(null)
 
 const initials = computed(() => {
   const fn = props.participant?.firstName || props.participant?.prenom || ''
@@ -152,6 +226,7 @@ const avatarColor = computed(() => {
   const s = props.participant?.status
   if (s === 'en_piste') return 'blue'
   if (s === 'course_terminee') return 'teal'
+  if (s === 'au_repos') return 'error'
   return 'grey-lighten-2'
 })
 
@@ -159,15 +234,70 @@ const statusLabel = computed(() => {
   const s = props.participant?.status
   if (s === 'course_terminee') return 'Course terminée'
   if (s === 'en_piste') return 'En piste'
-  return 'Au repos'
+  return 'Sans puce'
 })
 
 const statusChipColor = computed(() => {
   const s = props.participant?.status
   if (s === 'course_terminee') return 'teal-lighten-2'
   if (s === 'en_piste') return 'green-lighten-2'
-  return 'orange-lighten-2'
+  return 'error'
 })
+
+const participantTeam = computed((): ApiTeam | undefined => {
+  const id = props.participant?.teamId ?? props.participant?.team?.id
+  if (id == null) return undefined
+  return participantsStore.teams.find((t) => t.id === id)
+})
+
+const teamHasActiveAssignedTransponder = computed(() => {
+  const list = (participantTeam.value?.transponders || []) as ApiTransponderRef[]
+  return list.some((t) => t.status === 'ATTRIBUE')
+})
+
+const showAssignTeamTransponder = computed(
+  () =>
+    canOperateTransponders.value &&
+    participantTeam.value != null &&
+    participantTeam.value.courseFinished !== true &&
+    !teamHasActiveAssignedTransponder.value &&
+    props.participant?.id != null,
+)
+
+const availableToAssign = computed(() =>
+  transpondersStore.transponders.filter((t) => t.status === 'EN_ATTENTE'),
+)
+
+const assignSelectItems = computed(() =>
+  availableToAssign.value.map((t) => ({
+    title: `${transponderDisplay(t) ?? `#${t.id}`} · #${t.id}`,
+    value: t.id,
+  })),
+)
+
+async function openAssignTeamDialog() {
+  if (!showAssignTeamTransponder.value) return
+  selectedTransponderId.value = null
+  assignTeamDialog.value = true
+  await transpondersStore.fetchAll()
+  if (assignSelectItems.value.length === 1) {
+    selectedTransponderId.value = assignSelectItems.value[0].value
+  }
+}
+
+async function onConfirmAssignTeam() {
+  const teamId = participantTeam.value?.id
+  const runnerId = props.participant?.id
+  if (selectedTransponderId.value == null || teamId == null || runnerId == null) return
+  try {
+    await transpondersStore.assignTransponder(selectedTransponderId.value, teamId, runnerId)
+    assignTeamDialog.value = false
+    emit('participant-updated')
+    emit('update:modelValue', false)
+  } catch {
+    /* erreurs gérées par l’API / snackbar parent */
+  }
+}
 
 const historyLoading = ref(false)
 const historyError = ref<string | null>(null)

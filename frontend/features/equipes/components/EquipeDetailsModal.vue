@@ -55,7 +55,7 @@
               <span>Coureurs ({{ membres.length }})</span>
             </div>
             <v-select
-              v-if="membres.length > 0"
+              v-if="canManageTeams && membres.length > 0"
               v-model="selectedCaptainId"
               class="mb-3"
               :items="captainSelectItems"
@@ -224,7 +224,14 @@
       <v-card-actions class="px-5 pb-5 pt-0">
         <v-btn color="grey" variant="text" rounded="lg" @click="$emit('update:modelValue', false)">Fermer</v-btn>
         <v-spacer />
-        <v-btn color="primary" variant="flat" rounded="lg" prepend-icon="mdi-pencil" @click="emit('edit', equipe)">
+        <v-btn
+          v-if="canManageTeams"
+          color="primary"
+          variant="flat"
+          rounded="lg"
+          prepend-icon="mdi-pencil"
+          @click="emit('edit', equipe)"
+        >
           Modifier
         </v-btn>
       </v-card-actions>
@@ -317,6 +324,8 @@ import type { ApiRunner, ApiTransponderRef, TransponderStatusApi, TransponderTra
 const props = defineProps({
   modelValue: Boolean,
   equipe: Object,
+  /** Aligné API : mutations d’équipe réservées aux admins. */
+  canManageTeams: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'edit', 'equipe-updated', 'change-captain'])
@@ -345,7 +354,7 @@ const availableToAssign = computed(() =>
 
 const assignSelectItems = computed(() =>
   availableToAssign.value.map((t) => ({
-    title: `${t.reference ? `${t.reference} · ` : ''}#${t.id}`,
+    title: `${transponderDisplay(t) ?? `#${t.id}`} · #${t.id}`,
     value: t.id,
   })),
 )

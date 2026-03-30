@@ -1,11 +1,39 @@
 import { TransponderStatus } from "@prisma/client";
 import { Type } from "class-transformer";
-import { IsEnum, IsInt, IsOptional, ValidateIf } from "class-validator";
+import {
+  ArrayMinSize,
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  Min,
+  ValidateIf,
+} from "class-validator";
 
 export class CreateTransponderDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  numero: number;
+
   @IsOptional()
   @IsEnum(TransponderStatus)
   status?: TransponderStatus;
+}
+
+export class CreateTranspondersBatchDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  numeros: number[];
+}
+
+export class DeleteTranspondersBatchDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsInt({ each: true })
+  ids: number[];
 }
 
 export class UpdateTransponderDto {

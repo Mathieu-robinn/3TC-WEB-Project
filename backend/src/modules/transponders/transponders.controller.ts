@@ -1,10 +1,27 @@
-import { Body, Controller, Get, Param, Post, Put, Request, UseGuards, BadRequestException } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Post,
+  Put,
+  Request,
+  UseGuards,
+  BadRequestException,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Prisma, Role, Transponder } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
-import { AssignTransponderDto, CreateTransponderDto, UpdateTransponderDto } from "./dto/transponder.dto.js";
+import {
+  AssignTransponderDto,
+  CreateTransponderDto,
+  CreateTranspondersBatchDto,
+  DeleteTranspondersBatchDto,
+  UpdateTransponderDto,
+} from "./dto/transponder.dto.js";
 import { TransponderService } from "./transponder.service.js";
 import { EditionService } from "../editions/edition.service.js";
 
@@ -35,7 +52,10 @@ export class TranspondersController {
     if (where == null) {
       return [];
     }
-    return this.transponderService.transponders({ where });
+    return this.transponderService.transponders({
+      where,
+      orderBy: { numero: "asc" },
+    });
   }
 
   @ApiOperation({ summary: "Statistiques des puces par statut" })
@@ -123,10 +143,20 @@ export class TranspondersController {
     @Param("id") id: string,
     @Request() req: { user: { userId: number } },
   ) {
-    // NEW = RECUPERE
+    // NEW = RECUPERE (fin de course pour un transpondeur encore attribué — pas pour PERDU)
     const current = await this.transponderService.transponder({ id: Number(id) });
     if (current?.status === ("RECUPERE" as any)) {
       throw new BadRequestException("Le transpondeur est déjà récupéré.");
+    }
+    if (current?.status === ("PERDU" as any)) {
+      throw new BadRequestException(
+        "Un transpondeur perdu ne peut pas être « récupéré » comme fin de course. Remettez-le en stock s'il est retrouvé.",
+      );
+    }
+    if (current?.status !== ("ATTRIBUE" as any)) {
+      throw new BadRequestException(
+        "Seul un transpondeur encore attribué à une équipe peut être récupéré (fin de course).",
+      );
     }
 
     return this.transponderService.updateTransponderFieldsWithAudit(
@@ -144,10 +174,10 @@ export class TranspondersController {
     );
   }
 
-  @ApiOperation({ summary: "Créer un nouveau transpondeur" })
-  @ApiBody({ schema: { example: { status: "EN_ATTENTE" } } })
+  @ApiOperation({ summary: "Créer un nouveau transpondeur (numéro unique par édition)" })
+  @ApiBody({ schema: { example: { numero: 42, status: "EN_ATTENTE" } } })
   @Post("transponder")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN)
   async createTransponder(@Body() data: CreateTransponderDto): Promise<Transponder> {
     const editionId = await this.editionService.getActiveEditionId();
     if (editionId == null) {
@@ -156,10 +186,37 @@ export class TranspondersController {
       );
     }
     const prismaData: Prisma.TransponderCreateInput = {
+      numero: data.numero,
       status: data.status ?? ("EN_ATTENTE" as any),
       edition: { connect: { id: editionId } },
     };
     return this.transponderService.createTransponder(prismaData);
+  }
+
+  @ApiOperation({ summary: "Créer plusieurs transpondeurs en attente (numéros uniques pour l’édition active)" })
+  @ApiBody({ schema: { example: { numeros: [1, 2, 3, 10, 11] } } })
+  @Post("transponders/batch")
+  @Roles(Role.ADMIN)
+  async createTranspondersBatch(@Body() data: CreateTranspondersBatchDto): Promise<Transponder[]> {
+    const editionId = await this.editionService.getActiveEditionId();
+    if (editionId == null) {
+      throw new BadRequestException(
+        "Aucune édition disponible : impossible de créer des transpondeurs.",
+      );
+    }
+    return this.transponderService.createTranspondersBatch(editionId, data.numeros);
+  }
+
+  @ApiOperation({ summary: "Supprimer plusieurs transpondeurs (édition active, pas de puce ATTRIBUE)" })
+  @ApiBody({ schema: { example: { ids: [1, 2, 3] } } })
+  @Post("transponders/delete-batch")
+  @Roles(Role.ADMIN)
+  async deleteTranspondersBatch(@Body() data: DeleteTranspondersBatchDto): Promise<{ deleted: number }> {
+    const editionId = await this.editionService.getActiveEditionId();
+    if (editionId == null) {
+      throw new BadRequestException("Aucune édition active.");
+    }
+    return this.transponderService.deleteTranspondersBatch(editionId, data.ids);
   }
 
   @ApiOperation({ summary: "Mettre à jour le statut d'un transpondeur" })
@@ -170,8 +227,11 @@ export class TranspondersController {
   async updateTransponder(
     @Param("id") id: string,
     @Body() data: UpdateTransponderDto,
-    @Request() req: { user: { userId: number } },
+    @Request() req: { user: { userId: number; role?: Role } },
   ) {
+    if (data.status === ("EN_ATTENTE" as any) && req.user?.role !== Role.ADMIN) {
+      throw new ForbiddenException("Seuls les administrateurs peuvent remettre une puce en stock.");
+    }
     const current = await this.transponderService.transponder({ id: Number(id) });
     if (current?.status === ("RECUPERE" as any)) {
       throw new BadRequestException("On ne peut plus modifier l'état d'un transpondeur récupéré.");
