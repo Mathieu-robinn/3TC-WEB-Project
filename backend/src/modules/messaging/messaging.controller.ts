@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -91,6 +91,10 @@ export class MessagingController {
   @ApiOperation({ summary: 'Create a new conversation' })
   async createConversation(@Body() dto: CreateConversationDto, @Req() req) {
     const userId = req.user.userId;
+    const me = await this.userService.user({ id: userId });
+    if (!me || me.role !== 'ADMIN') {
+      throw new ForbiddenException('Seuls les administrateurs peuvent créer des conversations.');
+    }
     let participantIds = dto.participantIds || [];
     if (!participantIds.includes(userId)) {
       participantIds.push(userId);
@@ -196,6 +200,96 @@ export class MessagingController {
       data: { role: body.role },
     });
     return updated;
+  }
+
+  @Post('conversations/:id/participants')
+  @ApiOperation({ summary: 'Add participant to a group conversation (admin only)' })
+  async addParticipantToGroupConversation(
+    @Param('id') conversationId: string,
+    @Body() body: { userId: number },
+    @Req() req
+  ) {
+    const requesterUserId = req.user.userId;
+    const cid = parseInt(conversationId, 10);
+    const targetUserId = Number(body.userId);
+
+    if (!Number.isFinite(cid) || cid <= 0) throw new BadRequestException('Conversation invalide.');
+    if (!Number.isFinite(targetUserId) || targetUserId <= 0) throw new BadRequestException('Utilisateur invalide.');
+
+    const conversation = await this.conversationService.conversation({ id: cid });
+    if (!conversation) throw new BadRequestException('Conversation introuvable.');
+    if (conversation.type !== 'GROUP') {
+      throw new BadRequestException('Seules les conversations groupées peuvent être modifiées.');
+    }
+
+    // Check requester is admin of this conversation
+    const participants = await this.participantService.participants({ where: { conversationId: cid } });
+    const me = participants.find((p) => p.userId === requesterUserId);
+    if (!me || me.role !== 'ADMIN') {
+      throw new ForbiddenException('Seuls les administrateurs de la conversation peuvent ajouter des participants.');
+    }
+
+    // Prevent duplicates (there is no unique constraint on (userId, conversationId))
+    const existing = await this.participantService.participants({
+      where: { conversationId: cid, userId: targetUserId },
+    });
+    if (existing.length > 0) {
+      throw new ConflictException('Cet utilisateur fait déjà partie de la conversation.');
+    }
+
+    // If we don't set lastReadMessageId, the new participant will consider all past messages as unread.
+    const lastMsgs = await this.messageService.messages({
+      where: { conversationId: cid },
+      orderBy: { id: 'desc' },
+      take: 1,
+    });
+    const lastReadMessageId = lastMsgs[0]?.id ?? null;
+
+    await this.participantService.createParticipant({
+      user: { connect: { id: targetUserId } },
+      conversation: { connect: { id: cid } },
+      role: 'MEMBER',
+      joinedAt: new Date(),
+      ...(lastReadMessageId != null ? { lastReadMessageId } : {}),
+    });
+
+    return { ok: true };
+  }
+
+  @Delete('conversations/:id/participants/:participantId')
+  @ApiOperation({ summary: 'Remove participant from a group conversation (admin only)' })
+  async removeParticipantFromGroupConversation(
+    @Param('id') conversationId: string,
+    @Param('participantId') participantId: string,
+    @Req() req
+  ) {
+    const requesterUserId = req.user.userId;
+    const cid = parseInt(conversationId, 10);
+    const pid = parseInt(participantId, 10);
+
+    if (!Number.isFinite(cid) || cid <= 0) throw new BadRequestException('Conversation invalide.');
+    if (!Number.isFinite(pid) || pid <= 0) throw new BadRequestException('Participant invalide.');
+
+    const conversation = await this.conversationService.conversation({ id: cid });
+    if (!conversation) throw new BadRequestException('Conversation introuvable.');
+    if (conversation.type !== 'GROUP') {
+      throw new BadRequestException('Seules les conversations groupées peuvent être modifiées.');
+    }
+
+    // Check requester is admin of this conversation
+    const participants = await this.participantService.participants({ where: { conversationId: cid } });
+    const me = participants.find((p) => p.userId === requesterUserId);
+    if (!me || me.role !== 'ADMIN') {
+      throw new ForbiddenException('Seuls les administrateurs de la conversation peuvent retirer des participants.');
+    }
+
+    const participant = await this.participantService.participant({ id: pid });
+    if (!participant || participant.conversationId !== cid) {
+      throw new BadRequestException('Participant invalide.');
+    }
+
+    await this.participantService.deleteParticipant({ id: pid });
+    return { ok: true };
   }
 
   @Get('conversations/:id/messages')

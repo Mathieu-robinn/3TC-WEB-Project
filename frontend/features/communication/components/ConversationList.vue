@@ -3,7 +3,14 @@
     <v-toolbar color="transparent" flat class="px-2">
       <v-toolbar-title class="text-h6 font-weight-bold">Messages</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn icon="mdi-plus-circle" color="primary" variant="tonal" size="small" @click="showNewChat = true"></v-btn>
+      <v-btn
+        v-if="canCreateConversations"
+        icon="mdi-plus-circle"
+        color="primary"
+        variant="tonal"
+        size="small"
+        @click="showNewChat = true"
+      ></v-btn>
     </v-toolbar>
 
     <v-divider></v-divider>
@@ -24,11 +31,15 @@
           </v-avatar>
         </template>
         
-        <v-list-item-title class="font-weight-medium">
+        <v-list-item-title
+          :class="conv.unreadCount && conv.unreadCount > 0 ? 'font-weight-bold' : 'font-weight-medium'"
+        >
           {{ convTitle(conv) }}
         </v-list-item-title>
         
-        <v-list-item-subtitle class="text-caption mt-1">
+        <v-list-item-subtitle
+          :class="conv.unreadCount && conv.unreadCount > 0 ? 'text-caption mt-1 font-weight-bold' : 'text-caption mt-1'"
+        >
           Dernier message : {{ conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleDateString() : 'Jamais' }}
         </v-list-item-subtitle>
       </v-list-item>
@@ -55,6 +66,7 @@ const props = defineProps<{
   conversations: Conversation[];
   activeId: number | null;
   currentUserId: number;
+  canCreateConversations: boolean;
 }>()
 
 // For private conversations, display the OTHER participant's full name

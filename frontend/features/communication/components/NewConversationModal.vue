@@ -187,6 +187,10 @@ const createConversation = async () => {
     const status = e?.statusCode ?? e?.status ?? e?.response?.status
     const raw = e?.data?.message
     const apiMsg = typeof raw === 'string' ? raw : Array.isArray(raw) ? raw[0] : null
+    if (status === 403) {
+      snackbar.text = apiMsg || 'Vous n\'avez pas les droits pour créer une conversation.'
+      snackbar.color = 'error'
+    } else
     if (status === 409) {
       snackbar.text = apiMsg || 'Vous avez déjà une conversation avec cette personne.'
       snackbar.color = 'warning'

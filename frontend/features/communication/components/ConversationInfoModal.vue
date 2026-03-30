@@ -76,22 +76,69 @@
 
             <!-- Promote/demote button: only for group admins, not on self -->
             <template v-if="conversation.type === 'GROUP' && isAdmin && part.userId !== currentUserId" v-slot:append>
-              <v-tooltip :text="part.role === 'ADMIN' ? 'Rétrograder Membre' : 'Promouvoir Admin'" location="left">
-                <template v-slot:activator="{ props: tooltipProps }">
-                  <v-btn
-                    v-bind="tooltipProps"
-                    :icon="part.role === 'ADMIN' ? 'mdi-shield-remove' : 'mdi-shield-crown'"
-                    size="small"
-                    variant="text"
-                    :color="part.role === 'ADMIN' ? 'error' : 'primary'"
-                    :loading="promotingId === part.id"
-                    @click="toggleRole(part)"
-                  ></v-btn>
-                </template>
-              </v-tooltip>
+              <div class="d-flex align-center gap-2">
+                <v-tooltip
+                  :text="part.role === 'ADMIN' ? 'Rétrograder Membre' : 'Promouvoir Admin'"
+                  location="left"
+                >
+                  <template v-slot:activator="{ props: tooltipProps }">
+                    <v-btn
+                      v-bind="tooltipProps"
+                      :icon="part.role === 'ADMIN' ? 'mdi-shield-remove' : 'mdi-shield-crown'"
+                      size="small"
+                      variant="text"
+                      :color="part.role === 'ADMIN' ? 'error' : 'primary'"
+                      :loading="promotingId === part.id"
+                      @click="toggleRole(part)"
+                    ></v-btn>
+                  </template>
+                </v-tooltip>
+
+                <v-tooltip text="Retirer du groupe" location="left">
+                  <template v-slot:activator="{ props: tooltipProps }">
+                    <v-btn
+                      v-bind="tooltipProps"
+                      icon="mdi-account-minus-outline"
+                      size="small"
+                      variant="text"
+                      color="error"
+                      :loading="removingId === part.id"
+                      @click="removeParticipant(part)"
+                    ></v-btn>
+                  </template>
+                </v-tooltip>
+              </div>
             </template>
           </v-list-item>
         </v-list>
+
+        <!-- Add participant (group admin only) -->
+        <div v-if="conversation.type === 'GROUP' && isAdmin" class="mt-4">
+          <h3 class="text-subtitle-2 mb-2">Ajouter un participant</h3>
+          <v-select
+            v-model="selectedUserToAdd"
+            :items="userOptions"
+            item-title="title"
+            item-value="id"
+            density="compact"
+            variant="outlined"
+            hide-details
+            rounded="lg"
+            label="Utilisateur"
+          ></v-select>
+          <div class="d-flex justify-end mt-3">
+            <v-btn
+              color="primary"
+              variant="flat"
+              rounded="lg"
+              :disabled="selectedUserToAdd == null || addingParticipant"
+              :loading="addingParticipant"
+              @click="addParticipant"
+            >
+              Ajouter
+            </v-btn>
+          </div>
+        </div>
 
         <!-- Error snackbar -->
         <v-alert v-if="error" type="error" density="compact" class="mt-3" variant="tonal">{{ error }}</v-alert>
@@ -101,8 +148,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import type { Conversation, ConversationParticipant } from '../types/communication'
+import { computed, onMounted, ref, watch } from 'vue'
+import type { Conversation, ConversationParticipant, UserSnippet } from '../types/communication'
 
 const props = defineProps<{
   modelValue: boolean;
@@ -157,6 +204,7 @@ const saveName = async () => {
 
 // — Promote / demote participant —
 const promotingId = ref<number | null>(null)
+const removingId = ref<number | null>(null)
 
 const toggleRole = async (part: ConversationParticipant) => {
   promotingId.value = part.id
@@ -172,6 +220,59 @@ const toggleRole = async (part: ConversationParticipant) => {
     error.value = e?.data?.message || 'Erreur lors du changement de rôle.'
   } finally {
     promotingId.value = null
+  }
+}
+
+// — Add / remove participant —
+const allUsers = ref<UserSnippet[]>([])
+const selectedUserToAdd = ref<number | null>(null)
+const addingParticipant = ref(false)
+
+const userOptions = computed(() => {
+  const currentIds = new Set((props.conversation.participants ?? []).map((p) => p.userId))
+  return allUsers.value
+    .filter((u) => !currentIds.has(u.id) && u.id !== props.currentUserId)
+    .map((u) => ({ id: u.id, title: `${u.firstName} ${u.lastName}` }))
+})
+
+onMounted(async () => {
+  try {
+    allUsers.value = await api.get('/messaging/users')
+  } catch (e) {
+    // Ignore: user management is optional, error is surfaced on actual actions
+    console.warn('Erreur chargement utilisateurs', e)
+  }
+})
+
+const addParticipant = async () => {
+  if (selectedUserToAdd.value == null) return
+  addingParticipant.value = true
+  error.value = ''
+
+  try {
+    await api.post(`/messaging/conversations/${props.conversation.id}/participants`, {
+      userId: selectedUserToAdd.value,
+    })
+    selectedUserToAdd.value = null
+    emit('updated')
+  } catch (e: any) {
+    error.value = e?.data?.message || "Erreur lors de l'ajout du participant."
+  } finally {
+    addingParticipant.value = false
+  }
+}
+
+const removeParticipant = async (part: ConversationParticipant) => {
+  removingId.value = part.id
+  error.value = ''
+
+  try {
+    await api.del(`/messaging/conversations/${props.conversation.id}/participants/${part.id}`)
+    emit('updated')
+  } catch (e: any) {
+    error.value = e?.data?.message || 'Erreur lors du retrait du participant.'
+  } finally {
+    removingId.value = null
   }
 }
 

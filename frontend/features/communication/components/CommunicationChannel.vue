@@ -8,6 +8,7 @@
           :conversations="commStore.conversations"
           :active-id="commStore.activeConversationId"
           :current-user-id="authStore.user?.id || 0"
+          :can-create-conversations="authStore.user?.role === 'ADMIN'"
           @select="selectConversation"
           @refresh="onConversationCreated"
         />
@@ -49,6 +50,10 @@ const authStore = useAuthStore()
 
 onMounted(async () => {
   authStore.hydrateUserFromToken()
+  // Ne pas conserver une conversation active d'une navigation précédente.
+  // La sélection doit être faite uniquement via clic utilisateur.
+  commStore.activeConversationId = null
+  commStore.messages = {}
   commStore.initSocket()
   await commStore.fetchConversations()
 })
