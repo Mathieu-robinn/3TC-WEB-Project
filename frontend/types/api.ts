@@ -67,6 +67,29 @@ export interface TransponderStats {
   DEFAILLANT: number
 }
 
+export type NotificationTypeApi = 'INFO' | 'ALERT' | 'EMERGENCY'
+export type NotificationStateApi = 'SEEN' | 'UNSEEN'
+
+export interface ApiNotificationSender {
+  id: number
+  firstName: string
+  lastName: string
+  email: string
+}
+
+export interface ApiNotification {
+  id: number
+  type: NotificationTypeApi
+  message: string
+  date: string
+  state: NotificationStateApi
+  processed: boolean
+  /** Présent pour les envois manuels (mégaphone). */
+  sender: ApiNotificationSender | null
+}
+
+export type NotificationAudienceApi = 'ADMINS' | 'BENEVOLES' | 'ALL'
+
 /** Transaction telle que renvoyée par l’API (champs Prisma + include optionnel). */
 export interface TransponderTransaction {
   id: number

@@ -10,6 +10,7 @@ import {
 import { Server, Socket } from "socket.io";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
+import type { NotificationJson } from "../modules/notification/notification-json.util.js";
 
 /**
  * EventsGateway : Passerelle WebSocket pour la messagerie en temps réel et les notifications.
@@ -97,10 +98,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Permet d'envoyer une notification ciblée à un utilisateur spécifique.
    * Appelable depuis n'importe quel service NestJS via injection.
-   * @param userId L'ID de l'utilisateur cible
-   * @param notification L'objet de notification à envoyer
    */
-  sendNotificationToUser(userId: number, notification: { message: string; date: string; state: string }) {
+  sendNotificationToUser(userId: number, notification: NotificationJson) {
     const socketId = this.connectedUsers.get(userId);
     if (socketId) {
       this.server.to(socketId).emit("newNotification", notification);

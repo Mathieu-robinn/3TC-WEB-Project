@@ -1,10 +1,14 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
 import { Transponder, Prisma, TransponderStatus } from "@prisma/client";
+import { NotificationDispatchService } from "../notification/notification-dispatch.service.js";
 
 @Injectable()
 export class TransponderService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationDispatch: NotificationDispatchService,
+  ) {}
 
   async transponder(transponderWhereUniqueInput: Prisma.TransponderWhereUniqueInput): Promise<Transponder | null> {
     return this.prisma.transponder.findUnique({
@@ -230,6 +234,15 @@ export class TransponderService {
         });
       }
       return updated;
+    }).then(async (updated) => {
+      await this.notificationDispatch.notifyAutomaticTransponderEvent({
+        newStatus: updated.status,
+        transponderNumero: updated.numero,
+        transponderId: updated.id,
+        teamName: updated.team?.name ?? null,
+        actorUserId,
+      });
+      return updated;
     });
   }
 
@@ -268,6 +281,15 @@ export class TransponderService {
           data: { transponderHolderRunnerId: setTransponderHolderOnTeam.runnerId },
         });
       }
+      return updated;
+    }).then(async (updated) => {
+      await this.notificationDispatch.notifyAutomaticTransponderEvent({
+        newStatus: updated.status,
+        transponderNumero: updated.numero,
+        transponderId: updated.id,
+        teamName: updated.team?.name ?? null,
+        actorUserId,
+      });
       return updated;
     });
   }

@@ -15,6 +15,7 @@ const config = defineNuxtConfig({
     { path: '~/features/parametres/components', pathPrefix: false },
     { path: '~/features/dashboard/components', pathPrefix: false },
     { path: '~/features/comptes/components', pathPrefix: false },
+    { path: '~/features/notifications/components', pathPrefix: false },
   ],
 
   pinia: {
@@ -25,6 +26,7 @@ const config = defineNuxtConfig({
       'features/equipes/stores',
       'features/transpondeurs/stores',
       'features/editions/stores',
+      'features/notifications/stores',
     ],
   },
 

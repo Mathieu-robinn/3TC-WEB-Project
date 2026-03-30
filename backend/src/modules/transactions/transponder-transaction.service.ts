@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
 import { TransponderTransaction, Prisma, TransponderStatus, Role } from "@prisma/client";
+import { NotificationDispatchService } from "../notification/notification-dispatch.service.js";
 
 @Injectable()
 export class TransponderTransactionService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationDispatch: NotificationDispatchService,
+  ) {}
 
   /**
    * Récupère une transaction de transpondeur par son identifiant unique.
@@ -135,6 +139,20 @@ export class TransponderTransactionService {
         data: { status: data.type as TransponderStatus },
       }),
     ]);
+
+    const transponderAfter = await this.prisma.transponder.findUnique({
+      where: { id: transponderId },
+      include: { team: true },
+    });
+    if (transponderAfter) {
+      await this.notificationDispatch.notifyAutomaticTransponderEvent({
+        newStatus: transponderAfter.status,
+        transponderNumero: transponderAfter.numero,
+        transponderId: transponderAfter.id,
+        teamName: transponderAfter.team?.name ?? null,
+        actorUserId: requestingUserId,
+      });
+    }
 
     return newTransaction;
   }

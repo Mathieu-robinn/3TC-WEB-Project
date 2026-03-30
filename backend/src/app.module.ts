@@ -10,6 +10,7 @@ import { TransponderService } from "./modules/transponders/transponder.service.j
 import { TransponderTransactionService } from "./modules/transactions/transponder-transaction.service.js";
 import { LogService } from "./modules/log/log.service.js";
 import { NotificationService } from "./modules/notification/notification.service.js";
+import { NotificationDispatchService } from "./modules/notification/notification-dispatch.service.js";
 import { ConversationService } from "./modules/messaging/conversation.service.js";
 import { MessageService } from "./modules/messaging/message.service.js";
 import { ConversationParticipantService } from "./modules/messaging/conversation-participant.service.js";
@@ -23,6 +24,7 @@ import { RunnersController } from "./modules/runners/runners.controller.js";
 import { TranspondersController } from "./modules/transponders/transponders.controller.js";
 import { TransactionsController } from "./modules/transactions/transactions.controller.js";
 import { MessagingController } from "./modules/messaging/messaging.controller.js";
+import { NotificationsController } from "./modules/notification/notifications.controller.js";
 
 /**
  * AppModule : Module racine qui registre tous les modules, contrôleurs et services.
@@ -47,6 +49,7 @@ import { MessagingController } from "./modules/messaging/messaging.controller.js
     TranspondersController,
     TransactionsController,
     MessagingController,
+    NotificationsController,
   ],
   providers: [
     PrismaService,
@@ -59,6 +62,7 @@ import { MessagingController } from "./modules/messaging/messaging.controller.js
     TransponderTransactionService,
     LogService,
     NotificationService,
+    NotificationDispatchService,
     ConversationService,
     MessageService,
     ConversationParticipantService,

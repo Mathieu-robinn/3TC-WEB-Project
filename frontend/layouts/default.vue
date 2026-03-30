@@ -64,14 +64,115 @@
             </div>
           </div>
 
-          <button type="button" class="sidebar__row sidebar__btn">
-            <span class="sidebar__iconCol">
-              <v-badge color="red" :content="3" overlap>
-                <v-icon size="22" class="sidebar__icon">mdi-bell-outline</v-icon>
-              </v-badge>
-            </span>
-            <span class="sidebar__label">Notifications</span>
-          </button>
+          <v-menu
+            v-model="notifMenuOpen"
+            :close-on-content-click="false"
+            location="end"
+            transition="slide-y-transition"
+            @update:model-value="onNotifMenuToggle"
+          >
+            <template #activator="{ props: menuProps }">
+              <button type="button" class="sidebar__row sidebar__btn" v-bind="menuProps">
+                <span class="sidebar__iconCol">
+                  <v-badge
+                    v-if="notifUnseen > 0"
+                    color="red"
+                    :content="notifUnseen > 99 ? '99+' : notifUnseen"
+                    overlap
+                  >
+                    <v-icon size="22" class="sidebar__icon">mdi-bell-outline</v-icon>
+                  </v-badge>
+                  <v-icon v-else size="22" class="sidebar__icon">mdi-bell-outline</v-icon>
+                </span>
+                <span class="sidebar__label">Notifications</span>
+              </button>
+            </template>
+            <v-card class="notif-menu-card" min-width="400" max-width="480" max-height="560">
+              <v-card-title class="text-subtitle-1 py-3">Notifications</v-card-title>
+              <v-divider />
+              <div class="px-3 pt-2 pb-2 notif-menu-toolbar">
+                <div class="notif-toolbar-field">
+                  <v-text-field
+                    v-model="notifStore.notifSearch"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    clearable
+                    placeholder="Rechercher…"
+                    prepend-inner-icon="mdi-magnify"
+                  />
+                </div>
+                <div class="notif-toolbar-field">
+                  <v-select
+                    v-model="notifStore.notifFilter"
+                    :items="notifFilterItems"
+                    item-title="title"
+                    item-value="value"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    label="Filtrer"
+                  />
+                </div>
+                <div class="notif-toolbar-field notif-toolbar-field--last">
+                  <v-select
+                    v-model="notifStore.notifSortDate"
+                    :items="notifSortItems"
+                    item-title="title"
+                    item-value="value"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    label="Trier par date"
+                  />
+                </div>
+              </div>
+              <v-divider />
+              <v-card-text class="pa-0 notif-menu-card__body">
+                <div v-if="notifStore.loading && !notifStore.items.length" class="pa-4 text-center text-caption text-medium-emphasis">
+                  Chargement…
+                </div>
+                <div v-else-if="!notifStore.items.length" class="pa-4 text-center text-caption text-medium-emphasis">
+                  Aucune notification.
+                </div>
+                <div v-else-if="!notifMenuHasRows" class="pa-4 text-center text-caption text-medium-emphasis">
+                  Aucune notification ne correspond à ces critères.
+                </div>
+                <template v-else>
+                  <div v-if="notifSections.emergencyList.length" class="px-3 pt-3">
+                    <div class="text-caption font-weight-bold text-error mb-2">Urgence</div>
+                    <NotifMenuItems
+                      :items="notifSections.emergencyList"
+                      :is-dark="themeStore.isDark"
+                      emphasis="error"
+                      @seen="notifStore.markSeen"
+                      @processed="notifStore.markProcessed"
+                    />
+                  </div>
+                  <div v-if="notifSections.alertList.length" class="px-3 pt-2">
+                    <div class="text-caption font-weight-bold text-orange-darken-3 mb-2">Alerte</div>
+                    <NotifMenuItems
+                      :items="notifSections.alertList"
+                      :is-dark="themeStore.isDark"
+                      emphasis="warning"
+                      @seen="notifStore.markSeen"
+                      @processed="notifStore.markProcessed"
+                    />
+                  </div>
+                  <div v-if="notifSections.infoList.length" class="px-3 pt-2 pb-3">
+                    <div class="text-caption font-weight-bold text-medium-emphasis mb-2">Information</div>
+                    <NotifMenuItems
+                      :items="notifSections.infoList"
+                      :is-dark="themeStore.isDark"
+                      emphasis="muted"
+                      @seen="notifStore.markSeen"
+                      @processed="notifStore.markProcessed"
+                    />
+                  </div>
+                </template>
+              </v-card-text>
+            </v-card>
+          </v-menu>
 
           <button type="button" class="sidebar__row sidebar__btn" @click="themeStore.toggle()">
             <span class="sidebar__iconCol">
@@ -102,12 +203,18 @@
     <v-main class="layout-main" :class="themeStore.isDark ? 'main-content-dark' : 'main-content'">
       <slot />
     </v-main>
+
+    <NotificationToastStack v-if="isAdmin" />
+    <NotificationFab v-if="showUserBar" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useCommunicationStore } from '~/features/communication/stores/communication.store'
+import { useNotificationsStore } from '~/features/notifications/stores/notifications.store'
+import NotificationToastStack from '~/features/notifications/components/NotificationToastStack.vue'
+import NotificationFab from '~/features/notifications/components/NotificationFab.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/features/auth/stores/auth'
 import { useThemeStore } from '~/features/theme/stores/theme'
@@ -121,7 +228,41 @@ const activeEditionStore = useActiveEditionStore()
 const router = useRouter()
 const { isAdmin, payload: jwtPayload, token } = useJwtAuth()
 const commStore = useCommunicationStore()
+const notifStore = useNotificationsStore()
+const notifMenuOpen = ref(false)
 const commUnreadTotal = computed(() => commStore.totalUnreadCount)
+const notifUnseen = computed(() => notifStore.unseenCount)
+const notifSections = computed(() => notifStore.sectionLists)
+const notifMenuHasRows = computed(() => {
+  const s = notifSections.value
+  return s.emergencyList.length + s.alertList.length + s.infoList.length > 0
+})
+
+const notifFilterItems = [
+  { title: 'Toutes', value: 'all' },
+  { title: 'Non traitées', value: 'unprocessed' },
+  { title: 'Non vues', value: 'unseen' },
+  { title: 'Urgences', value: 'emergency' },
+  { title: 'Alertes', value: 'alert' },
+]
+const notifSortItems = [
+  { title: 'Plus récentes d’abord', value: 'desc' },
+  { title: 'Plus anciennes d’abord', value: 'asc' },
+]
+
+function onNotifMenuToggle(open) {
+  if (open) {
+    void notifStore.fetchNotifications()
+  }
+}
+
+watch(
+  () => commStore.socket,
+  (s) => {
+    if (s) notifStore.bindSocket(s)
+  },
+  { immediate: true },
+)
 
 function isNavActive(path) {
   if (path === '/') return route.path === '/'
@@ -135,10 +276,12 @@ onMounted(async () => {
   if (authToken.value) {
     commStore.initSocket()
     await commStore.fetchConversations()
+    await notifStore.fetchNotifications()
   }
 })
 
 const handleLogout = () => {
+  notifStore.unbindSocket()
   commStore.disconnectSocket()
   authStore.logout()
   router.push('/login')
@@ -382,5 +525,25 @@ const navItems = computed(() => allNavItems.filter((item) => !item.adminOnly || 
 .main-content-dark {
   background-color: #121212;
   min-height: 100vh;
+}
+
+.notif-menu-card__body {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* Évite le chevauchement des labels flottants entre Filtrer / Trier */
+.notif-menu-toolbar {
+  display: flex;
+  flex-direction: column;
+}
+
+.notif-menu-toolbar .notif-toolbar-field {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.notif-menu-toolbar .notif-toolbar-field--last {
+  margin-bottom: 0;
 }
 </style>

@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { TransponderService } from "./transponder.service.js";
 import { PrismaService } from "../../prisma.service.js";
 import { TransponderStatus } from "@prisma/client";
+import { NotificationDispatchService } from "../notification/notification-dispatch.service.js";
 
 describe("TransponderService", () => {
   let service: TransponderService;
@@ -33,10 +34,18 @@ describe("TransponderService", () => {
     $transaction: jest.fn(async (fn: (tx: typeof mockTx) => Promise<unknown>) => fn(mockTx)),
   };
 
+  const mockNotificationDispatch = {
+    notifyAutomaticTransponderEvent: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TransponderService, { provide: PrismaService, useValue: mockPrismaService }],
+      providers: [
+        TransponderService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: NotificationDispatchService, useValue: mockNotificationDispatch },
+      ],
     }).compile();
 
     service = module.get<TransponderService>(TransponderService);

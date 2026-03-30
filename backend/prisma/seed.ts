@@ -24,7 +24,7 @@ const seededRandom = createSeededRandom(0x24_68_20_26);
 /** Retourne un entier pseudo-aléatoire déterministe entre min et max (inclus). */
 const rand = (min: number, max: number) => Math.floor(seededRandom() * (max - min + 1)) + min;
 /** Retourne un élément aléatoire d'un tableau */
-const pick = <T>(arr: T[]): T => arr[rand(0, arr.length - 1)];
+const pick = <T>(arr: readonly T[]): T => arr[rand(0, arr.length - 1)];
 /** Mélange déterministe de tableau (Fisher-Yates). */
 const shuffle = <T>(arr: T[]): T[] => {
   const out = [...arr];
@@ -514,14 +514,17 @@ async function main() {
     "Merci pour votre aide en tant que bénévole !",
   ];
 
+  const notifTypes = ["INFO", "ALERT", "EMERGENCY"] as const;
   for (const user of [...benevoles, ...participantUsers]) {
     for (let i = 0; i < rand(1, 3); i++) {
       await prisma.notification.create({
         data: {
           userId: user.id,
+          type: pick(notifTypes) as any,
           message: pick(notifMessages),
           date: new Date(new Date("2026-05-16T14:00:00Z").getTime() + rand(0, 600) * 60 * 1000),
-          state: rand(0, 1) === 0 ? "SEEN" as any : "UNSEEN" as any,
+          state: rand(0, 1) === 0 ? ("SEEN" as any) : ("UNSEEN" as any),
+          processed: rand(0, 1) === 0,
         },
       });
     }

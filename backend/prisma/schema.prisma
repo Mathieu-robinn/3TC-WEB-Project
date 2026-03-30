@@ -71,7 +71,8 @@ model User {
   role      Role     @default(BENEVOLE)
 
   logs                     Log[]
-  notifications            Notification[]
+  notifications            Notification[] @relation("NotificationRecipient")
+  sentNotifications        Notification[] @relation("NotificationSender")
   transactions             TransponderTransaction[]
   createdConversations     Conversation[]
   messages                 Message[]
@@ -175,14 +176,18 @@ model Log {
 }
 
 model Notification {
-  id      Int      @id @default(autoincrement())
-  type NotificationType @default(INFO)
-  userId  Int
-  message String
-  date    DateTime @default(now())
-  state   NotificationState @default(UNSEEN)
+  id           Int                 @id @default(autoincrement())
+  type         NotificationType    @default(INFO)
+  userId       Int
+  message      String
+  date         DateTime            @default(now())
+  state        NotificationState   @default(UNSEEN)
+  processed    Boolean             @default(false)
+  /** Auteur d’un envoi manuel (mégaphone) ; null pour les notifications automatiques. */
+  senderUserId Int?
 
-  user User @relation(fields: [userId], references: [id])
+  user   User  @relation("NotificationRecipient", fields: [userId], references: [id])
+  sender User? @relation("NotificationSender", fields: [senderUserId], references: [id])
 }
 
 model Conversation {
