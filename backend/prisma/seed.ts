@@ -477,7 +477,8 @@ async function main() {
     LogType.ADD_USER,
     LogType.GIVE_TRANSPONDER, // Remplace ASSIGN_TRANSPONDER par GIVE_TRANSPONDER
     LogType.ADD_TRANSPONDER,
-    LogType.RETURN_TRANSPONDER
+    LogType.RETURN_TRANSPONDER,
+    LogType.DEFECT_TRANSPONDER,
   ];
 
   const logMessages = [
@@ -485,6 +486,7 @@ async function main() {
     "Équipe mise à jour avec le nombre de tours.",
     "Puce transpondeur assignée au coureur.",
     "Nouvelle édition créée pour 2026.",
+    "Transpondeur signalé comme défaillant (hors service).",
   ];
 
   for (let i = 0; i < 25; i++) {

@@ -46,6 +46,8 @@ enum LogType { // a enrichier au fur et à mesure
   GIVE_TRANSPONDER
   LOOSE_TRANSPONDER
   RETURN_TRANSPONDER
+  /** Journal : transpondeur passé au statut DEFAILLANT (valeur enum PG ajoutée en fin de type). */
+  DEFECT_TRANSPONDER
 }
 
 enum NotificationType {

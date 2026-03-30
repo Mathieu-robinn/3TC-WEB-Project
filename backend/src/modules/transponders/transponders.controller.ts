@@ -11,7 +11,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { Prisma, Role, Transponder } from "@prisma/client";
+import { LogType, Prisma, Role, Transponder } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
@@ -24,6 +24,7 @@ import {
 } from "./dto/transponder.dto.js";
 import { TransponderService } from "./transponder.service.js";
 import { EditionService } from "../editions/edition.service.js";
+import { LogService } from "../log/log.service.js";
 
 @ApiTags("Transponders")
 @Controller()
@@ -33,6 +34,7 @@ export class TranspondersController {
   constructor(
     private readonly transponderService: TransponderService,
     private readonly editionService: EditionService,
+    private readonly logService: LogService,
   ) { }
 
   private async transponderWhereForActiveEdition(): Promise<Prisma.TransponderWhereInput | null> {
@@ -242,7 +244,7 @@ export class TranspondersController {
       status: data.status,
       ...(clearsTeam ? { teamId: null } : {}),
     };
-    return this.transponderService.updateTransponderWithAudit({
+    const updated = await this.transponderService.updateTransponderWithAudit({
       where: { id: Number(id) },
       data: prismaData,
       actorUserId: req.user.userId,
@@ -252,6 +254,17 @@ export class TranspondersController {
           ? { teamId: current.teamId, runnerId: null }
           : undefined,
     });
+    if (
+      data.status === ("DEFAILLANT" as any) &&
+      current?.status !== ("DEFAILLANT" as any)
+    ) {
+      await this.logService.createLog({
+        type: LogType.DEFECT_TRANSPONDER,
+        message: `Transpondeur n°${updated.numero} (id ${updated.id}) signalé défaillant.`,
+        user: { connect: { id: req.user.userId } },
+      });
+    }
+    return updated;
   }
 }
 
