@@ -81,16 +81,30 @@
           Historique transpondeur
         </div>
 
-        <div v-if="history.length">
+        <div v-if="historyLoading" class="d-flex justify-center py-6">
+          <v-progress-circular indeterminate color="primary" size="36" width="3" />
+        </div>
+        <v-alert
+          v-else-if="historyError"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          rounded="lg"
+          class="mb-4 text-body-2"
+        >
+          {{ historyError }}
+        </v-alert>
+        <div v-else-if="history.length">
           <v-timeline density="compact" align="start" side="end">
             <v-timeline-item
-              v-for="(evt, i) in history"
-              :key="i"
-              dot-color="primary"
+              v-for="evt in history"
+              :key="evt.key"
+              :dot-color="evt.color"
               size="x-small"
             >
               <div class="text-body-2 font-weight-medium">{{ evt.event }}</div>
               <div class="text-caption text-medium-emphasis">{{ evt.date }}</div>
+              <div v-if="evt.actor" class="text-caption text-medium-emphasis mt-1">Par : {{ evt.actor }}</div>
             </v-timeline-item>
           </v-timeline>
         </div>
@@ -111,9 +125,15 @@
   </v-dialog>
 </template>
 
-<script setup>
-import { computed } from 'vue'
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import { transponderDisplay } from '~/utils/transponder'
+import {
+  actorLabelFromTransaction,
+  formatTransactionDate,
+  transactionTypeMeta,
+  transponderLabelFromTransaction,
+} from '~/utils/transponderTransactionDisplay'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -149,13 +169,62 @@ const statusChipColor = computed(() => {
   return 'orange-lighten-2'
 })
 
-const history = computed(() => {
-  return props.participant?.historique
+const historyLoading = ref(false)
+const historyError = ref<string | null>(null)
+const history = ref<Array<{ key: string; event: string; date: string; actor: string | null; color: string }>>([])
+
+const participantTeamId = computed(() => props.participant?.teamId ?? props.participant?.team?.id ?? null)
+
+function fallbackHistory() {
+  const fallback = props.participant?.historique
     || props.participant?.transponders?.map((t) => ({
-        date: '—',
-        event: `Transpondeur ${transponderDisplay(t) ?? '?'} — ${t.status}`,
-      }))
+      date: '—',
+      event: `Transpondeur ${transponderDisplay(t) ?? '?'} — ${t.status}`,
+    }))
     || []
+
+  return fallback.map((evt, idx) => ({
+    key: `fallback-${idx}`,
+    event: evt.event,
+    date: evt.date,
+    actor: null,
+    color: 'primary',
+  }))
+}
+
+async function loadHistory() {
+  const teamId = participantTeamId.value
+  if (!props.modelValue || teamId == null) return
+
+  historyLoading.value = true
+  historyError.value = null
+  try {
+    const data = await useApi().get(`/transactions/team/${teamId}`)
+    const list = Array.isArray(data) ? data : []
+    history.value = list.map((evt: any) => ({
+      key: String(evt.id),
+      event: `${transactionTypeMeta(evt.type).label} · ${transponderLabelFromTransaction(evt)}`,
+      date: formatTransactionDate(evt.dateTime),
+      actor: actorLabelFromTransaction(evt),
+      color: transactionTypeMeta(evt.type).color,
+    }))
+  } catch {
+    history.value = fallbackHistory()
+    historyError.value = "Impossible de charger l'historique des transactions."
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (open) loadHistory()
+  },
+)
+
+watch(participantTeamId, () => {
+  if (props.modelValue) loadHistory()
 })
 </script>
 

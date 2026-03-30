@@ -159,18 +159,23 @@ export class TransponderTransactionService {
     return this.prisma.transponderTransaction.delete({ where });
   }
 
-  async getTeamTransactions(teamId: number) {
+  async getTeamTransactions(teamId: number, includeActor = false) {
+    const include: Prisma.TransponderTransactionInclude = {
+      transponder: { select: { id: true, status: true } },
+      team: { select: { id: true, name: true } },
+      ...(includeActor
+        ? { user: { select: { id: true, firstName: true, lastName: true, email: true } } }
+        : {}),
+    };
     return this.prisma.transponderTransaction.findMany({
       where: { teamId },
       orderBy: { dateTime: "desc" },
-      include: {
-        transponder: { select: { id: true, status: true } },
-      },
+      include,
     });
   }
 
   /** Historique d’équipe si elle appartient à l’édition active ; sinon liste vide. */
-  async getTeamTransactionsForActiveEdition(teamId: number, editionId: number | null) {
+  async getTeamTransactionsForActiveEdition(teamId: number, editionId: number | null, includeActor = false) {
     if (editionId == null) {
       return [];
     }
@@ -180,35 +185,46 @@ export class TransponderTransactionService {
     if (!ok) {
       return [];
     }
-    return this.getTeamTransactions(teamId);
+    return this.getTeamTransactions(teamId, includeActor);
   }
 
   /** Liste globale des transactions pour l’édition active (équipe ou transpondeur rattaché à l’édition). */
-  async transactionsForActiveEdition(editionId: number | null): Promise<TransponderTransaction[]> {
+  async transactionsForActiveEdition(
+    editionId: number | null,
+    includeActor = false,
+  ): Promise<TransponderTransaction[]> {
     if (editionId == null) {
       return [];
     }
+    const include: Prisma.TransponderTransactionInclude = {
+      transponder: { select: { id: true, status: true } },
+      team: { select: { id: true, name: true } },
+      ...(includeActor
+        ? { user: { select: { id: true, firstName: true, lastName: true, email: true } } }
+        : {}),
+    };
     return this.prisma.transponderTransaction.findMany({
       where: {
         transponder: { editionId },
       },
       orderBy: { dateTime: "desc" },
-      include: {
-        transponder: { select: { id: true, status: true } },
-        team: { select: { id: true, name: true } },
-      },
+      include,
     });
   }
 
   /** Historique d'une puce, du plus récent au plus ancien. */
-  async getTransponderTransactions(transponderId: number) {
+  async getTransponderTransactions(transponderId: number, includeActor = false) {
+    const include: Prisma.TransponderTransactionInclude = {
+      transponder: { select: { id: true, status: true } },
+      team: { select: { id: true, name: true } },
+      ...(includeActor
+        ? { user: { select: { id: true, firstName: true, lastName: true, email: true } } }
+        : {}),
+    };
     return this.prisma.transponderTransaction.findMany({
       where: { transponderId },
       orderBy: { dateTime: "desc" },
-      include: {
-        transponder: { select: { id: true, status: true } },
-        team: { select: { id: true, name: true } },
-      },
+      include,
     });
   }
 
@@ -216,7 +232,11 @@ export class TransponderTransactionService {
    * Historique d’une puce restreint à l’édition active si la puce est attribuée à une équipe d’une autre édition.
    * Puce en stock (sans équipe) : historique visible pour toute édition active.
    */
-  async getTransponderTransactionsForActiveEdition(transponderId: number, editionId: number | null) {
+  async getTransponderTransactionsForActiveEdition(
+    transponderId: number,
+    editionId: number | null,
+    includeActor = false,
+  ) {
     if (editionId == null) {
       return [];
     }
@@ -229,7 +249,7 @@ export class TransponderTransactionService {
     if (tp.editionId !== editionId) {
       throw new NotFoundException(`Transpondeur #${transponderId} hors édition active.`);
     }
-    return this.getTransponderTransactions(transponderId);
+    return this.getTransponderTransactions(transponderId, includeActor);
   }
 
   async getUserTransactions(userId: number): Promise<TransponderTransaction[]> {

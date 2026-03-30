@@ -50,9 +50,10 @@ export class TransactionsController {
   @ApiResponse({ status: 200, description: "Historique complet des transactions." })
   @Get("transactions")
   @Roles(Role.ADMIN, Role.BENEVOLE)
-  async getTransactions(): Promise<TransponderTransaction[]> {
+  async getTransactions(@Request() req: { user: { role: Role } }): Promise<TransponderTransaction[]> {
     const editionId = await this.editionService.getActiveEditionId();
-    return this.transactionService.transactionsForActiveEdition(editionId);
+    const includeActor = req.user.role === Role.ADMIN;
+    return this.transactionService.transactionsForActiveEdition(editionId, includeActor);
   }
 
   @ApiOperation({ summary: "Lister toutes les transactions d'une team" })
@@ -60,9 +61,13 @@ export class TransactionsController {
   @ApiResponse({ status: 200, description: "Historique complet des transactions d'une team." })
   @Get("transactions/team/:id")
   @Roles(Role.ADMIN, Role.BENEVOLE)
-  async getTeamTransactions(@Param("id") id: string) {
+  async getTeamTransactions(
+    @Param("id") id: string,
+    @Request() req: { user: { role: Role } },
+  ) {
     const editionId = await this.editionService.getActiveEditionId();
-    return this.transactionService.getTeamTransactionsForActiveEdition(Number(id), editionId);
+    const includeActor = req.user.role === Role.ADMIN;
+    return this.transactionService.getTeamTransactionsForActiveEdition(Number(id), editionId, includeActor);
   }
 
   @ApiOperation({ summary: "Lister toutes les transactions d'un utilisateur" })
@@ -74,9 +79,13 @@ export class TransactionsController {
   @ApiResponse({ status: 200, description: "Historique de la puce (récent en premier)." })
   @Get("transactions/transponder/:id")
   @Roles(Role.ADMIN, Role.BENEVOLE)
-  async getTransponderTransactions(@Param("id") id: string) {
+  async getTransponderTransactions(
+    @Param("id") id: string,
+    @Request() req: { user: { role: Role } },
+  ) {
     const editionId = await this.editionService.getActiveEditionId();
-    return this.transactionService.getTransponderTransactionsForActiveEdition(Number(id), editionId);
+    const includeActor = req.user.role === Role.ADMIN;
+    return this.transactionService.getTransponderTransactionsForActiveEdition(Number(id), editionId, includeActor);
   }
 
   @Get("transactions/user/:id")

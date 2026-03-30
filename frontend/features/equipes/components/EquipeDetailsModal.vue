@@ -190,6 +190,9 @@
                 >
                   <div class="text-caption font-weight-bold">{{ formatTransactionDate(evt.dateTime) }}</div>
                   <div class="text-body-2 text-medium-emphasis">{{ transactionTypeMeta(evt.type).label }}</div>
+                  <div v-if="actorLabelFromTransaction(evt)" class="text-caption text-medium-emphasis mt-1">
+                    Par : {{ actorLabelFromTransaction(evt) }}
+                  </div>
                   <v-chip size="x-small" variant="outlined" class="mt-1 font-weight-medium">
                     {{ transponderLabel(evt) }}
                   </v-chip>
@@ -294,6 +297,7 @@ import { computed, ref, watch } from 'vue'
 import { transponderDisplay } from '~/utils/transponder'
 import { useEquipesStore } from '~/features/equipes/stores/equipes'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
+import { actorLabelFromTransaction } from '~/utils/transponderTransactionDisplay'
 import type { ApiRunner, ApiTransponderRef, TransponderStatusApi, TransponderTransaction } from '~/types/api'
 
 const props = defineProps({

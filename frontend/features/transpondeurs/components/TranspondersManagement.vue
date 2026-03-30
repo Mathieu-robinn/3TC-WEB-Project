@@ -372,6 +372,9 @@
                 <div v-if="evt.team?.name" class="text-caption text-medium-emphasis mt-1">
                   Équipe : {{ evt.team.name }}
                 </div>
+                <div v-if="actorLabelFromTransaction(evt)" class="text-caption text-medium-emphasis mt-1">
+                  Par : {{ actorLabelFromTransaction(evt) }}
+                </div>
                 <v-chip size="x-small" variant="outlined" class="mt-1 font-weight-medium">
                   {{ transponderLabelFromTransaction(evt) }}
                 </v-chip>
@@ -406,6 +409,7 @@ import {
   transactionTypeMeta,
   formatTransactionDate,
   transponderLabelFromTransaction,
+  actorLabelFromTransaction,
 } from '~/utils/transponderTransactionDisplay'
 
 const store = useTranspondersStore()

@@ -23,3 +23,12 @@ export function formatTransactionDate(iso: string | undefined) {
 export function transponderLabelFromTransaction(evt: TransponderTransaction) {
   return transponderDisplay(evt.transponder) ?? `#${evt.transponderId}`
 }
+
+export function actorLabelFromTransaction(evt: TransponderTransaction): string | null {
+  const user = evt.user
+  if (!user) return null
+  const name = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
+  if (name) return name
+  if (user.email) return user.email
+  return `Utilisateur #${user.id ?? evt.userId}`
+}
