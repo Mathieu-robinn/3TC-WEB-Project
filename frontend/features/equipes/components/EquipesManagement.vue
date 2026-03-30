@@ -141,23 +141,7 @@
                     </v-avatar>
                     <div class="flex-grow-1" style="min-width: 0">
                       <div class="text-subtitle-1 font-weight-bold line-clamp-1">{{ equipe.name || equipe.nom }}</div>
-                      <v-select
-                        class="mt-1 captain-select"
-                        density="compact"
-                        variant="solo-filled"
-                        flat
-                        hide-details
-                        rounded="lg"
-                        :items="captainItems(equipe)"
-                        item-title="title"
-                        item-value="value"
-                        :model-value="equipe.respRunnerId ?? null"
-                        :disabled="!equipe.membres?.length || captainSavingId === equipe.id"
-                        placeholder="Capitaine"
-                        label="Capitaine"
-                        @update:model-value="(v) => onCaptainChange(equipe, v)"
-                        @click.stop
-                      />
+                      <div class="text-caption text-medium-emphasis mt-1">Capitaine: {{ equipe.capitaine || '—' }}</div>
                       <div v-if="courseLabel(equipe.courseId)" class="text-caption text-primary mt-1">{{ courseLabel(equipe.courseId) }}</div>
                     </div>
                   </div>
@@ -325,6 +309,7 @@
       :equipe="selectedEquipe" 
       @edit="openEdit"
       @equipe-updated="onEquipeUpdated"
+      @change-captain="onCaptainChange"
     />
 
     <!-- Create / Edit Dialog -->
@@ -438,20 +423,16 @@ const formError = ref('')
 const deleteError = ref('')
 const captainSavingId = ref(null)
 
-const captainItems = (equipe) =>
-  (equipe.membres || []).map((m) => ({
-    title: `${m.firstName || ''} ${m.lastName || ''}`.trim() || `Coureur #${m.id}`,
-    value: m.id,
-  }))
-
-async function onCaptainChange(equipe, runnerId) {
-  if (runnerId == null || runnerId === equipe.respRunnerId) return
-  captainSavingId.value = equipe.id
+async function onCaptainChange({ teamId, runnerId }) {
+  if (runnerId == null || teamId == null) return
+  const equipe = store.equipesWithStatus.find((e) => e.id === teamId)
+  if (!equipe || runnerId === equipe.respRunnerId) return
+  captainSavingId.value = teamId
   try {
-    await store.updateTeam(equipe.id, { respRunnerId: runnerId })
+    await store.updateTeam(teamId, { respRunnerId: runnerId })
     await store.fetchEquipes()
-    const fresh = store.equipesWithStatus.find((e) => e.id === equipe.id)
-    if (fresh && selectedEquipe.value?.id === equipe.id) selectedEquipe.value = fresh
+    const fresh = store.equipesWithStatus.find((e) => e.id === teamId)
+    if (fresh && selectedEquipe.value?.id === teamId) selectedEquipe.value = fresh
   } catch (e) {
     console.error(e)
   } finally {

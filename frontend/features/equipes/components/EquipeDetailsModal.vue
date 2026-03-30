@@ -54,6 +54,20 @@
               <v-icon size="16" color="primary" class="mr-1">mdi-account-multiple</v-icon>
               <span>Coureurs ({{ membres.length }})</span>
             </div>
+            <v-select
+              v-if="membres.length > 0"
+              v-model="selectedCaptainId"
+              class="mb-3"
+              :items="captainSelectItems"
+              item-title="title"
+              item-value="value"
+              label="Capitaine"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              hide-details="auto"
+              @update:model-value="onCaptainChange"
+            />
 
             <div v-if="membres.length === 0" class="empty-runners d-flex flex-column align-center justify-center py-8">
               <v-icon size="40" color="grey" class="mb-2">mdi-account-question-outline</v-icon>
@@ -305,7 +319,7 @@ const props = defineProps({
   equipe: Object,
 })
 
-const emit = defineEmits(['update:modelValue', 'edit', 'equipe-updated'])
+const emit = defineEmits(['update:modelValue', 'edit', 'equipe-updated', 'change-captain'])
 
 const store = useEquipesStore()
 const transpondersStore = useTranspondersStore()
@@ -313,6 +327,7 @@ const transpondersStore = useTranspondersStore()
 const assignDialog = ref(false)
 const selectedTransponderId = ref<number | null>(null)
 const selectedHolderRunnerId = ref<number | null>(null)
+const selectedCaptainId = ref<number | null>(null)
 
 const snackbar = ref({ show: false, message: '', color: 'success', icon: 'mdi-check-circle' })
 function showSnackbar(message: string, color = 'success', icon = 'mdi-check-circle') {
@@ -343,6 +358,14 @@ const holderSelectItems = computed(() => {
   }))
 })
 
+const captainSelectItems = computed(() => {
+  const list = (props.equipe?.membres || []) as ApiRunner[]
+  return list.map((m) => ({
+    title: `${m.firstName || ''} ${m.lastName || ''}`.trim() || `Coureur #${m.id}`,
+    value: m.id,
+  }))
+})
+
 function defaultHolderRunnerId() {
   const list = (props.equipe?.membres || []) as ApiRunner[]
   const eq = props.equipe as { respRunnerId?: number | null } | undefined
@@ -358,6 +381,14 @@ function isCaptain(m: ApiRunner) {
 function isTransponderHolder(m: ApiRunner) {
   const id = (props.equipe as { transponderHolderRunnerId?: number | null })?.transponderHolderRunnerId
   return id != null && m.id === id
+}
+
+function onCaptainChange(runnerId: number | null) {
+  const teamId = props.equipe?.id
+  if (teamId == null || runnerId == null) return
+  const currentCaptainId = (props.equipe as { respRunnerId?: number | null })?.respRunnerId ?? null
+  if (runnerId === currentCaptainId) return
+  emit('change-captain', { teamId, runnerId })
 }
 
 async function openAssignDialog() {
@@ -456,6 +487,14 @@ function formatTransactionDate(iso: string | undefined) {
 function transponderLabel(evt: TransponderTransaction) {
   return transponderDisplay(evt.transponder) ?? `#${evt.transponderId}`
 }
+
+watch(
+  () => [(props.equipe as { id?: number | null; respRunnerId?: number | null })?.id, (props.equipe as { respRunnerId?: number | null })?.respRunnerId],
+  () => {
+    selectedCaptainId.value = (props.equipe as { respRunnerId?: number | null })?.respRunnerId ?? null
+  },
+  { immediate: true },
+)
 
 watch(
   () => props.equipe?.id,
