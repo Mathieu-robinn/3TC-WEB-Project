@@ -110,7 +110,7 @@
                   <v-icon color="blue" size="22">mdi-timer</v-icon>
                 </div>
                 <div>
-                  <div class="text-subtitle-1 font-weight-bold text-blue">{{ transponderDisplay(activeTransponder) }}</div>
+                  <div class="text-subtitle-1 font-weight-bold text-blue">{{ transponderNumeroLabel(activeTransponder) }}</div>
                   <div class="text-caption text-medium-emphasis">Actif · En cours d'utilisation</div>
                 </div>
                 <v-spacer />
@@ -239,7 +239,7 @@
   </v-dialog>
 
   <!-- Dialog séparé : évite l’imbrication v-dialog dans v-dialog -->
-  <v-dialog v-model="assignDialog" max-width="520" persistent>
+  <v-dialog v-model="assignDialog" max-width="520">
       <v-card rounded="xl" elevation="8">
         <v-card-title class="d-flex align-center gap-2 pt-5 px-6">
           <v-icon color="primary">mdi-timer-plus-outline</v-icon>
@@ -315,10 +315,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { transponderDisplay } from '~/utils/transponder'
+import { transponderNumeroLabel } from '~/utils/transponder'
 import { useEquipesStore } from '~/features/equipes/stores/equipes'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
-import { actorLabelFromTransaction } from '~/utils/transponderTransactionDisplay'
+import { actorLabelFromTransaction, transponderLabelFromTransaction } from '~/utils/transponderTransactionDisplay'
 import type { ApiRunner, ApiTransponderRef, TransponderStatusApi, TransponderTransaction } from '~/types/api'
 
 const props = defineProps({
@@ -354,7 +354,7 @@ const availableToAssign = computed(() =>
 
 const assignSelectItems = computed(() =>
   availableToAssign.value.map((t) => ({
-    title: `${transponderDisplay(t) ?? `#${t.id}`} · #${t.id}`,
+    title: transponderNumeroLabel(t),
     value: t.id,
   })),
 )
@@ -494,7 +494,7 @@ function formatTransactionDate(iso: string | undefined) {
 }
 
 function transponderLabel(evt: TransponderTransaction) {
-  return transponderDisplay(evt.transponder) ?? `#${evt.transponderId}`
+  return transponderLabelFromTransaction(evt)
 }
 
 watch(
@@ -523,8 +523,7 @@ const equipeCourseTerminee = computed(
 const statutColor = computed(() => {
   const s = props.equipe?.statut
   if (s === 'en_piste') return 'green'
-  if (s === 'en_attente') return 'orange'
-  if (s === 'sans_transpondeur' || s === 'aucun membre') return 'red'
+  if (s === 'en_attente' || s === 'sans_transpondeur' || s === 'aucun membre') return 'error'
   if (s === 'terminé') return 'teal'
   return 'grey'
 })
@@ -532,8 +531,7 @@ const statutColor = computed(() => {
 const statutLabel = computed(() => {
   const s = props.equipe?.statut
   if (s === 'en_piste') return 'En piste'
-  if (s === 'en_attente') return 'En attente'
-  if (s === 'sans_transpondeur' || s === 'aucun membre') return 'Sans puce'
+  if (s === 'en_attente' || s === 'sans_transpondeur' || s === 'aucun membre') return 'Sans puce'
   if (s === 'terminé') return 'Terminé'
   return s ?? ''
 })

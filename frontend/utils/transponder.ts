@@ -8,3 +8,13 @@ export function transponderDisplay(
   if (t.id != null) return `#${t.id}`
   return null
 }
+
+/** Libellé utilisateur (listes, puces) : jamais l’id technique. */
+export function transponderNumeroLabel(
+  t: { id?: number; numero?: number | null; reference?: string | null } | null | undefined,
+): string {
+  if (!t) return '—'
+  if (t.numero != null) return `Numéro ${t.numero}`
+  if (t.reference) return `Numéro ${t.reference}`
+  return '—'
+}

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { removeAccents } from '~/utils/string'
-import { transponderDisplay } from '~/utils/transponder'
+import { transponderNumeroLabel } from '~/utils/transponder'
 import type { ApiCourse, ApiTeam, TransponderTransaction } from '~/types/api'
 
 type SortKey = 'ranking' | 'name' | 'members'
@@ -121,11 +121,12 @@ export const useEquipesStore = defineStore('equipes', () => {
       const nbTour = inRanking?.nbTour ?? e.nbTour ?? 0
       const runners = e.runners || []
 
-      const activeTransponders = (e.transponders || (e as any).transpondeurs || [])
+      const activeTransponderLabels = (e.transponders || (e as any).transpondeurs || [])
         .filter((t: any) => t.status === 'ATTRIBUE')
-        .map((t: any) => transponderDisplay(t))
+        .map((t: any) => transponderNumeroLabel(t))
 
-      const activeRef = activeTransponders.length > 0 ? activeTransponders.join('  ·  ') : null
+      const activeRef =
+        activeTransponderLabels.length > 0 ? activeTransponderLabels.join('  ·  ') : null
 
       const statut = e.courseFinished
         ? 'terminé'
@@ -194,8 +195,10 @@ export const useEquipesStore = defineStore('equipes', () => {
   const stats = computed(() => ({
     total: equipes.value.length,
     enPiste: equipesWithStatus.value.filter((e) => e.statut === 'en_piste').length,
-    enAttente: equipesWithStatus.value.filter((e) => e.statut === 'en_attente').length,
-    sansTranspondeur: equipesWithStatus.value.filter((e) => e.statut === 'aucun membre').length,
+    /** Équipes sans puce active : pas de coureurs ou coureurs sans transpondeur attribué. */
+    sansPuce: equipesWithStatus.value.filter(
+      (e) => e.statut === 'en_attente' || e.statut === 'aucun membre',
+    ).length,
     termine: equipesWithStatus.value.filter((e) => e.statut === 'terminé').length,
   }))
 

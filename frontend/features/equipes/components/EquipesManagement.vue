@@ -136,7 +136,7 @@
         <v-row>
           <v-col v-for="equipe in store.filteredEquipes" :key="equipe.id" cols="12" sm="6" lg="4">
             <v-card class="team-card" rounded="xl" elevation="0" @click="openDetails(equipe)">
-              <div class="team-card-accent" :class="`accent-${getStatutColor(equipe.statut)}`"></div>
+              <div class="team-card-accent" :class="statutAccentClass(equipe.statut)"></div>
               <v-card-text class="pa-5">
                 <!-- Team header -->
                 <div class="d-flex justify-space-between align-start mb-3">
@@ -221,19 +221,34 @@
                   <template v-if="courseLabel(equipe.courseId)"> · {{ courseLabel(equipe.courseId) }}</template>
                 </v-list-item-subtitle>
                 <template #append>
-                  <div class="d-flex align-center gap-2">
-                    <div class="text-center d-none d-sm-block">
-                      <div class="text-subtitle-2 font-weight-bold text-primary">{{ equipe.nbTour || 0 }}</div>
-                      <div class="text-caption text-medium-emphasis">tours</div>
+                  <div class="d-flex align-center list-equipe-append">
+                    <div class="list-tours-pill d-flex">
+                      <span class="list-tours-pill-value">{{ equipe.nbTour ?? 0 }}</span>
+                      <span class="list-tours-pill-label">tours</span>
                     </div>
-                    <v-chip v-if="equipe.transpondeur" color="blue" size="x-small" variant="tonal">{{ equipe.transpondeur }}</v-chip>
-                    <v-chip :color="getStatutColor(equipe.statut)" size="x-small" variant="flat" class="font-weight-bold">
-                      {{ getStatutLabel(equipe.statut) }}
-                    </v-chip>
-                    <template v-if="canManageTeams">
-                      <v-btn icon="mdi-pencil" size="x-small" variant="text" color="grey" @click.stop="openEdit(equipe)" />
-                      <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="confirmDelete(equipe)" />
-                    </template>
+                    <div class="d-flex align-center gap-2 flex-wrap list-equipe-chips">
+                      <v-chip
+                        v-if="equipe.transpondeur"
+                        color="blue"
+                        size="x-small"
+                        variant="tonal"
+                        prepend-icon="mdi-timer"
+                      >
+                        {{ equipe.transpondeur }}
+                      </v-chip>
+                      <v-chip
+                        :color="getStatutColor(equipe.statut)"
+                        size="x-small"
+                        variant="flat"
+                        class="font-weight-bold list-status-chip"
+                      >
+                        {{ getStatutLabel(equipe.statut) }}
+                      </v-chip>
+                      <template v-if="canManageTeams">
+                        <v-btn icon="mdi-pencil" size="x-small" variant="text" color="grey" @click.stop="openEdit(equipe)" />
+                        <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="confirmDelete(equipe)" />
+                      </template>
+                    </div>
                   </div>
                 </template>
               </v-list-item>
@@ -325,7 +340,7 @@
     />
 
     <!-- Create / Edit Dialog -->
-    <v-dialog v-model="showForm" max-width="520" persistent>
+    <v-dialog v-model="showForm" max-width="520">
       <v-card rounded="xl">
         <div class="form-header pa-5">
           <div class="text-h6 font-weight-bold text-white">{{ editingTeam ? 'Modifier l\'équipe' : 'Nouvelle équipe' }}</div>
@@ -382,7 +397,7 @@
     </v-dialog>
 
     <!-- Delete Confirm Dialog -->
-    <v-dialog v-model="showDeleteConfirm" max-width="420" persistent>
+    <v-dialog v-model="showDeleteConfirm" max-width="420">
       <v-card rounded="xl">
         <v-card-title class="pt-5 px-5 text-h6 font-weight-bold">Supprimer l'équipe ?</v-card-title>
         <v-card-text class="px-5">
@@ -463,8 +478,7 @@ onMounted(() => {
 const kpis = computed(() => [
   { label: 'Total', value: store.stats.total, icon: 'mdi-account-group', color: 'blue' },
   { label: 'En piste', value: store.stats.enPiste, icon: 'mdi-run', color: 'green' },
-  { label: 'En attente', value: store.stats.enAttente, icon: 'mdi-clock-outline', color: 'orange' },
-  { label: 'Sans puce', value: store.stats.sansTranspondeur, icon: 'mdi-timer-off', color: 'red' },
+  { label: 'Sans puce', value: store.stats.sansPuce, icon: 'mdi-timer-off', color: 'red' },
   { label: 'Terminé', value: store.stats.termine, icon: 'mdi-flag-checkered', color: 'teal' },
 ])
 
@@ -553,16 +567,30 @@ const executeDelete = async () => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 const getStatutColor = (s) =>
-  ({ en_piste: 'green', en_attente: 'orange', sans_transpondeur: 'red', terminé: 'teal', 'aucun membre': 'red' }[s] ||
-  'grey')
+  ({
+    en_piste: 'green',
+    en_attente: 'error',
+    sans_transpondeur: 'error',
+    terminé: 'teal',
+    'aucun membre': 'error',
+  }[s] || 'grey')
 const getStatutLabel = (s) =>
   ({
     en_piste: 'En piste',
-    en_attente: 'En attente',
+    en_attente: 'Sans puce',
     sans_transpondeur: 'Sans puce',
     terminé: 'Terminé',
     'aucun membre': 'Sans puce',
   }[s] || s)
+const statutAccentClass = (s) =>
+  ({
+    en_piste: 'accent-green',
+    en_attente: 'accent-error',
+    sans_transpondeur: 'accent-error',
+    terminé: 'accent-teal',
+    'aucun membre': 'accent-error',
+  }[s] || 'accent-grey')
+
 const podiumColor = (rank) => ['amber-darken-2', 'grey-darken-1', 'brown-lighten-1'][rank - 1] || 'blue-grey'
 const podiumMedal = (rank) => ['🥇', '🥈', '🥉'][rank - 1] || rank
 </script>
@@ -577,9 +605,40 @@ const podiumMedal = (rank) => ['🥇', '🥈', '🥉'][rank - 1] || rank
 
 .team-card-accent { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 12px 12px 0 0; }
 .accent-green { background: #34c759; }
-.accent-orange { background: #ff9500; }
-.accent-red { background: #ff3b30; }
+.accent-error { background: rgb(var(--v-theme-error)); }
+.accent-teal { background: #00897b; }
 .accent-grey { background: #8e8e93; }
+
+.list-equipe-append { gap: 14px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.list-tours-pill {
+  flex-shrink: 0;
+  min-width: 56px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(var(--v-theme-primary), 0.08);
+  border: 1px solid rgba(var(--v-theme-primary), 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+}
+.list-tours-pill-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: rgb(var(--v-theme-primary));
+  font-variant-numeric: tabular-nums;
+}
+.list-tours-pill-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  margin-top: 2px;
+}
+.list-equipe-chips { max-width: min(100%, 320px); justify-content: flex-end; }
+.list-status-chip { margin-left: 4px; }
 
 .line-clamp-1 {
   display: -webkit-box;

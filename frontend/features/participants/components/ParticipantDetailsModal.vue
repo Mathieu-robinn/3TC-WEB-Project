@@ -190,7 +190,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { transponderDisplay } from '~/utils/transponder'
+import { transponderNumeroLabel } from '~/utils/transponder'
 import { useParticipantsStore } from '~/features/participants/stores/participants'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
 import { usePermissions } from '~/composables/usePermissions'
@@ -270,7 +270,7 @@ const availableToAssign = computed(() =>
 
 const assignSelectItems = computed(() =>
   availableToAssign.value.map((t) => ({
-    title: `${transponderDisplay(t) ?? `#${t.id}`} · #${t.id}`,
+    title: transponderNumeroLabel(t),
     value: t.id,
   })),
 )
@@ -309,7 +309,7 @@ function fallbackHistory() {
   const fallback = props.participant?.historique
     || props.participant?.transponders?.map((t) => ({
       date: '—',
-      event: `Transpondeur ${transponderDisplay(t) ?? '?'} — ${t.status}`,
+      event: `Transpondeur ${transponderNumeroLabel(t)} — ${t.status}`,
     }))
     || []
 

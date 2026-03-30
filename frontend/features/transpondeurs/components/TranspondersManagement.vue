@@ -140,7 +140,7 @@
           :items-per-page="-1"
         >
           <template #item.numero="{ item }">
-            <span class="text-body-2 font-weight-medium">{{ item.numero != null ? String(item.numero) : labelFor(item) }}</span>
+            <span class="text-body-2 font-weight-medium">{{ labelFor(item) }}</span>
           </template>
           <template #item.status="{ item }">
             <v-chip
@@ -470,7 +470,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
 import { usePermissions } from '~/composables/usePermissions'
-import { transponderDisplay } from '~/utils/transponder'
+import { transponderNumeroLabel } from '~/utils/transponder'
 import { parseTransponderNumberRanges } from '~/utils/transponderNumberRanges'
 import {
   transactionTypeMeta,
@@ -578,7 +578,7 @@ const kpis = computed(() => [
 ])
 
 function labelFor(t) {
-  return transponderDisplay(t) || `#${t.id}`
+  return transponderNumeroLabel(t)
 }
 
 // --- Ajout en lot ---

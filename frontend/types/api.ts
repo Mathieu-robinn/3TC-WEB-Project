@@ -77,7 +77,7 @@ export interface TransponderTransaction {
   type: TransponderStatusApi
   user?: { id: number; firstName?: string; lastName?: string; email?: string }
   /** Présent sur GET /transactions/team/:id ou /transactions/transponder/:id lorsque le backend inclut la relation. */
-  transponder?: { id: number; status?: TransponderStatusApi }
+  transponder?: { id: number; status?: TransponderStatusApi; numero?: number; reference?: string }
   team?: { id: number; name?: string } | null
 }
 

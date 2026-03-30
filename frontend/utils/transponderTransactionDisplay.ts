@@ -1,5 +1,5 @@
 import type { TransponderStatusApi, TransponderTransaction } from '~/types/api'
-import { transponderDisplay } from '~/utils/transponder'
+import { transponderNumeroLabel } from '~/utils/transponder'
 
 /** Libellé et couleur de pastille Vuetify pour un statut de transaction. */
 export function transactionTypeMeta(type: TransponderStatusApi) {
@@ -21,7 +21,8 @@ export function formatTransactionDate(iso: string | undefined) {
 }
 
 export function transponderLabelFromTransaction(evt: TransponderTransaction) {
-  return transponderDisplay(evt.transponder) ?? `#${evt.transponderId}`
+  if (evt.transponder) return transponderNumeroLabel(evt.transponder)
+  return `Numéro ${evt.transponderId}`
 }
 
 export function actorLabelFromTransaction(evt: TransponderTransaction): string | null {

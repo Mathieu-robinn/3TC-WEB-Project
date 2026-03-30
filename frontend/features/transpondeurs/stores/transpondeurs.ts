@@ -262,8 +262,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
       list = list.filter(
         (t) =>
           t.reference?.toLowerCase().includes(s) ||
-          String(t.numero).includes(s) ||
-          String(t.id).includes(s) ||
+          (t.numero != null && String(t.numero).includes(s)) ||
           t.team?.name?.toLowerCase().includes(s),
       )
     if (filterStatus.value !== 'tous') list = list.filter((t) => t.status === filterStatus.value)

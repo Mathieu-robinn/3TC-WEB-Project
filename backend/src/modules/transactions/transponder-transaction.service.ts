@@ -161,7 +161,7 @@ export class TransponderTransactionService {
 
   async getTeamTransactions(teamId: number, includeActor = false) {
     const include: Prisma.TransponderTransactionInclude = {
-      transponder: { select: { id: true, status: true } },
+      transponder: { select: { id: true, status: true, numero: true } },
       team: { select: { id: true, name: true } },
       ...(includeActor
         ? { user: { select: { id: true, firstName: true, lastName: true, email: true } } }
@@ -197,7 +197,7 @@ export class TransponderTransactionService {
       return [];
     }
     const include: Prisma.TransponderTransactionInclude = {
-      transponder: { select: { id: true, status: true } },
+      transponder: { select: { id: true, status: true, numero: true } },
       team: { select: { id: true, name: true } },
       ...(includeActor
         ? { user: { select: { id: true, firstName: true, lastName: true, email: true } } }
@@ -215,7 +215,7 @@ export class TransponderTransactionService {
   /** Historique d'une puce, du plus récent au plus ancien. */
   async getTransponderTransactions(transponderId: number, includeActor = false) {
     const include: Prisma.TransponderTransactionInclude = {
-      transponder: { select: { id: true, status: true } },
+      transponder: { select: { id: true, status: true, numero: true } },
       team: { select: { id: true, name: true } },
       ...(includeActor
         ? { user: { select: { id: true, firstName: true, lastName: true, email: true } } }

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { removeAccents } from '~/utils/string'
-import { transponderDisplay } from '~/utils/transponder'
+import { transponderNumeroLabel } from '~/utils/transponder'
 import type { ApiCourse, ApiRunner, ApiTeam } from '~/types/api'
 
 export interface RunnerCreateInput {
@@ -122,7 +122,7 @@ export const useParticipantsStore = defineStore('participants', () => {
     runners.value.map((r) => {
       const team = teams.value.find((t) => t.id === (r.teamId ?? r.team?.id))
       const out = r.transponders?.find((t) => t.status === 'OUT' || t.status === 'ATTRIBUE')
-      const activeTransponder = transponderDisplay(out)
+      const activeTransponder = out ? transponderNumeroLabel(out) : null
       const courseFinished = team?.courseFinished === true
       let status: RunnerNormalized['status']
       if (courseFinished) status = 'course_terminee'
