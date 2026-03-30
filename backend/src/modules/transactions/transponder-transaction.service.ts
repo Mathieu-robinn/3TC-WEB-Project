@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
 import { TransponderTransaction, Prisma, TransponderStatus, Role } from "@prisma/client";
+import { LogService } from "../log/log.service.js";
+import { logTypeForTransponderAudit, transponderAuditMessage } from "../log/transponder-audit-log.util.js";
 import { NotificationDispatchService } from "../notification/notification-dispatch.service.js";
 
 @Injectable()
@@ -8,6 +10,7 @@ export class TransponderTransactionService {
   constructor(
     private prisma: PrismaService,
     private readonly notificationDispatch: NotificationDispatchService,
+    private readonly logService: LogService,
   ) {}
 
   /**
@@ -152,6 +155,29 @@ export class TransponderTransactionService {
         teamName: transponderAfter.team?.name ?? null,
         actorUserId: requestingUserId,
       });
+      const lt = logTypeForTransponderAudit(transponderAfter.status);
+      if (lt) {
+        try {
+          await this.logService.createLog({
+            type: lt,
+            message: transponderAuditMessage(
+              transponderAfter.status,
+              transponderAfter.numero,
+              transponderAfter.id,
+              transponderAfter.team?.name ?? null,
+            ),
+            user: { connect: { id: requestingUserId } },
+            details: {
+              transponderId: transponderAfter.id,
+              transponderNumero: transponderAfter.numero,
+              teamName: transponderAfter.team?.name ?? undefined,
+              status: transponderAfter.status,
+            },
+          });
+        } catch (e) {
+          console.error("[TransponderTransactionService] audit log:", e);
+        }
+      }
     }
 
     return newTransaction;

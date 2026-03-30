@@ -180,7 +180,10 @@ export class TranspondersController {
   @ApiBody({ schema: { example: { numero: 42, status: "EN_ATTENTE" } } })
   @Post("transponder")
   @Roles(Role.ADMIN)
-  async createTransponder(@Body() data: CreateTransponderDto): Promise<Transponder> {
+  async createTransponder(
+    @Body() data: CreateTransponderDto,
+    @Request() req: { user: { userId: number } },
+  ): Promise<Transponder> {
     const editionId = await this.editionService.getActiveEditionId();
     if (editionId == null) {
       throw new BadRequestException(
@@ -192,33 +195,75 @@ export class TranspondersController {
       status: data.status ?? ("EN_ATTENTE" as any),
       edition: { connect: { id: editionId } },
     };
-    return this.transponderService.createTransponder(prismaData);
+    const t = await this.transponderService.createTransponder(prismaData);
+    try {
+      await this.logService.createLog({
+        type: LogType.ADD_TRANSPONDER,
+        message: `Création du transpondeur n°${t.numero} (id ${t.id}).`,
+        user: { connect: { id: req.user.userId } },
+        details: { transponderId: t.id, transponderNumero: t.numero },
+      });
+    } catch (e) {
+      console.error("[TranspondersController] ADD_TRANSPONDER log:", e);
+    }
+    return t;
   }
 
   @ApiOperation({ summary: "Créer plusieurs transpondeurs en attente (numéros uniques pour l’édition active)" })
   @ApiBody({ schema: { example: { numeros: [1, 2, 3, 10, 11] } } })
   @Post("transponders/batch")
   @Roles(Role.ADMIN)
-  async createTranspondersBatch(@Body() data: CreateTranspondersBatchDto): Promise<Transponder[]> {
+  async createTranspondersBatch(
+    @Body() data: CreateTranspondersBatchDto,
+    @Request() req: { user: { userId: number } },
+  ): Promise<Transponder[]> {
     const editionId = await this.editionService.getActiveEditionId();
     if (editionId == null) {
       throw new BadRequestException(
         "Aucune édition disponible : impossible de créer des transpondeurs.",
       );
     }
-    return this.transponderService.createTranspondersBatch(editionId, data.numeros);
+    const created = await this.transponderService.createTranspondersBatch(editionId, data.numeros);
+    try {
+      await this.logService.createLog({
+        type: LogType.ADD_TRANSPONDER,
+        message: `Création de ${created.length} transpondeur(s) en attente : ${created.map((c) => c.numero).join(", ")}.`,
+        user: { connect: { id: req.user.userId } },
+        details: {
+          transponderIds: created.map((c) => c.id),
+          numeros: created.map((c) => c.numero),
+        },
+      });
+    } catch (e) {
+      console.error("[TranspondersController] ADD_TRANSPONDER batch log:", e);
+    }
+    return created;
   }
 
   @ApiOperation({ summary: "Supprimer plusieurs transpondeurs (édition active, pas de puce ATTRIBUE)" })
   @ApiBody({ schema: { example: { ids: [1, 2, 3] } } })
   @Post("transponders/delete-batch")
   @Roles(Role.ADMIN)
-  async deleteTranspondersBatch(@Body() data: DeleteTranspondersBatchDto): Promise<{ deleted: number }> {
+  async deleteTranspondersBatch(
+    @Body() data: DeleteTranspondersBatchDto,
+    @Request() req: { user: { userId: number } },
+  ): Promise<{ deleted: number }> {
     const editionId = await this.editionService.getActiveEditionId();
     if (editionId == null) {
       throw new BadRequestException("Aucune édition active.");
     }
-    return this.transponderService.deleteTranspondersBatch(editionId, data.ids);
+    const result = await this.transponderService.deleteTranspondersBatch(editionId, data.ids);
+    try {
+      await this.logService.createLog({
+        type: LogType.DELETE_TRANSPONDER,
+        message: `Suppression de ${result.deleted} transpondeur(s) (ids : ${data.ids.join(", ")}).`,
+        user: { connect: { id: req.user.userId } },
+        details: { ids: data.ids, deleted: result.deleted },
+      });
+    } catch (e) {
+      console.error("[TranspondersController] DELETE_TRANSPONDER log:", e);
+    }
+    return result;
   }
 
   @ApiOperation({ summary: "Mettre à jour le statut d'un transpondeur" })
@@ -262,6 +307,7 @@ export class TranspondersController {
         type: LogType.DEFECT_TRANSPONDER,
         message: `Transpondeur n°${updated.numero} (id ${updated.id}) signalé défaillant.`,
         user: { connect: { id: req.user.userId } },
+        details: { transponderId: updated.id, transponderNumero: updated.numero },
       });
     }
     return updated;

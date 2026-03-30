@@ -1,7 +1,8 @@
-import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../prisma.service.js";
-import { Prisma, Role, User } from "@prisma/client";
+import { LogType, Prisma, Role, User } from "@prisma/client";
+import { LogService } from "../log/log.service.js";
 import { CreateUserDto, UpdateUserDto } from "./dto/user.dto.js";
 
 const userPublicSelect = {
@@ -24,7 +25,10 @@ export type UserPublic = {
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly logService: LogService,
+  ) {}
 
   async user(userWhereUniqueInput: Prisma.UserWhereUniqueInput): Promise<User | null> {
     return this.prisma.user.findUnique({
@@ -56,14 +60,14 @@ export class UserService {
     });
   }
 
-  async createStaffUser(dto: CreateUserDto): Promise<UserPublic> {
+  async createStaffUser(dto: CreateUserDto, actorUserId: number): Promise<UserPublic> {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException("Un compte avec cet email existe déjà.");
     }
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const role = dto.role ?? Role.BENEVOLE;
-    return this.prisma.user.create({
+    const created = await this.prisma.user.create({
       data: {
         email: dto.email,
         password: hashedPassword,
@@ -74,6 +78,17 @@ export class UserService {
       },
       select: userPublicSelect,
     });
+    try {
+      await this.logService.createLog({
+        type: LogType.ADD_USER,
+        message: `Création du compte ${created.firstName} ${created.lastName} (${created.email}).`,
+        user: { connect: { id: actorUserId } },
+        details: { createdUserId: created.id },
+      });
+    } catch (e) {
+      console.error("[UserService] ADD_USER log:", e);
+    }
+    return created;
   }
 
   async updateStaffUser(id: number, userData: UpdateUserDto): Promise<UserPublic> {
@@ -122,6 +137,21 @@ export class UserService {
     if (actorUserId === targetUserId) {
       throw new BadRequestException("Vous ne pouvez pas supprimer votre propre compte.");
     }
-    return this.deleteUser({ id: targetUserId });
+    const target = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!target) {
+      throw new NotFoundException(`Utilisateur #${targetUserId} introuvable.`);
+    }
+    const deleted = await this.deleteUser({ id: targetUserId });
+    try {
+      await this.logService.createLog({
+        type: LogType.DELETE_USER,
+        message: `Suppression du compte ${target.firstName} ${target.lastName} (${target.email}).`,
+        user: { connect: { id: actorUserId } },
+        details: { deletedUserId: targetUserId },
+      });
+    } catch (e) {
+      console.error("[UserService] DELETE_USER log:", e);
+    }
+    return deleted;
   }
 }

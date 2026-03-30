@@ -53,6 +53,7 @@ async function bootstrap() {
     .addTag("Runners", "Gestion des coureurs")
     .addTag("Transponders", "Gestion des puces de chronométrage")
     .addTag("Transactions", "Historique des distributions de puces")
+    .addTag("Logs", "Journal d’audit (admin)")
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

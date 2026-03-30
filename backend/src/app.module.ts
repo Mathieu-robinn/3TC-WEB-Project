@@ -25,6 +25,7 @@ import { TranspondersController } from "./modules/transponders/transponders.cont
 import { TransactionsController } from "./modules/transactions/transactions.controller.js";
 import { MessagingController } from "./modules/messaging/messaging.controller.js";
 import { NotificationsController } from "./modules/notification/notifications.controller.js";
+import { LogsController } from "./modules/log/logs.controller.js";
 
 /**
  * AppModule : Module racine qui registre tous les modules, contrôleurs et services.
@@ -50,6 +51,7 @@ import { NotificationsController } from "./modules/notification/notifications.co
     TransactionsController,
     MessagingController,
     NotificationsController,
+    LogsController,
   ],
   providers: [
     PrismaService,

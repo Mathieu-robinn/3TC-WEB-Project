@@ -56,8 +56,11 @@ export class UsersController {
   @Post("user")
   @HttpCode(HttpStatus.CREATED)
   @Roles(Role.ADMIN)
-  async createStaffUser(@Body() userData: CreateUserDto): Promise<UserPublic> {
-    return this.userService.createStaffUser(userData);
+  async createStaffUser(
+    @Body() userData: CreateUserDto,
+    @Request() req: { user: { userId: number } },
+  ): Promise<UserPublic> {
+    return this.userService.createStaffUser(userData, req.user.userId);
   }
 
   @ApiOperation({ summary: "Mettre à jour un utilisateur" })

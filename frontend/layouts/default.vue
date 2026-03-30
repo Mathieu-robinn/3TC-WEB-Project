@@ -321,6 +321,7 @@ const allNavItems = [
   { title: 'Équipes', icon: 'mdi-account-group-outline', path: '/equipes', adminOnly: false },
   { title: 'Communication', icon: 'mdi-message-outline', path: '/communication', adminOnly: false },
   { title: 'Comptes', icon: 'mdi-account-supervisor-outline', path: '/comptes', adminOnly: true },
+  { title: 'Logs', icon: 'mdi-text-box-outline', path: '/logs', adminOnly: true },
   { title: 'Paramètres', icon: 'mdi-cog-outline', path: '/parametres', adminOnly: true },
 ]
 

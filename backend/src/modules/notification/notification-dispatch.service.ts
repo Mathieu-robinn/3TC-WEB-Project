@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { NotificationType, Role, TransponderStatus } from "@prisma/client";
+import { LogType, NotificationType, Role, TransponderStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma.service.js";
 import { EventsGateway } from "../../events/events.gateway.js";
+import { LogService } from "../log/log.service.js";
 import { notificationToJson } from "./notification-json.util.js";
 
 export type NotificationAudience = "ADMINS" | "BENEVOLES" | "ALL";
@@ -13,6 +14,7 @@ export class NotificationDispatchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsGateway: EventsGateway,
+    private readonly logService: LogService,
   ) {}
 
   private emitCreated(
@@ -78,6 +80,27 @@ export class NotificationDispatchService {
       });
       this.emitCreated(id, created);
     }
+    try {
+      const audienceLabel =
+        audience === "ADMINS"
+          ? "administrateurs"
+          : audience === "BENEVOLES"
+            ? "bénévoles"
+            : "tous les utilisateurs";
+      await this.logService.createLog({
+        type: LogType.NOTIFICATION_MANUAL,
+        message: `[${type}] → ${audienceLabel} : ${message}`,
+        user: { connect: { id: senderUserId } },
+        details: {
+          notificationType: type,
+          audience,
+          recipientCount: users.length,
+          body: message,
+        },
+      });
+    } catch (e) {
+      console.error("[NotificationDispatch] createLog manual:", e);
+    }
   }
 
   private static notifTypeForStatus(status: TransponderStatus): NotificationType | null {
@@ -134,6 +157,22 @@ export class NotificationDispatchService {
           return;
       }
       await this.dispatchToAdmins(notifType, message);
+      try {
+        await this.logService.createLog({
+          type: LogType.NOTIFICATION_AUTOMATIC,
+          message,
+          user: { connect: { id: params.actorUserId } },
+          details: {
+            notificationType: notifType,
+            transponderId: params.transponderId,
+            transponderNumero: params.transponderNumero,
+            teamName: params.teamName ?? undefined,
+            newStatus: params.newStatus,
+          },
+        });
+      } catch (logErr) {
+        console.error("[NotificationDispatch] createLog auto:", logErr);
+      }
     } catch (e) {
       console.error("[NotificationDispatch] notifyAutomaticTransponderEvent:", e);
     }

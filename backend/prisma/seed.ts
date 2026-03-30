@@ -479,6 +479,8 @@ async function main() {
     LogType.ADD_TRANSPONDER,
     LogType.RETURN_TRANSPONDER,
     LogType.DEFECT_TRANSPONDER,
+    LogType.NOTIFICATION_MANUAL,
+    LogType.NOTIFICATION_AUTOMATIC,
   ];
 
   const logMessages = [
@@ -493,12 +495,41 @@ async function main() {
     await prisma.log.create({
       data: {
         userId: adminUser.id, // Utilise l'ID de l'admin créé plus haut
-        type: pick(logTypes),  // Utilise les types corrigés
+        type: pick(logTypes), // Utilise les types corrigés
         message: pick(logMessages),
         dateTime: new Date(new Date("2026-05-15T10:00:00Z").getTime() + i * 20 * 60 * 1000),
       },
     });
   }
+
+  await prisma.log.create({
+    data: {
+      userId: adminUser.id,
+      type: LogType.NOTIFICATION_MANUAL,
+      message: "[INFO] → bénévoles : (seed) Exemple de notification manuelle.",
+      dateTime: new Date("2026-05-15T18:30:00Z"),
+      details: {
+        notificationType: "INFO",
+        audience: "BENEVOLES",
+        recipientCount: 2,
+        body: "(seed) Exemple de notification manuelle.",
+      },
+    },
+  });
+  await prisma.log.create({
+    data: {
+      userId: adminUser.id,
+      type: LogType.NOTIFICATION_AUTOMATIC,
+      message: "(seed) Un utilisateur a attribué le transpondeur n°1 (id 1).",
+      dateTime: new Date("2026-05-15T18:35:00Z"),
+      details: {
+        notificationType: "INFO",
+        transponderId: 1,
+        transponderNumero: 1,
+        newStatus: "ATTRIBUE",
+      },
+    },
+  });
 
   console.log("✅ Logs créés.");
 

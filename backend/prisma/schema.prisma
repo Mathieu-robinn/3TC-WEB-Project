@@ -48,6 +48,8 @@ enum LogType { // a enrichier au fur et à mesure
   RETURN_TRANSPONDER
   /** Journal : transpondeur passé au statut DEFAILLANT (valeur enum PG ajoutée en fin de type). */
   DEFECT_TRANSPONDER
+  NOTIFICATION_MANUAL
+  NOTIFICATION_AUTOMATIC
 }
 
 enum NotificationType {
@@ -171,6 +173,8 @@ model Log {
   message  String
   type     LogType
   userId   Int
+  /** Métadonnées structurées pour le détail (audience, ids, etc.). */
+  details  Json?
 
   user User @relation(fields: [userId], references: [id])
 }

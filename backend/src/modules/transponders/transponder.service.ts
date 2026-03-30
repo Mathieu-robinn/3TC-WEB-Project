@@ -1,14 +1,46 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
-import { Transponder, Prisma, TransponderStatus } from "@prisma/client";
+import { Prisma, Transponder, TransponderStatus } from "@prisma/client";
+import { LogService } from "../log/log.service.js";
+import { logTypeForTransponderAudit, transponderAuditMessage } from "../log/transponder-audit-log.util.js";
 import { NotificationDispatchService } from "../notification/notification-dispatch.service.js";
+
+type TransponderWithTeam = Transponder & { team: { name: string } | null };
 
 @Injectable()
 export class TransponderService {
   constructor(
     private prisma: PrismaService,
     private readonly notificationDispatch: NotificationDispatchService,
+    private readonly logService: LogService,
   ) {}
+
+  private async writeTransponderAuditLog(actorUserId: number, updated: TransponderWithTeam): Promise<void> {
+    const lt = logTypeForTransponderAudit(updated.status);
+    if (!lt) {
+      return;
+    }
+    try {
+      await this.logService.createLog({
+        type: lt,
+        message: transponderAuditMessage(
+          updated.status,
+          updated.numero,
+          updated.id,
+          updated.team?.name ?? null,
+        ),
+        user: { connect: { id: actorUserId } },
+        details: {
+          transponderId: updated.id,
+          transponderNumero: updated.numero,
+          teamName: updated.team?.name ?? undefined,
+          status: updated.status,
+        },
+      });
+    } catch (e) {
+      console.error("[TransponderService] audit log:", e);
+    }
+  }
 
   async transponder(transponderWhereUniqueInput: Prisma.TransponderWhereUniqueInput): Promise<Transponder | null> {
     return this.prisma.transponder.findUnique({
@@ -242,6 +274,7 @@ export class TransponderService {
         teamName: updated.team?.name ?? null,
         actorUserId,
       });
+      await this.writeTransponderAuditLog(actorUserId, updated as TransponderWithTeam);
       return updated;
     });
   }
@@ -290,6 +323,7 @@ export class TransponderService {
         teamName: updated.team?.name ?? null,
         actorUserId,
       });
+      await this.writeTransponderAuditLog(actorUserId, updated as TransponderWithTeam);
       return updated;
     });
   }
