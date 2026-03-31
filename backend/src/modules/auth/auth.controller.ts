@@ -1,13 +1,17 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Req } from "@nestjs/common";
+import { Controller, Post, Body, HttpCode, HttpStatus, Req, UseGuards } from "@nestjs/common";
 import type { Request } from "express";
-import { ApiTags, ApiOperation, ApiBody, ApiResponse } from "@nestjs/swagger";
+import { Role } from "@prisma/client";
+import { ApiTags, ApiOperation, ApiBody, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
 import { AuthService } from "./auth.service.js";
 import { LoginRateLimitService } from "./login-rate-limit.service.js";
 import { Public } from "./public.decorator.js";
 import { LoginDto, RegisterDto } from "./dto/auth.dto.js";
+import { JwtAuthGuard } from "./jwt-auth.guard.js";
+import { RolesGuard } from "./roles.guard.js";
+import { Roles } from "./roles.decorator.js";
 
 /**
- * AuthController : Authentification — toutes les routes sont publiques.
+ * AuthController : login public, création de compte réservée aux admins.
  */
 @ApiTags("Auth")
 @Controller("auth")
@@ -19,13 +23,16 @@ export class AuthController {
 
   /**
    * Inscription d'un nouvel utilisateur.
-   * Retourne directement un JWT (connexion automatique).
+   * Crée un compte sans connecter automatiquement le nouvel utilisateur.
    */
   @Post("register")
-  @Public()
-  @ApiOperation({ summary: "Créer un compte utilisateur", description: "Le mot de passe est hashé avec bcrypt. Retourne un JWT valable 24h." })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({ summary: "Créer un compte utilisateur (admin)", description: "Le mot de passe est hashé avec bcrypt. Réservé aux administrateurs. Retourne uniquement le profil créé." })
   @ApiBody({ schema: { example: { email: "nouveau@24h.fr", password: "monMotDePasse", firstName: "Prénom", lastName: "Nom" } } })
-  @ApiResponse({ status: 201, description: "Compte créé. Retourne { accessToken, user }." })
+  @ApiResponse({ status: 201, description: "Compte créé. Retourne le profil créé, sans mot de passe ni token." })
+  @ApiResponse({ status: 403, description: "Réservé aux administrateurs." })
   @ApiResponse({ status: 401, description: "Email déjà utilisé." })
   async register(@Body() body: RegisterDto) {
     return this.authService.register(body.email, body.password, body.firstName, body.lastName);

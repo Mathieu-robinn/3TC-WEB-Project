@@ -3,6 +3,12 @@ import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../../prisma.service.js";
 import * as bcrypt from "bcrypt";
 
+type AuthUserPublic = {
+  id: number;
+  email: string;
+  role: string;
+};
+
 /**
  * AuthService : Gère l'inscription et la connexion des utilisateurs.
  * Les mots de passe sont hashés avec bcrypt avant d'être stockés en base.
@@ -38,8 +44,7 @@ export class AuthService {
       data: { email, password: hashedPassword, firstName, lastName },
     });
 
-    // Retourner directement un token (connexion automatique après inscription)
-    return this.generateToken(user);
+    return this.toPublicUser(user);
   }
 
   /**
@@ -84,6 +89,14 @@ export class AuthService {
         email: user.email,
         role: user.role,
       },
+    };
+  }
+
+  private toPublicUser(user: { id: number; email: string; role: string }): AuthUserPublic {
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
     };
   }
 }

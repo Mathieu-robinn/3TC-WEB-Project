@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -28,10 +29,19 @@ export class UsersController {
 
   @ApiOperation({ summary: "Récupérer un utilisateur par ID" })
   @ApiParam({ name: "id", description: "ID de l'utilisateur", example: 1 })
-  @ApiResponse({ status: 200, description: "Utilisateur trouvé." })
+  @ApiResponse({ status: 200, description: "Utilisateur trouvé sans le champ mot de passe." })
   @Get("user/:id")
-  async getUserById(@Param("id") id: string): Promise<User | null> {
-    return this.userService.user({ id: Number(id) });
+  async getUserById(
+    @Param("id") id: string,
+    @Request() req: { user: { userId: number; role: Role } },
+  ): Promise<UserPublic | null> {
+    const targetUserId = Number(id);
+    const isSelf = req.user.userId === targetUserId;
+    const isAdmin = req.user.role === Role.ADMIN;
+    if (!isSelf && !isAdmin) {
+      throw new ForbiddenException("Vous ne pouvez consulter que votre propre profil.");
+    }
+    return this.userService.publicUser({ id: targetUserId });
   }
 
   @ApiOperation({

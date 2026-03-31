@@ -36,6 +36,13 @@ export class UserService {
     });
   }
 
+  async publicUser(userWhereUniqueInput: Prisma.UserWhereUniqueInput): Promise<UserPublic | null> {
+    return this.prisma.user.findUnique({
+      where: userWhereUniqueInput,
+      select: userPublicSelect,
+    });
+  }
+
   async users(params: {
     skip?: number;
     take?: number;
