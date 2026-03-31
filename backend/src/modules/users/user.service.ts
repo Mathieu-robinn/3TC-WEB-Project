@@ -1,9 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../prisma.service.js";
 import { LogType, Prisma, Role, User } from "@prisma/client";
 import { LogService } from "../log/log.service.js";
-import { CreateUserDto, UpdateUserDto } from "./dto/user.dto.js";
+import { CreateUserDto, UpdateMyProfileDto, UpdateUserDto } from "./dto/user.dto.js";
 
 const userPublicSelect = {
   id: true,
@@ -111,6 +111,46 @@ export class UserService {
     }
     return this.prisma.user.update({
       where: { id },
+      data,
+      select: userPublicSelect,
+    });
+  }
+
+  async updateOwnProfile(userId: number, role: Role, userData: UpdateMyProfileDto): Promise<UserPublic> {
+    const currentUser = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!currentUser) {
+      throw new NotFoundException(`Utilisateur #${userId} introuvable.`);
+    }
+
+    const wantsPasswordChange = userData.newPassword !== undefined || userData.currentPassword !== undefined;
+    if (role === Role.BENEVOLE && (userData.firstName !== undefined || userData.lastName !== undefined)) {
+      throw new ForbiddenException("Un bénévole ne peut modifier que son mot de passe.");
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+    if (role === Role.ADMIN) {
+      if (userData.firstName !== undefined) data.firstName = userData.firstName;
+      if (userData.lastName !== undefined) data.lastName = userData.lastName;
+    }
+
+    if (wantsPasswordChange) {
+      if (!userData.currentPassword || !userData.newPassword) {
+        throw new BadRequestException("Le mot de passe actuel et le nouveau mot de passe sont requis.");
+      }
+      const passwordMatches = await bcrypt.compare(userData.currentPassword, currentUser.password);
+      if (!passwordMatches) {
+        throw new ForbiddenException("Le mot de passe actuel est incorrect.");
+      }
+      data.password = await bcrypt.hash(userData.newPassword, 10);
+      data.tokenVersion = { increment: 1 };
+    }
+
+    if (!Object.keys(data).length) {
+      throw new BadRequestException("Aucune modification valide n'a été fournie.");
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
       data,
       select: userPublicSelect,
     });

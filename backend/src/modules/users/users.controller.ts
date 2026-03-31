@@ -12,12 +12,14 @@ import {
   Request,
   UseGuards,
 } from "@nestjs/common";
+import type { Request as ExpressRequest } from "express";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Role, User } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { RolesGuard } from "../auth/roles.guard.js";
 import { Roles } from "../auth/roles.decorator.js";
-import { CreateUserDto, UpdateUserDto } from "./dto/user.dto.js";
+import { CreateUserDto, UpdateMyProfileDto, UpdateUserDto } from "./dto/user.dto.js";
+import { PasswordChangeRateLimitService } from "./password-change-rate-limit.service.js";
 import { UserPublic, UserService } from "./user.service.js";
 
 @ApiTags("Users")
@@ -25,7 +27,10 @@ import { UserPublic, UserService } from "./user.service.js";
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth("JWT-auth")
 export class UsersController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly passwordChangeRateLimit: PasswordChangeRateLimitService,
+  ) {}
 
   @ApiOperation({ summary: "Récupérer un utilisateur par ID" })
   @ApiParam({ name: "id", description: "ID de l'utilisateur", example: 1 })
@@ -80,6 +85,20 @@ export class UsersController {
   @Roles(Role.ADMIN)
   async updateUser(@Param("id") id: string, @Body() userData: UpdateUserDto): Promise<UserPublic> {
     return this.userService.updateStaffUser(Number(id), userData);
+  }
+
+  @ApiOperation({ summary: "Mettre à jour son propre compte" })
+  @ApiResponse({ status: 200, description: "Compte courant mis à jour." })
+  @Put("me")
+  async updateOwnProfile(
+    @Request() req: ExpressRequest & { user: { userId: number; role: Role } },
+    @Body() userData: UpdateMyProfileDto,
+  ): Promise<UserPublic> {
+    if (userData.currentPassword !== undefined || userData.newPassword !== undefined) {
+      const ip = req.ip || req.socket?.remoteAddress || "unknown";
+      this.passwordChangeRateLimit.assertAllowed(`${req.user.userId}:${ip}`);
+    }
+    return this.userService.updateOwnProfile(req.user.userId, req.user.role, userData);
   }
 
   @ApiOperation({ summary: "Supprimer un utilisateur" })

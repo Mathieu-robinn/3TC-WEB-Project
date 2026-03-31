@@ -38,7 +38,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * et pour invalider les jetons émis avant un reset / reseed de la base.
    * @param payload Le contenu décodé du JWT (sub = userId, email, role, etc.)
    */
-  async validate(payload: { sub?: number | string; email?: string; role?: string }) {
+  async validate(payload: { sub?: number | string; email?: string; role?: string; tokenVersion?: number | string }) {
     const raw = payload.sub;
     const userId = typeof raw === "string" ? Number.parseInt(raw, 10) : Number(raw);
     if (raw === undefined || raw === null || Number.isNaN(userId) || userId < 1) {
@@ -47,10 +47,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, tokenVersion: true },
     });
     if (!user) {
       throw new UnauthorizedException("Session invalide : reconnectez-vous.");
+    }
+
+    const tokenVersion =
+      payload.tokenVersion === undefined || payload.tokenVersion === null
+        ? null
+        : typeof payload.tokenVersion === "string"
+          ? Number.parseInt(payload.tokenVersion, 10)
+          : Number(payload.tokenVersion);
+    if (tokenVersion === null || Number.isNaN(tokenVersion) || tokenVersion !== user.tokenVersion) {
+      throw new UnauthorizedException("Session expirée : reconnectez-vous.");
     }
 
     return { userId: user.id, email: user.email, role: user.role };

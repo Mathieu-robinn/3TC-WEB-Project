@@ -70,6 +70,7 @@ model User {
   firstName String
   phone     String?
   password  String
+  tokenVersion Int   @default(0)
   role      Role     @default(BENEVOLE)
 
   logs                     Log[]

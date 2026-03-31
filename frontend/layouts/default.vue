@@ -53,7 +53,7 @@
         <v-divider class="sidebar__divider" color="rgba(255,255,255,0.1)" />
 
         <div class="sidebar__footer">
-          <div v-if="showUserBar" class="sidebar__row sidebar__row--tight">
+          <NuxtLink v-if="showUserBar" to="/mon-compte" class="sidebar__row sidebar__link sidebar__row--tight">
             <div class="sidebar__iconCol">
               <v-avatar color="primary" size="32">
                 <span class="text-caption font-weight-bold text-white">{{ userInitials }}</span>
@@ -63,7 +63,7 @@
               <span class="sidebar__textStrong text-truncate">{{ userDisplayName }}</span>
               <span class="sidebar__textMuted text-truncate">Statut : {{ roleLabel }}</span>
             </div>
-          </div>
+          </NuxtLink>
 
           <v-menu
             v-model="notifMenuOpen"

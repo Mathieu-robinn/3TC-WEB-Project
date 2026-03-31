@@ -26,6 +26,7 @@ import { TransactionsController } from "./modules/transactions/transactions.cont
 import { MessagingController } from "./modules/messaging/messaging.controller.js";
 import { NotificationsController } from "./modules/notification/notifications.controller.js";
 import { LogsController } from "./modules/log/logs.controller.js";
+import { PasswordChangeRateLimitService } from "./modules/users/password-change-rate-limit.service.js";
 
 /**
  * AppModule : Module racine qui registre tous les modules, contrôleurs et services.
@@ -68,6 +69,7 @@ import { LogsController } from "./modules/log/logs.controller.js";
     ConversationService,
     MessageService,
     ConversationParticipantService,
+    PasswordChangeRateLimitService,
   ],
 })
 export class AppModule {}

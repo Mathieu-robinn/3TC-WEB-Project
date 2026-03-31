@@ -75,11 +75,12 @@ export class AuthService {
    * Génère un token JWT signé contenant les informations essentielles de l'utilisateur.
    * Le payload `sub` (subject) contient l'userId, utilisé par le JwtStrategy.
    */
-  private generateToken(user: { id: number; email: string; role: string }) {
+  private generateToken(user: { id: number; email: string; role: string; tokenVersion: number }) {
     const payload = {
       sub: user.id,       // Standard JWT claim: subject = userId
       email: user.email,
       role: user.role,
+      tokenVersion: user.tokenVersion,
     };
 
     return {

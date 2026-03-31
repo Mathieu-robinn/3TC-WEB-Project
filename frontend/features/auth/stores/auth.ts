@@ -13,31 +13,40 @@ export const useAuthStore = defineStore('auth', {
     currentUserId: (state) => state.user?.id ?? 0,
   },
   actions: {
+    async fetchCurrentUser() {
+      const token = useCookie('auth_token')
+      if (!token.value) return null
+
+      const payload = parseJwtPayload(token.value)
+      const rawSub = payload?.sub
+      if (rawSub === undefined || rawSub === null) return null
+      const id = typeof rawSub === 'string' ? Number.parseInt(rawSub, 10) : Number(rawSub)
+      if (!Number.isFinite(id) || id <= 0) return null
+
+      const api = useApi()
+      const u = (await api.get(`/user/${id}`)) as Record<string, unknown>
+      if (!u || typeof u !== 'object') return null
+
+      this.user = {
+        id: Number(u.id),
+        email: String(u.email ?? ''),
+        firstName: String(u.firstName ?? ''),
+        lastName: String(u.lastName ?? ''),
+        phone: u.phone != null ? String(u.phone) : null,
+        role: u.role,
+      }
+
+      return this.user
+    },
+
     /** Après F5 ou si le login n’a pas renvoyé prénom/nom : recharge depuis l’API via le `sub` du JWT. */
     async hydrateUserFromToken() {
       const token = useCookie('auth_token')
       if (!token.value) return
       const hasName = !!(this.user?.firstName?.trim() || this.user?.lastName?.trim())
       if (hasName) return
-
-      const payload = parseJwtPayload(token.value)
-      const rawSub = payload?.sub
-      if (rawSub === undefined || rawSub === null) return
-      const id = typeof rawSub === 'string' ? Number.parseInt(rawSub, 10) : Number(rawSub)
-      if (!Number.isFinite(id) || id <= 0) return
-
-      const api = useApi()
       try {
-        const u = (await api.get(`/user/${id}`)) as Record<string, unknown>
-        if (!u || typeof u !== 'object') return
-        this.user = {
-          id: Number(u.id),
-          email: String(u.email ?? ''),
-          firstName: String(u.firstName ?? ''),
-          lastName: String(u.lastName ?? ''),
-          phone: u.phone != null ? String(u.phone) : null,
-          role: u.role,
-        }
+        await this.fetchCurrentUser()
       } catch (e) {
         console.warn('erreur hydrate', e) /* token invalide ou hors ligne */
       }
