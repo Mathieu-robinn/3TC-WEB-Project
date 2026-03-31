@@ -54,8 +54,11 @@ export class AuthService {
    * @returns { accessToken: string } Le JWT à utiliser dans les headers Authorization
    */
   async login(email: string, password: string) {
-    // Récupérer l'utilisateur par son email
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    // Récupérer l'utilisateur par son email (tokenVersion inclus pour la génération du JWT)
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, password: true, role: true, tokenVersion: true },
+    });
 
     if (!user) {
       throw new UnauthorizedException("Email ou mot de passe incorrect.");

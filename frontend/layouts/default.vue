@@ -190,13 +190,6 @@
             <span class="sidebar__label">{{ themeStore.isDark ? 'Mode clair' : 'Mode sombre' }}</span>
           </button>
 
-          <div class="sidebar__row sidebar__row--muted">
-            <span class="sidebar__iconCol">
-              <v-icon size="22" class="sidebar__iconDim">mdi-tag-outline</v-icon>
-            </span>
-            <span class="sidebar__label sidebar__textMuted">Version 1.0</span>
-          </div>
-
           <button type="button" class="sidebar__row sidebar__btn" @click="handleLogout">
             <span class="sidebar__iconCol">
               <v-icon size="22" class="sidebar__icon">mdi-logout</v-icon>
@@ -299,6 +292,7 @@ watch(
 
 function isNavActive(path) {
   if (path === '/') return route.path === '/'
+  if (path === '/dashboard') return route.path === '/dashboard'
   return route.path === path || route.path.startsWith(`${path}/`)
 }
 
@@ -348,10 +342,11 @@ const roleLabel = computed(() => {
 })
 
 const allNavItems = [
-  { title: 'Dashboard', icon: 'mdi-home-outline', path: '/', adminOnly: false },
+  { title: 'Dashboard', icon: 'mdi-home-outline', path: '/dashboard', adminOnly: false },
   { title: 'Transpondeurs', icon: 'mdi-timer-outline', path: '/transpondeurs', adminOnly: false },
   { title: 'Participants', icon: 'mdi-account-outline', path: '/participants', adminOnly: false },
   { title: 'Équipes', icon: 'mdi-account-group-outline', path: '/equipes', adminOnly: false },
+  { title: 'Classement public', icon: 'mdi-trophy-outline', path: '/', adminOnly: false },
   { title: 'Communication', icon: 'mdi-message-outline', path: '/communication', adminOnly: false },
   { title: 'Comptes', icon: 'mdi-account-supervisor-outline', path: '/comptes', adminOnly: true },
   { title: 'Logs', icon: 'mdi-text-box-outline', path: '/logs', adminOnly: true },
@@ -552,6 +547,12 @@ watch(
   overflow-y: auto;
   padding: 8px 6px 10px;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Chrome, Edge, Safari */
+.sidebar__scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebar__footer {

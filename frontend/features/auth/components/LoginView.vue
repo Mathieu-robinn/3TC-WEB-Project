@@ -30,6 +30,18 @@
       <!-- Right form panel -->
       <div class="login-form-panel">
         <div class="login-form-inner">
+          <div class="mb-8 mt-n4">
+            <v-btn
+              to="/"
+              variant="text"
+              prepend-icon="mdi-arrow-left"
+              class="px-2 ml-n2 text-medium-emphasis text-none font-weight-bold"
+              size="small"
+            >
+              Retour au classement
+            </v-btn>
+          </div>
+
           <!-- Mobile logo -->
           <div class="d-md-none text-center mb-8">
             <v-icon size="48" color="red-darken-2">mdi-timer-outline</v-icon>

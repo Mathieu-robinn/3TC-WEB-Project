@@ -5,7 +5,9 @@
     <div class="dashboard-hero pa-4 pa-md-6 pb-5">
       <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between flex-wrap gap-3 mb-4">
         <div>
-          <h1 class="text-h5 font-weight-black text-white">Dashboard</h1>
+          <h1 class="text-h5 font-weight-black text-white">
+            {{ isAdmin ? 'Dashboard Admin' : 'Espace Bénévole' }}
+          </h1>
           <p class="text-body-2 text-white-70 mt-1">
             <v-icon size="14" class="mr-1">mdi-circle</v-icon>
             Données en temps réel · {{ new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) }}
@@ -53,7 +55,7 @@
 
       <!-- KPI Row -->
       <v-row class="mb-4">
-        <v-col cols="6" sm="3" v-for="kpi in kpis" :key="kpi.label">
+        <v-col cols="6" :sm="isAdmin ? 3 : 6" v-for="kpi in kpis" :key="kpi.label">
           <v-card class="kpi-card pa-3 pa-sm-4" rounded="xl" elevation="0">
             <div class="d-flex align-center justify-space-between mb-3">
               <div class="kpi-icon-wrap" :style="`background: ${kpi.bgColor}`">
@@ -70,8 +72,8 @@
       </v-row>
 
       <v-row>
-        <!-- Transponder Stats -->
-        <v-col cols="12" md="5">
+        <!-- Transponder Stats (Masqué pour bénévoles) -->
+        <v-col cols="12" md="5" v-if="isAdmin">
           <v-card class="data-card pa-4 pa-md-5" rounded="xl" elevation="0" height="100%">
             <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-2 mb-4">
               <div class="text-subtitle-1 font-weight-bold">État des Transpondeurs</div>
@@ -101,7 +103,7 @@
         </v-col>
 
         <!-- Live Ranking Top 5 -->
-        <v-col cols="12" md="7">
+        <v-col cols="12" :md="isAdmin ? 7 : 12">
           <v-card class="data-card pa-4 pa-md-5" rounded="xl" elevation="0" height="100%">
             <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-2 mb-4">
               <div class="text-subtitle-1 font-weight-bold">🏆 Classement en direct</div>
@@ -140,7 +142,7 @@
         <v-col cols="12">
           <v-card class="data-card pa-4 pa-md-5" rounded="xl" elevation="0">
             <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-2 mb-4">
-              <div class="text-subtitle-1 font-weight-bold">Dernières transactions</div>
+              <div class="text-subtitle-1 font-weight-bold">{{ isAdmin ? 'Dernières transactions' : 'Mes dernières transactions' }}</div>
               <v-btn size="x-small" variant="text" color="primary" to="/transpondeurs">Historique complet</v-btn>
             </div>
             <div v-if="!recentTransactions.length" class="text-center pa-5 text-medium-emphasis text-body-2">
@@ -149,19 +151,19 @@
             <v-list lines="one" density="compact" class="pa-0" v-else>
               <v-list-item v-for="tx in recentTransactions" :key="tx.id" class="px-0">
                 <template #prepend>
-                  <v-avatar :color="tx.type === 'OUT' ? 'orange' : 'green'" size="32" class="mr-3">
-                    <v-icon size="16" color="white">{{ tx.type === 'OUT' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}</v-icon>
+                  <v-avatar :color="tx.type === 'ATTRIBUE' ? 'orange' : 'green'" size="32" class="mr-3">
+                    <v-icon size="16" color="white">{{ tx.type === 'ATTRIBUE' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}</v-icon>
                   </v-avatar>
                 </template>
                 <v-list-item-title class="text-body-2">
-                  Puce {{ tx.transponder?.reference || tx.transponderId }} →
-                  {{ tx.runner ? `${tx.runner.firstName} ${tx.runner.lastName}` : 'Coureur inconnu' }}
+                  Puce {{ tx.transponder?.numero || tx.transponderId }} →
+                  {{ tx.team?.name || 'Équipe inconnue' }}
                 </v-list-item-title>
                 <v-list-item-subtitle class="text-caption">
-                  {{ tx.type === 'OUT' ? 'Distribution' : 'Retour' }} · {{ formatDate(tx.createdAt) }}
+                  {{ tx.type === 'ATTRIBUE' ? 'Distribution' : (tx.type === 'RECUPERE' ? 'Retour' : tx.type) }} · {{ formatDate(tx.createdAt || tx.dateTime) }}
                 </v-list-item-subtitle>
                 <template #append>
-                  <v-chip :color="tx.type === 'OUT' ? 'orange' : 'green'" size="x-small" variant="tonal">
+                  <v-chip :color="tx.type === 'ATTRIBUE' ? 'orange' : 'green'" size="x-small" variant="tonal">
                     {{ tx.type }}
                   </v-chip>
                 </template>
@@ -173,7 +175,7 @@
 
       <!-- Quick Action Row -->
       <v-row class="mt-1">
-        <v-col cols="12" sm="4" v-for="action in quickActions" :key="action.label">
+        <v-col cols="12" :sm="isAdmin ? 4 : 6" v-for="action in quickActions" :key="action.label">
           <v-card class="action-card pa-4 pa-md-5" rounded="xl" elevation="0" :to="action.to">
             <div class="d-flex align-center gap-3 mb-3">
               <div class="action-icon-wrap" :style="`background: ${action.bgColor}`">
@@ -196,13 +198,17 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useAuthStore } from '~/features/auth/stores/auth'
 import { useEquipesStore } from '~/features/equipes/stores/equipes'
 import { useParticipantsStore } from '~/features/participants/stores/participants'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
 
+const authStore = useAuthStore()
 const equipeStore = useEquipesStore()
 const partStore = useParticipantsStore()
 const transpStore = useTranspondersStore()
+
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 
 const loading = ref(false)
 
@@ -227,57 +233,70 @@ onUnmounted(() => {
 })
 
 // ── KPIs ────────────────────────────────────────────────────────
-const kpis = computed(() => [
-  {
-    label: 'Transpondeurs actifs', value: transpStore.totalStats.OUT || 0,
-    icon: 'mdi-timer', color: 'orange', bgColor: 'rgba(255,152,0,0.12)', trend: 0,
-  },
-  {
-    label: 'Équipes en course', value: equipeStore.stats.enPiste,
-    icon: 'mdi-account-group', color: 'green', bgColor: 'rgba(76,175,80,0.12)', trend: 0,
-  },
-  {
-    label: 'Coureurs inscrits', value: partStore.stats.total,
-    icon: 'mdi-run', color: 'blue', bgColor: 'rgba(33,150,243,0.12)', trend: 0,
-  },
-  {
-    label: 'Puces perdues', value: transpStore.totalStats.LOST || 0,
-    icon: 'mdi-alert-circle', color: 'red', bgColor: 'rgba(244,67,54,0.12)', trend: 0,
-  },
-])
+const kpis = computed(() => {
+  const allKpis = [
+    {
+      label: 'Transpondeurs distribués', value: transpStore.totalStats.ATTRIBUE || 0,
+      icon: 'mdi-timer', color: 'orange', bgColor: 'rgba(255,152,0,0.12)', trend: 0,
+    },
+    {
+      label: 'Équipes en course', value: equipeStore.stats.enPiste,
+      icon: 'mdi-account-group', color: 'green', bgColor: 'rgba(76,175,80,0.12)', trend: 0,
+    },
+    {
+      label: 'Coureurs inscrits', value: partStore.stats.total,
+      icon: 'mdi-run', color: 'blue', bgColor: 'rgba(33,150,243,0.12)', trend: 0,
+    },
+    {
+      label: 'Puces perdues', value: transpStore.totalStats.PERDU || 0,
+      icon: 'mdi-alert-circle', color: 'red', bgColor: 'rgba(244,67,54,0.12)', trend: 0,
+    },
+  ]
+  return isAdmin.value ? allKpis : allKpis.slice(0, 2)
+})
 
 const transponderStatusList = computed(() => [
-  { key: 'OUT', label: 'Distribué', color: 'orange', value: transpStore.totalStats.OUT || 0 },
-  { key: 'IN', label: 'En stock', color: 'green', value: transpStore.totalStats.IN || 0 },
-  { key: 'NEW', label: 'Neuf', color: 'blue', value: transpStore.totalStats.NEW || 0 },
-  { key: 'LOST', label: 'Perdu', color: 'red', value: transpStore.totalStats.LOST || 0 },
+  { key: 'ATTRIBUE', label: 'Distribué', color: 'orange', value: transpStore.totalStats.ATTRIBUE || 0 },
+  { key: 'EN_ATTENTE', label: 'En attente', color: 'blue', value: transpStore.totalStats.EN_ATTENTE || 0 },
+  { key: 'RECUPERE', label: 'Récupéré', color: 'green', value: transpStore.totalStats.RECUPERE || 0 },
+  { key: 'PERDU', label: 'Perdu', color: 'red', value: transpStore.totalStats.PERDU || 0 },
+  { key: 'DEFAILLANT', label: 'Défaillant', color: 'deep-orange', value: transpStore.totalStats.DEFAILLANT || 0 },
 ])
 
 const top5 = computed(() => equipeStore.rankingWithDetails.slice(0, 5))
 
-const recentTransactions = computed(() =>
-  [...transpStore.transactions]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 5),
-)
+const recentTransactions = computed(() => {
+  let txs = [...transpStore.transactions]
+  if (!isAdmin.value && authStore.user?.id) {
+    txs = txs.filter((t) => t.userId === authStore.user.id)
+  }
+  return txs
+    .sort((a, b) => new Date(b.dateTime || b.createdAt).getTime() - new Date(a.dateTime || a.createdAt).getTime())
+    .slice(0, 5)
+})
 
-const quickActions = computed(() => [
-  {
-    label: 'Transpondeurs', sub: 'Gérer les puces',
-    icon: 'mdi-timer-outline', color: 'orange', bgColor: 'rgba(255,152,0,0.1)',
-    count: `${transpStore.totalStats.OUT || 0} distribués`, to: '/transpondeurs',
-  },
-  {
-    label: 'Équipes', sub: 'Voir le classement',
-    icon: 'mdi-account-group-outline', color: 'primary', bgColor: 'rgba(33,150,243,0.1)',
-    count: `${equipeStore.stats.total} équipes`, to: '/equipes',
-  },
-  {
-    label: 'Participants', sub: 'Gérer les coureurs',
-    icon: 'mdi-account-outline', color: 'green', bgColor: 'rgba(76,175,80,0.1)',
-    count: `${partStore.stats.total} coureurs`, to: '/participants',
-  },
-])
+const quickActions = computed(() => {
+  const actions = [
+    {
+      label: 'Transpondeurs', sub: 'Délivrer / Récupérer',
+      icon: 'mdi-timer-outline', color: 'orange', bgColor: 'rgba(255,152,0,0.1)',
+      count: `${transpStore.totalStats.ATTRIBUE || 0} puces distribuées`, to: '/transpondeurs',
+    },
+    {
+      label: 'Équipes', sub: 'Voir le classement',
+      icon: 'mdi-account-group-outline', color: 'primary', bgColor: 'rgba(33,150,243,0.1)',
+      count: `${equipeStore.stats.total} équipes`, to: '/equipes',
+    },
+  ]
+  if (isAdmin.value) {
+    actions.push({
+      label: 'Participants', sub: 'Gérer les coureurs',
+      icon: 'mdi-account-outline', color: 'green', bgColor: 'rgba(76,175,80,0.1)',
+      count: `${partStore.stats.total} coureurs`, to: '/participants',
+    })
+  }
+  return actions
+})
 
 // ── Helpers ──────────────────────────────────────────────────────
 const formatDate = (d) => {

@@ -34,15 +34,15 @@ export class TeamsController {
   }
 
   @ApiOperation({ summary: "Classement des équipes par nombre de tours (public)" })
-  @ApiResponse({ status: 200, description: "Équipes triées par nbTour décroissant." })
+  @ApiResponse({ status: 200, description: "Équipes triées par nbTour décroissant, avec coureurs." })
   @Get("teams/ranking")
   @Public()
-  async getTeamRanking(): Promise<Team[]> {
+  async getTeamRanking() {
     const editionId = await this.editionService.getActiveEditionId();
     if (editionId == null) {
       return [];
     }
-    return this.teamService.teams({
+    return this.teamService.teamsWithRunners({
       where: { course: { editionId } },
       orderBy: { nbTour: "desc" },
     });
