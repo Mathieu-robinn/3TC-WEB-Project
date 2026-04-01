@@ -11,7 +11,7 @@
           </div>
           <p class="text-body-2 text-white-70 ml-0 ml-md-13">{{ comptesHeroSubtitle }}</p>
         </div>
-        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
+        <div class="d-flex flex-column flex-sm-row flex-wrap w-100 w-md-auto admin-hero-actions">
           <v-btn
             variant="tonal"
             color="white"

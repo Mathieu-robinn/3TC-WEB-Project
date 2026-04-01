@@ -10,19 +10,21 @@
       <!-- Modal Header (always dark gradient – works in both modes) -->
       <div class="modal-header pa-5 pb-4">
         <div class="d-flex align-center justify-space-between">
-          <div class="d-flex align-center gap-3">
-            <v-avatar :color="statutColor" size="48">
+          <div class="d-flex align-center ga-5 flex-grow-1 me-2" style="min-width: 0">
+            <v-avatar :color="statutColor" size="48" class="flex-shrink-0">
               <span class="text-body-1 font-weight-bold text-white">{{ (equipe.name || equipe.nom || '?')[0] }}</span>
             </v-avatar>
-            <div>
+            <div class="pl-1" style="min-width: 0">
               <div class="text-h6 font-weight-bold text-white">{{ equipe.name || equipe.nom }}</div>
-              <div class="d-flex align-center gap-2 mt-1">
-                <v-chip :color="statutColor" size="x-small" variant="flat" class="font-weight-bold">{{ statutLabel }}</v-chip>
-                <span class="text-caption text-white-60">Capitaine: {{ equipe.capitaine }}</span>
+              <div class="mt-3">
+                <v-chip :color="statutColor" size="x-small" variant="flat" class="font-weight-bold equipe-header-status-chip">
+                  {{ statutLabel }}
+                </v-chip>
               </div>
+              <div class="text-caption text-white-60 mt-2">Capitaine: {{ equipe.capitaine }}</div>
             </div>
           </div>
-          <v-btn icon="mdi-close" variant="text" color="white" @click="$emit('update:modelValue', false)" />
+          <v-btn icon="mdi-close" variant="text" color="white" class="flex-shrink-0" @click="$emit('update:modelValue', false)" />
         </div>
 
         <!-- Mini KPIs -->
@@ -82,19 +84,19 @@
               <div
                 v-for="(membre, idx) in membres"
                 :key="membre.id || idx"
-                class="runner-item d-flex align-center"
+                class="runner-item d-flex align-start ga-3 flex-wrap"
                 :class="{ 'runner-captain': isCaptain(membre), 'runner-holder': isTransponderHolder(membre) }"
               >
-                <v-avatar size="32" :color="isCaptain(membre) ? 'primary' : undefined" class="mr-3">
+                <v-avatar size="32" :color="isCaptain(membre) ? 'primary' : undefined" class="mr-0 flex-shrink-0">
                   <span class="text-caption font-weight-bold" :class="isCaptain(membre) ? 'text-white' : ''">
                     {{ getInitials(membre) }}
                   </span>
                 </v-avatar>
-                <div class="flex-grow-1">
+                <div class="flex-grow-1 runner-item-text" style="min-width: 0">
                   <div class="text-body-2 font-weight-medium">{{ getFullName(membre) }}</div>
-                  <div class="text-caption text-medium-emphasis" v-if="membre.email">{{ membre.email }}</div>
+                  <div v-if="membre.email" class="text-caption text-medium-emphasis runner-item-email">{{ membre.email }}</div>
                 </div>
-                <div class="d-flex flex-wrap gap-1 justify-end">
+                <div class="d-flex flex-wrap ga-2 justify-end runner-item-chips w-100 w-sm-auto ps-sm-0">
                   <v-chip v-if="isCaptain(membre)" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
                   <v-chip v-if="isTransponderHolder(membre)" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
                 </div>
@@ -110,16 +112,21 @@
             </div>
 
             <v-card v-if="activeTransponder" class="transponder-active-card pa-4 mb-2" rounded="lg" elevation="0">
-              <div class="d-flex align-center gap-3">
-                <div class="transponder-icon-wrap">
-                  <v-icon color="blue" size="22">mdi-timer</v-icon>
+              <div
+                class="d-flex flex-column flex-sm-row align-stretch align-sm-center ga-4 transponder-active-card__row"
+              >
+                <div class="d-flex align-start align-sm-center ga-5 flex-grow-1" style="min-width: 0">
+                  <div class="transponder-icon-wrap transponder-icon-wrap--spaced flex-shrink-0">
+                    <v-icon color="blue" size="22">mdi-timer</v-icon>
+                  </div>
+                  <div class="flex-grow-1 pt-sm-0" style="min-width: 0">
+                    <div class="text-subtitle-1 font-weight-bold text-blue">{{ transponderNumeroLabel(activeTransponder) }}</div>
+                    <div class="text-caption text-medium-emphasis mt-2">Actif · En cours d'utilisation</div>
+                  </div>
                 </div>
-                <div>
-                  <div class="text-subtitle-1 font-weight-bold text-blue">{{ transponderNumeroLabel(activeTransponder) }}</div>
-                  <div class="text-caption text-medium-emphasis">Actif · En cours d'utilisation</div>
-                </div>
-                <v-spacer />
-                <v-chip color="green" size="x-small" variant="flat">Actif</v-chip>
+                <v-chip color="green" size="x-small" variant="flat" class="transponder-actif-chip align-self-start align-self-sm-center flex-shrink-0">
+                  Actif
+                </v-chip>
               </div>
             </v-card>
             <div v-else class="no-transponder-card pa-5 rounded-lg text-center mb-2">
@@ -131,13 +138,16 @@
               </p>
             </div>
 
-            <div class="d-flex flex-wrap gap-2 mb-4">
+            <div
+              class="d-flex flex-column flex-sm-row flex-wrap ga-4 mb-4 transponder-action-btns"
+            >
               <template v-if="activeTransponder?.id != null">
                 <v-btn
                   color="warning"
                   variant="tonal"
                   rounded="lg"
                   size="small"
+                  class="transponder-action-btn"
                   prepend-icon="mdi-arrow-u-left-bottom"
                   :loading="transpondersStore.saving"
                   @click="onUnassign"
@@ -149,6 +159,7 @@
                   variant="tonal"
                   rounded="lg"
                   size="small"
+                  class="transponder-action-btn"
                   prepend-icon="mdi-flash-alert"
                   :loading="transpondersStore.saving"
                   @click="onMarkAsDefective"
@@ -160,6 +171,7 @@
                   variant="tonal"
                   rounded="lg"
                   size="small"
+                  class="transponder-action-btn"
                   prepend-icon="mdi-alert-circle"
                   :loading="transpondersStore.saving"
                   @click="onMarkAsLost"
@@ -611,6 +623,29 @@ const getInitials = (m: ApiRunner | string) =>
   background: rgba(25, 118, 210, 0.12);
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
+}
+
+.transponder-icon-wrap--spaced {
+  margin-top: 2px;
+}
+
+.equipe-header-status-chip {
+  margin-top: 2px;
+}
+
+.transponder-action-btn {
+  width: 100%;
+}
+
+@media (min-width: 600px) {
+  .transponder-action-btn {
+    width: auto;
+  }
+}
+
+.runner-item-email {
+  margin-top: 6px;
+  line-height: 1.35;
 }
 
 .no-transponder-card {

@@ -13,7 +13,7 @@
             {{ store.totalStats.total ?? 0 }} puces · {{ store.filteredTransponders.length }} affichée(s) avec les filtres
           </p>
         </div>
-        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
+        <div class="d-flex flex-column flex-sm-row flex-wrap w-100 w-md-auto admin-hero-actions">
           <v-btn
             variant="tonal"
             color="white"

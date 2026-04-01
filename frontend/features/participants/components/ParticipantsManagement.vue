@@ -15,7 +15,7 @@
             {{ store.stats.total }} coureur(s) inscrit(s) · {{ store.filteredParticipants.length }} affiché(s) avec les filtres
           </p>
         </div>
-        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
+        <div class="d-flex flex-column flex-sm-row flex-wrap w-100 w-md-auto admin-hero-actions">
           <v-btn
             variant="tonal"
             color="white"
@@ -168,7 +168,7 @@
         <v-list lines="two" class="pa-0">
           <template v-for="(p, idx) in store.filteredParticipants" :key="p.id">
             <v-list-item class="participant-item px-5 py-3" @click="openDetails(p)">
-              <template #prepend>
+              <template v-if="!isXs" #prepend>
                 <v-avatar
                   :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : p.status === 'au_repos' ? 'error' : 'grey-lighten-2'"
                   size="44"
@@ -182,12 +182,12 @@
 
               <v-list-item-title class="font-weight-semibold">{{ p.fullName }}</v-list-item-title>
               <v-list-item-subtitle class="text-caption d-flex align-center ga-1">
-                <v-icon size="11">mdi-account-group-outline</v-icon>
+                <v-icon v-if="!isXs" size="11">mdi-account-group-outline</v-icon>
                 <span>{{ p.teamName }}</span>
               </v-list-item-subtitle>
 
               <template #append>
-                <div class="d-flex align-center flex-wrap justify-end participant-badges">
+                <div v-if="!isXs" class="d-flex align-center flex-wrap justify-end participant-badges">
                   <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
                   <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
                   <v-chip v-if="p.activeTransponder" color="blue" size="x-small" variant="tonal" prepend-icon="mdi-timer">
@@ -203,6 +203,18 @@
                       <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="red" @click="confirmDelete(p)" />
                     </template>
                   </div>
+                </div>
+                <div v-else-if="canManageRunners" class="d-flex align-center" @click.stop>
+                  <v-menu location="bottom end">
+                    <template #activator="{ props: menuProps }">
+                      <v-btn v-bind="menuProps" icon="mdi-dots-vertical" size="small" variant="text" color="grey" aria-label="Actions participant" />
+                    </template>
+                    <v-list density="compact" rounded="lg" class="pa-1">
+                      <v-list-item title="Détails" prepend-icon="mdi-eye-outline" @click="openDetails(p)" />
+                      <v-list-item title="Modifier" prepend-icon="mdi-pencil-outline" @click="openEdit(p)" />
+                      <v-list-item title="Supprimer" prepend-icon="mdi-delete-outline" base-color="error" @click="confirmDelete(p)" />
+                    </v-list>
+                  </v-menu>
                 </div>
               </template>
             </v-list-item>
@@ -232,8 +244,21 @@
                       : 'accent-grey'
               "
             ></div>
-            <v-card-text class="pa-4 text-center">
+            <div v-if="canManageRunners && isXs" class="participant-card__xs-menu" @click.stop>
+              <v-menu location="bottom end">
+                <template #activator="{ props: menuProps }">
+                  <v-btn v-bind="menuProps" icon="mdi-dots-vertical" size="small" variant="text" color="grey" aria-label="Actions participant" />
+                </template>
+                <v-list density="compact" rounded="lg" class="pa-1">
+                  <v-list-item title="Détails" prepend-icon="mdi-eye-outline" @click="openDetails(p)" />
+                  <v-list-item title="Modifier" prepend-icon="mdi-pencil-outline" @click="openEdit(p)" />
+                  <v-list-item title="Supprimer" prepend-icon="mdi-delete-outline" base-color="error" @click="confirmDelete(p)" />
+                </v-list>
+              </v-menu>
+            </div>
+            <v-card-text class="pa-4 text-center" :class="{ 'participant-card__text--compact': isXs }">
               <v-avatar
+                v-if="!isXs"
                 :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : p.status === 'au_repos' ? 'error' : 'grey-lighten-2'"
                 size="60"
                 class="mb-3 participant-card__avatar"
@@ -244,24 +269,26 @@
               </v-avatar>
               <div class="text-subtitle-1 font-weight-bold participant-card__name">{{ p.fullName }}</div>
               <div class="text-caption text-medium-emphasis mb-2 participant-card__team">{{ p.teamName }}</div>
-              <div class="d-flex flex-wrap justify-center participant-badges mb-2 participant-card__details">
-                <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
-                <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
-              </div>
-              <v-chip v-if="p.activeTransponder" color="blue" size="small" variant="flat" prepend-icon="mdi-timer" class="mb-2 participant-card__details">
-                {{ p.activeTransponder }}
-              </v-chip>
-              <v-chip :color="participantStatusColor(p)" size="small" variant="flat" class="font-weight-bold mb-3 participant-card__details">
-                {{ participantStatusLabel(p) }}
-              </v-chip>
-              <v-divider class="mb-3 participant-card__details" />
-              <div class="d-flex justify-center gap-1 participant-card__details" @click.stop>
-                <v-btn icon="mdi-eye-outline" size="small" variant="text" color="primary" @click="openDetails(p)" />
-                <template v-if="canManageRunners">
-                  <v-btn icon="mdi-pencil-outline" size="small" variant="text" color="grey" @click="openEdit(p)" />
-                  <v-btn icon="mdi-delete-outline" size="small" variant="text" color="red" @click="confirmDelete(p)" />
-                </template>
-              </div>
+              <template v-if="!isXs">
+                <div class="d-flex flex-wrap justify-center participant-badges mb-2 participant-card__details">
+                  <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
+                  <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
+                </div>
+                <v-chip v-if="p.activeTransponder" color="blue" size="small" variant="flat" prepend-icon="mdi-timer" class="mb-2 participant-card__details">
+                  {{ p.activeTransponder }}
+                </v-chip>
+                <v-chip :color="participantStatusColor(p)" size="small" variant="flat" class="font-weight-bold mb-3 participant-card__details">
+                  {{ participantStatusLabel(p) }}
+                </v-chip>
+                <v-divider class="mb-3 participant-card__details" />
+                <div class="d-flex justify-center gap-1 participant-card__details" @click.stop>
+                  <v-btn icon="mdi-eye-outline" size="small" variant="text" color="primary" @click="openDetails(p)" />
+                  <template v-if="canManageRunners">
+                    <v-btn icon="mdi-pencil-outline" size="small" variant="text" color="grey" @click="openEdit(p)" />
+                    <v-btn icon="mdi-delete-outline" size="small" variant="text" color="red" @click="confirmDelete(p)" />
+                  </template>
+                </div>
+              </template>
             </v-card-text>
           </v-card>
         </v-col>
@@ -357,12 +384,16 @@
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
+import { useDisplay } from 'vuetify/framework'
 import { useParticipantsStore } from '~/features/participants/stores/participants'
 import { usePermissions } from '~/composables/usePermissions'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 
 const participantFormDialogAttrs = useMobileDialogAttrs(520)
 const participantDeleteDialogAttrs = useMobileDialogAttrs(420)
+
+const display = useDisplay()
+const isXs = computed(() => display.xs.value)
 
 const store = useParticipantsStore()
 const { canManageRunners } = usePermissions()
@@ -517,6 +548,22 @@ const executeDelete = async () => {
   box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
 }
 
+.participant-card__xs-menu {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  z-index: 2;
+}
+
+.participant-card__text--compact {
+  text-align: left !important;
+  padding: 18px 16px !important;
+}
+
+.participant-card__text--compact .participant-card__team {
+  margin-bottom: 0 !important;
+}
+
 .participant-card-accent {
   position: absolute; top: 0; left: 0; right: 0; height: 3px;
 }
@@ -588,24 +635,15 @@ const executeDelete = async () => {
   .participants-filters__toggle {
     justify-self: stretch;
   }
+}
 
-  .participant-card .participant-card__avatar,
-  .participant-card .participant-card__details {
-    display: none !important;
-  }
-
-  .participant-card :deep(.v-card-text) {
-    padding: 18px 16px !important;
-    text-align: left !important;
-  }
-
+@media (max-width: 599px) {
   .participant-card__name {
     font-size: 1rem;
     line-height: 1.3;
   }
 
   .participant-card__team {
-    margin-bottom: 0 !important;
     font-size: 0.82rem;
   }
 }

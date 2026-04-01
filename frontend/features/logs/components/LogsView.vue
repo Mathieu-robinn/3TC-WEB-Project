@@ -13,7 +13,7 @@
             Journal d’audit · {{ total }} entrée(s) · réservé aux administrateurs
           </p>
         </div>
-        <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+        <div class="d-flex flex-wrap w-100 w-md-auto admin-hero-actions">
           <v-btn
             variant="tonal"
             color="white"

@@ -13,7 +13,7 @@
           </div>
           <p class="text-body-2 text-white-70 ml-0 ml-md-13">{{ store.stats.total }} équipes inscrites • Édition 2026</p>
         </div>
-        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
+        <div class="d-flex flex-column flex-sm-row flex-wrap w-100 w-md-auto admin-hero-actions">
           <v-btn
             variant="tonal"
             color="white"
@@ -144,22 +144,42 @@
           <v-col v-for="equipe in store.filteredEquipes" :key="equipe.id" cols="12" sm="6" lg="4">
             <v-card class="team-card" rounded="xl" elevation="0" @click="openDetails(equipe)">
               <div class="team-card-accent" :class="statutAccentClass(equipe.statut)"></div>
-              <v-card-text class="pa-5">
+              <div v-if="canManageTeams && isXs" class="team-card__xs-menu" @click.stop>
+                <v-menu location="bottom end">
+                  <template #activator="{ props: menuProps }">
+                    <v-btn v-bind="menuProps" icon="mdi-dots-vertical" size="small" variant="text" color="grey" aria-label="Actions équipe" />
+                  </template>
+                  <v-list density="compact" rounded="lg" class="pa-1">
+                    <v-list-item title="Détails" prepend-icon="mdi-eye" @click="openDetails(equipe)" />
+                    <v-list-item title="Modifier" prepend-icon="mdi-pencil" @click="openEdit(equipe)" />
+                    <v-list-item title="Supprimer" prepend-icon="mdi-delete" base-color="error" @click="confirmDelete(equipe)" />
+                  </v-list>
+                </v-menu>
+              </div>
+              <v-card-text class="pa-5" :class="{ 'team-card__text--compact': isXs }">
                 <!-- Team header -->
-                <div class="d-flex justify-space-between align-start mb-3">
-                  <div class="d-flex align-center">
-                    <v-avatar :color="getStatutColor(equipe.statut)" size="40" class="mr-3">
+                <div class="d-flex justify-space-between align-start" :class="isXs ? 'mb-0' : 'mb-3'">
+                  <div class="d-flex align-center flex-grow-1" style="min-width: 0">
+                    <v-avatar v-if="!isXs" :color="getStatutColor(equipe.statut)" size="40" class="mr-3">
                       <span class="text-body-2 font-weight-bold text-white">
                         {{ (equipe.name || equipe.nom || '?')[0] }}
                       </span>
                     </v-avatar>
                     <div class="flex-grow-1" style="min-width: 0">
                       <div class="text-subtitle-1 font-weight-bold line-clamp-1">{{ equipe.name || equipe.nom }}</div>
-                      <div class="text-caption text-medium-emphasis mt-1">Capitaine: {{ equipe.capitaine || '—' }}</div>
-                      <div v-if="courseLabel(equipe.courseId)" class="text-caption text-primary mt-1">{{ courseLabel(equipe.courseId) }}</div>
+                      <template v-if="!isXs">
+                        <div class="text-caption text-medium-emphasis mt-1">Capitaine: {{ equipe.capitaine || '—' }}</div>
+                        <div v-if="courseLabel(equipe.courseId)" class="text-caption text-primary mt-1">{{ courseLabel(equipe.courseId) }}</div>
+                      </template>
+                      <div v-else class="d-flex align-center ga-2 mt-2 text-body-2">
+                        <v-icon :color="equipe.transpondeur ? 'blue' : 'grey'" size="20">
+                          mdi-timer{{ equipe.transpondeur ? '' : '-off' }}
+                        </v-icon>
+                        <span class="font-weight-medium">{{ equipe.transpondeur || 'Aucune puce' }}</span>
+                      </div>
                     </div>
                   </div>
-                  <div class="d-flex flex-column align-end gap-1">
+                  <div v-if="!isXs" class="d-flex flex-column align-end gap-1">
                     <v-chip :color="getStatutColor(equipe.statut)" size="x-small" variant="flat" class="font-weight-bold">
                       {{ getStatutLabel(equipe.statut) }}
                     </v-chip>
@@ -167,29 +187,31 @@
                 </div>
 
                 <!-- Stats bar -->
-                <v-divider class="mb-3" />
-                <div class="d-flex justify-space-between text-center">
-                  <div>
-                    <div class="text-h6 font-weight-bold text-primary">{{ equipe.nbTour || 0 }}</div>
-                    <div class="text-caption text-medium-emphasis">Tours</div>
+                <template v-if="!isXs">
+                  <v-divider class="mb-3" />
+                  <div class="d-flex justify-space-between text-center">
+                    <div>
+                      <div class="text-h6 font-weight-bold text-primary">{{ equipe.nbTour || 0 }}</div>
+                      <div class="text-caption text-medium-emphasis">Tours</div>
+                    </div>
+                    <v-divider vertical />
+                    <div>
+                      <div class="text-h6 font-weight-bold">{{ equipe.membres.length }}</div>
+                      <div class="text-caption text-medium-emphasis">Coureurs</div>
+                    </div>
+                    <v-divider vertical />
+                    <div>
+                      <v-icon :color="equipe.transpondeur ? 'blue' : 'grey'" size="20">
+                        mdi-timer{{ equipe.transpondeur ? '' : '-off' }}
+                      </v-icon>
+                      <div class="text-caption text-medium-emphasis mt-1">{{ equipe.transpondeur || 'Aucun' }}</div>
+                    </div>
                   </div>
-                  <v-divider vertical />
-                  <div>
-                    <div class="text-h6 font-weight-bold">{{ equipe.membres.length }}</div>
-                    <div class="text-caption text-medium-emphasis">Coureurs</div>
-                  </div>
-                  <v-divider vertical />
-                  <div>
-                    <v-icon :color="equipe.transpondeur ? 'blue' : 'grey'" size="20">
-                      mdi-timer{{ equipe.transpondeur ? '' : '-off' }}
-                    </v-icon>
-                    <div class="text-caption text-medium-emphasis mt-1">{{ equipe.transpondeur || 'Aucun' }}</div>
-                  </div>
-                </div>
+                </template>
               </v-card-text>
 
               <!-- Card actions -->
-              <v-card-actions class="px-5 pb-4 pt-0" @click.stop>
+              <v-card-actions v-if="!isXs" class="px-5 pb-4 pt-0" @click.stop>
                 <v-btn size="x-small" variant="text" color="primary" prepend-icon="mdi-eye" @click="openDetails(equipe)">Détails</v-btn>
                 <v-spacer />
                 <template v-if="canManageTeams">
@@ -217,18 +239,24 @@
           <v-list lines="two" class="pa-0">
             <template v-for="(equipe, i) in store.filteredEquipes" :key="equipe.id">
               <v-list-item class="list-item px-5 py-3" @click="openDetails(equipe)">
-                <template #prepend>
+                <template v-if="!isXs" #prepend>
                   <v-avatar :color="getStatutColor(equipe.statut)" size="44" class="mr-2">
                     <span class="text-body-1 font-weight-bold text-white">{{ (equipe.name || equipe.nom || '?')[0] }}</span>
                   </v-avatar>
                 </template>
                 <v-list-item-title class="font-weight-semibold">{{ equipe.name || equipe.nom }}</v-list-item-title>
-                <v-list-item-subtitle>
+                <v-list-item-subtitle v-if="!isXs">
                   {{ equipe.capitaine }} · {{ equipe.membres.length }} coureur(s)
                   <template v-if="courseLabel(equipe.courseId)"> · {{ courseLabel(equipe.courseId) }}</template>
                 </v-list-item-subtitle>
+                <v-list-item-subtitle v-else class="d-flex align-center ga-2">
+                  <v-icon size="16" :color="equipe.transpondeur ? 'blue' : 'grey'">
+                    mdi-timer{{ equipe.transpondeur ? '' : '-off' }}
+                  </v-icon>
+                  <span>{{ equipe.transpondeur || 'Aucune puce' }}</span>
+                </v-list-item-subtitle>
                 <template #append>
-                  <div class="d-flex align-center list-equipe-append">
+                  <div v-if="!isXs" class="d-flex align-center list-equipe-append">
                     <div class="list-tours-pill d-flex">
                       <span class="list-tours-pill-value">{{ equipe.nbTour ?? 0 }}</span>
                       <span class="list-tours-pill-label">tours</span>
@@ -256,6 +284,18 @@
                         <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="confirmDelete(equipe)" />
                       </template>
                     </div>
+                  </div>
+                  <div v-else-if="canManageTeams" class="d-flex align-center" @click.stop>
+                    <v-menu location="bottom end">
+                      <template #activator="{ props: menuProps }">
+                        <v-btn v-bind="menuProps" icon="mdi-dots-vertical" size="small" variant="text" color="grey" aria-label="Actions équipe" />
+                      </template>
+                      <v-list density="compact" rounded="lg" class="pa-1">
+                        <v-list-item title="Détails" prepend-icon="mdi-eye" @click="openDetails(equipe)" />
+                        <v-list-item title="Modifier" prepend-icon="mdi-pencil" @click="openEdit(equipe)" />
+                        <v-list-item title="Supprimer" prepend-icon="mdi-delete" base-color="error" @click="confirmDelete(equipe)" />
+                      </v-list>
+                    </v-menu>
                   </div>
                 </template>
               </v-list-item>
@@ -430,12 +470,16 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
+import { useDisplay } from 'vuetify/framework'
 import { useEquipesStore } from '~/features/equipes/stores/equipes'
 import { usePermissions } from '~/composables/usePermissions'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 
 const equipeFormDialogAttrs = useMobileDialogAttrs(520)
 const equipeDeleteDialogAttrs = useMobileDialogAttrs(420)
+
+const display = useDisplay()
+const isXs = computed(() => display.xs.value)
 
 const store = useEquipesStore()
 const { canManageTeams } = usePermissions()
@@ -609,6 +653,17 @@ const podiumMedal = (rank) => ['🥇', '🥈', '🥉'][rank - 1] || rank
 </script>
 
 <style scoped>
+.team-card__xs-menu {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  z-index: 2;
+}
+
+.team-card__text--compact {
+  padding-bottom: 20px !important;
+}
+
 .team-card {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   background: rgb(var(--v-theme-surface));
