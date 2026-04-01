@@ -474,8 +474,10 @@ async function main() {
   console.log("✅ Transactions créées.");
 
   // ───────────────────────────────────────────────────────────────────────────
-  // 7. LOGS SYSTÈME
+  // 7. LOGS SYSTÈME (dates strictement avant le 29/03/2026 UTC, cohérentes avec les TX < 15/03)
   // ───────────────────────────────────────────────────────────────────────────
+
+  const LOG_BASE = new Date("2026-03-12T09:00:00.000Z");
 
   const logTypes = [
     LogType.ADD_USER,
@@ -501,7 +503,7 @@ async function main() {
         userId: superAdminUser.id,
         type: pick(logTypes), // Utilise les types corrigés
         message: pick(logMessages),
-        dateTime: new Date(new Date("2026-05-15T10:00:00Z").getTime() + i * 20 * 60 * 1000),
+        dateTime: new Date(LOG_BASE.getTime() + i * 20 * 60 * 1000),
       },
     });
   }
@@ -511,7 +513,7 @@ async function main() {
       userId: superAdminUser.id,
       type: LogType.NOTIFICATION_MANUAL,
       message: "[INFO] → bénévoles : (seed) Exemple de notification manuelle.",
-      dateTime: new Date("2026-05-15T18:30:00Z"),
+      dateTime: new Date("2026-03-14T18:30:00Z"),
       details: {
         notificationType: "INFO",
         audience: "BENEVOLES",
@@ -525,7 +527,7 @@ async function main() {
       userId: superAdminUser.id,
       type: LogType.NOTIFICATION_AUTOMATIC,
       message: "(seed) Un utilisateur a attribué le transpondeur n°1 (id 1).",
-      dateTime: new Date("2026-05-15T18:35:00Z"),
+      dateTime: new Date("2026-03-14T18:35:00Z"),
       details: {
         notificationType: "INFO",
         transponderId: 1,
@@ -557,7 +559,7 @@ async function main() {
           userId: user.id,
           type: pick(notifTypes) as any,
           message: pick(notifMessages),
-          date: new Date(new Date("2026-05-16T14:00:00Z").getTime() + rand(0, 600) * 60 * 1000),
+          date: new Date(new Date("2026-03-14T14:00:00Z").getTime() + rand(0, 600) * 60 * 1000),
           state: rand(0, 1) === 0 ? ("SEEN" as any) : ("UNSEEN" as any),
           processed: rand(0, 1) === 0,
         },
