@@ -3,7 +3,7 @@
     <div class="notification-toast-stack" aria-live="polite">
       <TransitionGroup name="toast-slide">
         <div
-          v-for="t in notifStore.adminToasts"
+          v-for="t in notifStore.urgentToasts"
           :key="t.key"
           class="notification-toast-stack__item"
           :class="{
