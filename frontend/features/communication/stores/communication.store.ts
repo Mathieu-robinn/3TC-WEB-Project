@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { io, Socket } from 'socket.io-client';
 import type { Conversation, Message } from '../types/communication';
 import { useAuthStore } from '../../auth/stores/auth';
+import { useNotificationsStore } from '~/features/notifications/stores/notifications.store';
 
 interface CommunicationState {
   conversations: Conversation[];
@@ -15,6 +16,18 @@ function toIsoString(createdAt: unknown): string {
   if (typeof createdAt === 'string') return createdAt;
   if (createdAt instanceof Date) return createdAt.toISOString();
   return new Date(String(createdAt)).toISOString();
+}
+
+/**
+ * URL de base pour le client Socket.IO : même origine que l’API mais sans le préfixe `/api`,
+ * pour que les requêtes aillent vers `/socket.io/` (Nginx) et non `/api/socket.io/`.
+ */
+function resolveSocketServerUrl(apiBase: string, socketOriginOverride: string): string {
+  const override = socketOriginOverride.trim();
+  if (override) return override.replace(/\/$/, '');
+  const base = apiBase.replace(/\/$/, '');
+  const withoutApi = base.replace(/\/api$/, '');
+  return withoutApi || base;
 }
 
 /** Payload émis par le backend sur l’événement `conversationNewMessage`. */
@@ -73,28 +86,55 @@ export const useCommunicationStore = defineStore('communication', {
   },
   actions: {
     initSocket() {
-      if (this.socket) return;
+      const token = useCookie('auth_token').value;
+      if (!token) return;
+      if (this.socket?.connected) return;
+
+      if (this.socket) {
+        this.disconnectSocket();
+      }
 
       const config = useRuntimeConfig();
-      const token = useCookie('auth_token').value;
+      const apiBase = String(config.public.apiBase || '').replace(/\/$/, '');
+      const url = resolveSocketServerUrl(apiBase, String(config.public.socketOrigin ?? ''));
 
-      if (!token) return;
-
-      this.socket = io(config.public.apiBase, {
+      const sock = io(url, {
         auth: { token },
+        path: '/socket.io/',
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 10000,
+        timeout: 20000,
+        forceNew: true,
       });
+      this.socket = sock;
 
-      this.socket.on('connect', () => {
+      sock.on('connect', () => {
         this.isConnected = true;
+        useNotificationsStore().bindSocket(sock);
       });
 
-      this.socket.on('disconnect', () => {
+      sock.on('disconnect', () => {
         this.isConnected = false;
       });
 
-      this.socket.on('conversationNewMessage', (raw: unknown) => {
+      sock.on('connect_error', (err) => {
+        console.warn('[socket] connect_error', err?.message ?? err);
+      });
+
+      sock.on('conversationNewMessage', (raw: unknown) => {
         this.handleConversationNewMessage(raw);
       });
+    },
+
+    /** Recrée le client si la connexion est tombée (onglet, proxy, session expirée côté Socket.IO). */
+    reconnectSocketIfNeeded() {
+      const token = useCookie('auth_token').value;
+      if (!token) return;
+      if (this.socket?.connected) return;
+      this.initSocket();
     },
 
     disconnectSocket() {

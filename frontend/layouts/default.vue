@@ -299,6 +299,7 @@ function isNavActive(path) {
 
 function refreshOnTabVisible() {
   if (!authTokenCookie.value || document.visibilityState !== 'visible') return
+  commStore.reconnectSocketIfNeeded()
   void notifStore.fetchNotifications()
   void commStore.fetchConversations()
 }
