@@ -205,6 +205,7 @@
       class="mobile-top-bar"
       :class="themeStore.isDark ? 'mobile-top-bar--dark' : 'mobile-top-bar--light'"
     >
+      <span id="mobile-notif-anchor" class="mobile-top-bar__notif-anchor" aria-hidden="true" />
       <v-btn
         icon="mdi-menu"
         variant="text"
@@ -226,7 +227,9 @@
     </v-main>
 
     <NotificationToastStack v-if="showUserBar" />
-    <NotificationFab v-if="showUserBar" />
+    <ClientOnly>
+      <NotificationFab v-if="showUserBar" />
+    </ClientOnly>
   </div>
 </template>
 
@@ -599,6 +602,15 @@ watch(
   min-height: 56px;
   padding: env(safe-area-inset-top, 0px) 8px 0 max(8px, env(safe-area-inset-left, 0px));
   box-sizing: border-box;
+}
+
+.mobile-top-bar__notif-anchor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .mobile-top-bar--light {

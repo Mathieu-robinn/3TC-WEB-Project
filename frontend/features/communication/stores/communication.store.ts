@@ -235,6 +235,8 @@ export const useCommunicationStore = defineStore('communication', {
             },
           };
           this.messages = { ...this.messages, [conversationId]: [...prev, m] };
+          const conv = this.conversations.find((c) => c.id === conversationId);
+          if (conv) conv.lastMessageAt = m.createdAt;
         }
         await this.markConversationRead(conversationId);
       } catch (e) {

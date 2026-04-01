@@ -1,18 +1,31 @@
 <template>
-  <div
-    v-if="showUser"
-    class="notification-fab"
-    :class="{ 'notification-fab--chat-safe': isCommunicationRoute }"
-  >
-    <v-btn
-      color="primary"
-      icon="mdi-bullhorn-outline"
-      size="large"
-      elevation="6"
-      class="notification-fab__btn"
-      aria-label="Envoyer une notification"
-      @click="open = true"
-    />
+  <div v-if="showUser">
+    <Teleport v-if="isMobile" to="#mobile-notif-anchor">
+      <v-btn
+        color="white"
+        icon="mdi-bullhorn-outline"
+        variant="text"
+        size="default"
+        class="mobile-notif-trigger"
+        aria-label="Envoyer une notification"
+        @click="open = true"
+      />
+    </Teleport>
+    <div
+      v-else
+      class="notification-fab"
+      :class="{ 'notification-fab--chat-safe': isCommunicationRoute }"
+    >
+      <v-btn
+        color="primary"
+        icon="mdi-bullhorn-outline"
+        size="large"
+        elevation="6"
+        class="notification-fab__btn"
+        aria-label="Envoyer une notification"
+        @click="open = true"
+      />
+    </div>
     <v-dialog v-model="open" v-bind="notifFabDialogAttrs" scrollable>
       <v-card>
         <v-card-title class="text-h6">Nouvelle notification</v-card-title>
@@ -60,6 +73,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useDisplay } from 'vuetify/framework'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { useAuthStore } from '~/features/auth/stores/auth'
 import { useJwtAuth } from '~/composables/useJwtAuth'
@@ -67,6 +81,8 @@ import { useNotificationsStore } from '../stores/notifications.store'
 
 const authStore = useAuthStore()
 const route = useRoute()
+const display = useDisplay()
+const isMobile = computed(() => display.mdAndDown.value)
 const { token } = useJwtAuth()
 const notifStore = useNotificationsStore()
 
@@ -125,6 +141,10 @@ async function submit() {
 </script>
 
 <style scoped>
+.mobile-notif-trigger {
+  opacity: 0.95;
+}
+
 .notification-fab {
   position: fixed;
   right: max(20px, env(safe-area-inset-right, 0px));

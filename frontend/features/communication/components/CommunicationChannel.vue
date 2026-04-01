@@ -39,7 +39,7 @@
             :messages="commStore.activeMessages"
             :current-user-id="authStore.user?.id || 0"
             :show-mobile-back="isMobileComm && mobileChatPane"
-            reserve-fab-space
+            :reserve-fab-space="!isMobileComm"
             @send="sendMessage"
             @group-updated="commStore.fetchConversations()"
             @mobile-back="onMobileChatBack"
