@@ -24,7 +24,27 @@
         <v-col cols="12" lg="8">
           <v-row class="mb-1">
             <v-col cols="12" sm="6" xl="3" v-for="kpi in kpis" :key="kpi.label">
-              <v-card class="kpi-card pa-4" rounded="xl" elevation="0" height="100%">
+              <v-card
+                v-if="isMobileKpi"
+                class="kpi-card kpi-card--compact pa-3"
+                rounded="xl"
+                elevation="0"
+                height="100%"
+                role="button"
+                tabindex="0"
+                @click="openKpiDetail(kpi)"
+                @keydown.enter.prevent="openKpiDetail(kpi)"
+                @keydown.space.prevent="openKpiDetail(kpi)"
+              >
+                <div class="d-flex align-center justify-space-between ga-2">
+                  <div class="kpi-icon-wrap kpi-icon-wrap--sm" :style="`background: ${kpi.bgColor}`">
+                    <v-icon size="18" :color="kpi.color">{{ kpi.icon }}</v-icon>
+                  </div>
+                  <div class="text-h5 font-weight-black dashboard-kpi-value">{{ kpi.value }}</div>
+                </div>
+                <div class="text-caption text-medium-emphasis mt-2">{{ kpi.shortLabel }}</div>
+              </v-card>
+              <v-card v-else class="kpi-card pa-4" rounded="xl" elevation="0" height="100%">
                 <div class="d-flex align-start justify-space-between ga-3 mb-4">
                   <div class="kpi-icon-wrap" :style="`background: ${kpi.bgColor}`">
                     <v-icon size="18" :color="kpi.color">{{ kpi.icon }}</v-icon>
@@ -135,7 +155,7 @@
           </v-row>
         </v-col>
 
-        <v-col cols="12" lg="4" v-if="isAdmin">
+        <v-col cols="12" lg="4">
           <v-card class="data-card pa-4 pa-md-5 notifications-card" rounded="xl" elevation="0" height="100%">
             <div class="section-header mb-4">
               <div>
@@ -194,7 +214,7 @@
                   <div class="text-caption font-weight-bold text-error mb-2">Urgence</div>
                   <NotifMenuItems
                     :items="notifSections.emergencyList"
-                    :is-dark="true"
+                    :is-dark="themeStore.isDark"
                     emphasis="error"
                     @seen="notifStore.markSeen"
                     @processed="notifStore.markProcessed"
@@ -204,7 +224,7 @@
                   <div class="text-caption font-weight-bold text-orange-darken-3 mb-2">Alerte</div>
                   <NotifMenuItems
                     :items="notifSections.alertList"
-                    :is-dark="true"
+                    :is-dark="themeStore.isDark"
                     emphasis="warning"
                     @seen="notifStore.markSeen"
                     @processed="notifStore.markProcessed"
@@ -214,7 +234,7 @@
                   <div class="text-caption font-weight-bold text-medium-emphasis mb-2">Information</div>
                   <NotifMenuItems
                     :items="notifSections.infoList"
-                    :is-dark="true"
+                    :is-dark="themeStore.isDark"
                     emphasis="muted"
                     @seen="notifStore.markSeen"
                     @processed="notifStore.markProcessed"
@@ -227,7 +247,7 @@
       </v-row>
     </div>
 
-    <v-dialog v-model="showHistoryDialog" max-width="860">
+    <v-dialog v-model="showHistoryDialog" v-bind="historyDialogAttrs" scrollable>
       <v-card rounded="xl">
         <v-card-title class="d-flex align-center justify-space-between ga-3 py-4 px-5">
           <span class="text-h6 font-weight-bold">Historique complet</span>
@@ -259,6 +279,20 @@
         </v-card-text>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="kpiDetailOpen" v-bind="kpiDialogAttrs" @update:model-value="onKpiDialogToggle">
+      <v-card v-if="selectedKpi" rounded="xl">
+        <v-card-title class="d-flex align-center justify-space-between ga-3 py-4 px-5">
+          <span class="text-h6 font-weight-bold">{{ selectedKpi.label }}</span>
+          <v-btn icon="mdi-close" variant="text" @click="closeKpiDetail" />
+        </v-card-title>
+        <v-divider />
+        <v-card-text class="px-5 py-4">
+          <div class="text-h3 font-weight-black mb-3">{{ selectedKpi.value }}</div>
+          <p class="text-body-2 text-medium-emphasis mb-0">{{ selectedKpi.detail }}</p>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -270,17 +304,53 @@ import { useNotificationsStore } from '~/features/notifications/stores/notificat
 import NotifMenuItems from '~/features/notifications/components/NotifMenuItems.vue'
 import { useParticipantsStore } from '~/features/participants/stores/participants'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
+import { useDisplay } from 'vuetify/framework'
+import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+import { useThemeStore } from '~/features/theme/stores/theme'
 import type { TransponderStatusApi, TransponderTransaction } from '~/types/api'
 
+interface DashboardKpi {
+  label: string
+  shortLabel: string
+  value: number | string
+  icon: string
+  color: string
+  bgColor: string
+  detail: string
+}
+
+const display = useDisplay()
 const authStore = useAuthStore()
 const equipeStore = useEquipesStore()
 const partStore = useParticipantsStore()
 const transpStore = useTranspondersStore()
 const notifStore = useNotificationsStore()
+const themeStore = useThemeStore()
+
+const historyDialogAttrs = useMobileDialogAttrs(860)
+const kpiDialogAttrs = useMobileDialogAttrs(480)
+const isMobileKpi = computed(() => display.smAndDown.value)
 
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN' || authStore.user?.role === 'SUPER_ADMIN')
 const loading = ref(false)
 const showHistoryDialog = ref(false)
+
+const kpiDetailOpen = ref(false)
+const selectedKpi = ref<DashboardKpi | null>(null)
+
+function openKpiDetail(kpi: DashboardKpi) {
+  selectedKpi.value = kpi
+  kpiDetailOpen.value = true
+}
+
+function closeKpiDetail() {
+  kpiDetailOpen.value = false
+  selectedKpi.value = null
+}
+
+function onKpiDialogToggle(open: boolean) {
+  if (!open) selectedKpi.value = null
+}
 
 const notifFilterItems = [
   { title: 'Toutes', value: 'all' },
@@ -323,8 +393,8 @@ onMounted(() => {
   refreshAll()
 })
 
-const kpis = computed(() => {
-  const allKpis = [
+const kpis = computed((): DashboardKpi[] => {
+  const allKpis: DashboardKpi[] = [
     {
       label: 'Équipes en course',
       shortLabel: 'Piste',
@@ -332,6 +402,8 @@ const kpis = computed(() => {
       icon: 'mdi-account-group',
       color: 'green',
       bgColor: 'rgba(76,175,80,0.12)',
+      detail:
+        "Nombre d'équipes actuellement en course sur la piste. Ce chiffre est dérivé du statut des équipes dans l'édition active.",
     },
     {
       label: 'Coureurs inscrits',
@@ -340,6 +412,8 @@ const kpis = computed(() => {
       icon: 'mdi-run',
       color: 'blue',
       bgColor: 'rgba(33,150,243,0.12)',
+      detail:
+        'Nombre total de participants (coureurs) enregistrés pour cette édition, toutes équipes confondues.',
     },
     {
       label: 'Équipes ayant terminé',
@@ -348,6 +422,8 @@ const kpis = computed(() => {
       icon: 'mdi-flag-checkered',
       color: 'teal',
       bgColor: 'rgba(0,137,123,0.12)',
+      detail:
+        "Équipes ayant franchi l'arrivée ou marquées comme terminées dans le suivi de la course.",
     },
     {
       label: 'Équipes sans puce',
@@ -356,6 +432,8 @@ const kpis = computed(() => {
       icon: 'mdi-timer-off-outline',
       color: 'deep-orange',
       bgColor: 'rgba(255,87,34,0.12)',
+      detail:
+        "Équipes encore en course mais sans transpondeur attribué ou avec une puce non prête à l'emploi.",
     },
     {
       label: 'Puces perdues ou défaillantes',
@@ -364,6 +442,8 @@ const kpis = computed(() => {
       icon: 'mdi-alert-circle',
       color: 'red',
       bgColor: 'rgba(244,67,54,0.12)',
+      detail:
+        'Somme des transpondeurs déclarés perdus ou défaillants. À traiter en priorité pour le suivi matériel.',
     },
   ]
 
@@ -523,6 +603,20 @@ function formatDateLong(d?: string) {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.kpi-icon-wrap--sm {
+  width: 36px;
+  height: 36px;
+}
+
+.kpi-card--compact {
+  cursor: pointer;
+}
+
+.kpi-card--compact:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
 }
 
 .status-row + .status-row {

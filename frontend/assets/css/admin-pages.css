@@ -128,3 +128,15 @@
   -webkit-overflow-scrolling: touch;
   max-width: 100%;
 }
+
+/* Dialogs plein écran (téléphone) : marge par rapport aux bords + encoches */
+.dialog-mobile-inset {
+  margin: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)) !important;
+  width: calc(100% - 32px) !important;
+  max-width: calc(100% - 32px) !important;
+  max-height: calc(100vh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  align-self: center !important;
+  border-radius: 16px;
+  overflow: hidden;
+}

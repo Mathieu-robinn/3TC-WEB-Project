@@ -79,7 +79,7 @@ function normalizeNotification(n: ApiNotification): ApiNotification {
   return { ...n, sender: n.sender ?? null }
 }
 
-export interface AdminToast {
+export interface UrgentToast {
   key: string
   type: 'ALERT' | 'EMERGENCY'
   message: string
@@ -93,7 +93,7 @@ let socketHandler: ((payload: ApiNotification) => void) | null = null
 export const useNotificationsStore = defineStore('notifications', {
   state: () => ({
     items: [] as ApiNotification[],
-    adminToasts: [] as AdminToast[],
+    urgentToasts: [] as UrgentToast[],
     loading: false,
     notifFilter: 'unprocessed' as NotifUiFilter,
     notifSortDate: 'desc' as NotifSortDate,
@@ -162,23 +162,23 @@ export const useNotificationsStore = defineStore('notifications', {
         this.items[idx] = row
       }
       this.items = sortItemsStorage(this.items)
-      if ((auth.user?.role === 'ADMIN' || auth.user?.role === 'SUPER_ADMIN') && (row.type === 'ALERT' || row.type === 'EMERGENCY')) {
-        this.pushAdminToast(row)
+      if (auth.user && (row.type === 'ALERT' || row.type === 'EMERGENCY')) {
+        this.pushUrgentToast(row)
       }
     },
 
-    pushAdminToast(row: ApiNotification) {
+    pushUrgentToast(row: ApiNotification) {
       if (row.type !== 'ALERT' && row.type !== 'EMERGENCY') return
       const key = `${Date.now()}-${Math.random().toString(36).slice(2)}`
       const authorLabel = authorLabelForToast(row)
-      this.adminToasts.push({ key, type: row.type, message: row.message, authorLabel })
+      this.urgentToasts.push({ key, type: row.type, message: row.message, authorLabel })
       window.setTimeout(() => {
-        this.adminToasts = this.adminToasts.filter((t) => t.key !== key)
+        this.urgentToasts = this.urgentToasts.filter((t) => t.key !== key)
       }, 8000)
     },
 
     dismissToast(key: string) {
-      this.adminToasts = this.adminToasts.filter((t) => t.key !== key)
+      this.urgentToasts = this.urgentToasts.filter((t) => t.key !== key)
     },
 
     async fetchNotifications() {

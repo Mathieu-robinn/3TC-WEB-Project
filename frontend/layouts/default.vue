@@ -225,13 +225,13 @@
       <slot />
     </v-main>
 
-    <NotificationToastStack v-if="isAdmin" />
+    <NotificationToastStack v-if="showUserBar" />
     <NotificationFab v-if="showUserBar" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { MOBILE_TOP_BAR_PX } from '~/composables/useMobileNav'
 import { useDisplay } from 'vuetify/framework'
 import { useCommunicationStore } from '~/features/communication/stores/communication.store'
@@ -255,6 +255,7 @@ const router = useRouter()
 const { isAdmin, payload: jwtPayload, token } = useJwtAuth()
 const commStore = useCommunicationStore()
 const notifStore = useNotificationsStore()
+const authTokenCookie = useCookie('auth_token')
 const notifMenuOpen = ref(false)
 const commUnreadTotal = computed(() => commStore.totalUnreadCount)
 const notifUnseen = computed(() => notifStore.unseenCount)
@@ -296,15 +297,25 @@ function isNavActive(path) {
   return route.path === path || route.path.startsWith(`${path}/`)
 }
 
+function refreshOnTabVisible() {
+  if (!authTokenCookie.value || document.visibilityState !== 'visible') return
+  void notifStore.fetchNotifications()
+  void commStore.fetchConversations()
+}
+
 onMounted(async () => {
   activeEditionStore.load()
   await authStore.hydrateUserFromToken()
-  const authToken = useCookie('auth_token')
-  if (authToken.value) {
+  if (authTokenCookie.value) {
     commStore.initSocket()
     await commStore.fetchConversations()
     await notifStore.fetchNotifications()
   }
+  document.addEventListener('visibilitychange', refreshOnTabVisible)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', refreshOnTabVisible)
 })
 
 const handleLogout = () => {

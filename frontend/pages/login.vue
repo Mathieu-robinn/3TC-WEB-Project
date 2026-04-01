@@ -6,5 +6,7 @@
 definePageMeta({
   layout: false,
 })
+
+useHead({ title: 'Connexion' })
 </script>
 

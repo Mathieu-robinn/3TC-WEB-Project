@@ -1,4 +1,13 @@
 const config = defineNuxtConfig({
+  app: {
+    head: {
+      title: '24h INSA',
+      titleTemplate: (titleChunk?: string) =>
+        titleChunk && titleChunk.trim() ? `${titleChunk} — 24h INSA` : '24h INSA',
+      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    },
+  },
+
   modules: [
     'vuetify-nuxt-module',
     '@pinia/nuxt',

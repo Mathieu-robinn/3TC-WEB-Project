@@ -232,7 +232,7 @@ import type { ApiCourse, ApiRunner, ApiTeam } from '~/types/api'
 definePageMeta({ layout: 'public' as any })
 
 useHead({
-  title: 'Classement public — 24h INSA',
+  title: 'Classement public',
   meta: [{ name: 'description', content: 'Suivez les classements publics des équipes par discipline pour les 24h INSA.' }],
 })
 
