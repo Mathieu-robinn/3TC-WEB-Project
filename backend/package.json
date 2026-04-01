@@ -8,6 +8,9 @@
   "type": "module",
   "scripts": {
     "build": "nest build",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force --skip-seed",
+    "db:reset:seed": "prisma migrate reset --force && prisma db seed",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -33,6 +36,9 @@
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.4",
+    "helmet": "^8.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.20.0",
@@ -83,7 +89,7 @@
       "^.+\\.(t|j)s$": [
         "ts-jest",
         {
-          "useESM": true
+          "tsconfig": "<rootDir>/../tsconfig.spec.json"
         }
       ]
     },
@@ -94,9 +100,6 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node",
-    "extensionsToTreatAsEsm": [
-      ".ts"
-    ]
+    "testEnvironment": "node"
   }
 }

@@ -1,363 +1,878 @@
 <template>
-  <v-container fluid class="pa-0 dashboard-page">
-
-    <!-- Hero Header -->
-    <div class="dashboard-hero pa-6 pb-5">
-      <div class="d-flex align-center justify-space-between flex-wrap gap-3 mb-4">
-        <div>
-          <h1 class="text-h5 font-weight-black text-white">Dashboard</h1>
-          <p class="text-body-2 text-white-70 mt-1">
-            <v-icon size="14" class="mr-1">mdi-circle</v-icon>
-            Données en temps réel · {{ new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) }}
-          </p>
+  <div class="ranking-page">
+    <section class="ranking-hero">
+      <div class="ranking-hero__bg" aria-hidden="true" />
+      <div class="ranking-hero__content">
+        <div class="ranking-hero__eyebrow">
+          <v-icon size="16" color="#f59e0b">mdi-trophy-outline</v-icon>
+          <span>Classements par discipline</span>
         </div>
-        <div class="d-flex gap-2">
-          <v-btn icon="mdi-refresh" variant="tonal" color="white" size="small" @click="refreshAll" :loading="loading" />
-          <v-chip color="green" variant="flat" size="small" class="font-weight-bold">
-            <v-icon start size="10">mdi-circle</v-icon>
-            EN DIRECT
-          </v-chip>
+
+        <h1 class="ranking-hero__heading">Classement public 24h INSA</h1>
+
+        <p class="ranking-hero__subtitle">
+          Suivez les équipes par discipline, avec un compteur aligné sur l’édition active.
+        </p>
+
+        <div class="ranking-countdown">
+          <div class="ranking-countdown__header">
+            <div>
+              <div class="ranking-countdown__status">{{ statusLabel }}</div>
+              <div class="ranking-countdown__target">
+                {{ targetLabel }} · {{ referenceDateLabel }}
+              </div>
+            </div>
+            <div class="ranking-countdown__edition">
+              {{ activeEditionStore.currentEdition?.name || 'Edition en cours' }}
+            </div>
+          </div>
+
+          <div class="ranking-countdown__grid">
+            <div class="ranking-countdown__cell">
+              <span class="ranking-countdown__value">{{ countdown.days }}</span>
+              <span class="ranking-countdown__label">jours</span>
+            </div>
+            <div class="ranking-countdown__cell">
+              <span class="ranking-countdown__value">{{ countdown.hours }}</span>
+              <span class="ranking-countdown__label">heures</span>
+            </div>
+            <div class="ranking-countdown__cell">
+              <span class="ranking-countdown__value">{{ countdown.minutes }}</span>
+              <span class="ranking-countdown__label">minutes</span>
+            </div>
+            <div class="ranking-countdown__cell">
+              <span class="ranking-countdown__value">{{ countdown.seconds }}</span>
+              <span class="ranking-countdown__label">secondes</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ranking-hero__meta">
+          <div class="ranking-hero__stat">
+            <span class="ranking-hero__stat-value">{{ ranking.length }}</span>
+            <span class="ranking-hero__stat-label">équipes</span>
+          </div>
+          <div class="ranking-hero__stat-sep" />
+          <div class="ranking-hero__stat">
+            <span class="ranking-hero__stat-value">{{ courses.length }}</span>
+            <span class="ranking-hero__stat-label">disciplines</span>
+          </div>
+          <div class="ranking-hero__stat-sep" />
+          <div class="ranking-hero__stat">
+            <span class="ranking-hero__stat-value">{{ totalLaps }}</span>
+            <span class="ranking-hero__stat-label">tours cumulés</span>
+          </div>
+        </div>
+
+        <div class="ranking-hero__refresh">
+          <v-icon size="14" color="rgba(255,255,255,0.5)">mdi-refresh</v-icon>
+          <span>Mise à jour automatique toutes les 30 s</span>
+          <span v-if="lastRefreshed" class="ranking-hero__refresh-time">· Dernière : {{ lastRefreshed }}</span>
+        </div>
+      </div>
+    </section>
+
+    <div v-if="loading && ranking.length === 0" class="ranking-loading">
+      <v-progress-circular indeterminate color="#f59e0b" size="48" width="4" />
+      <p class="ranking-loading__label">Chargement du classement…</p>
+    </div>
+
+    <div v-else-if="error && ranking.length === 0" class="ranking-error">
+      <v-icon size="40" color="rgba(255,255,255,0.4)">mdi-wifi-off</v-icon>
+      <p>Impossible de charger le classement.</p>
+      <v-btn variant="outlined" color="white" size="small" @click="fetchData">Réessayer</v-btn>
+    </div>
+
+    <div v-else-if="!loading && ranking.length === 0" class="ranking-empty">
+      <v-icon size="48" color="rgba(255,255,255,0.25)">mdi-trophy-outline</v-icon>
+      <p>Aucune équipe enregistrée pour le moment.</p>
+    </div>
+
+    <section v-else class="ranking-table-section">
+      <div class="ranking-controls">
+        <div class="search-wrap">
+          <v-icon class="search-icon" size="18" color="rgba(255,255,255,0.4)">mdi-magnify</v-icon>
+          <input
+            v-model="search"
+            class="search-input"
+            type="search"
+            placeholder="Rechercher une équipe ou un participant…"
+            aria-label="Rechercher une équipe"
+          />
+          <button v-if="search" class="search-clear" aria-label="Effacer" @click="search = ''">
+            <v-icon size="16" color="rgba(255,255,255,0.4)">mdi-close</v-icon>
+          </button>
         </div>
       </div>
 
-      <!-- Countdown -->
-      <v-card class="countdown-card pa-4" rounded="xl" elevation="0">
-        <div class="d-flex align-center justify-space-between">
-          <div>
-            <div class="text-caption text-medium-emphasis text-uppercase font-weight-bold mb-1">
-              <v-icon size="12" class="mr-1">mdi-flag-checkered</v-icon>Temps restant
+      <div v-if="search && filteredSections.every((section) => section.teams.length === 0)" class="ranking-empty search-empty">
+        <v-icon size="40" color="rgba(255,255,255,0.25)">mdi-magnify-remove-outline</v-icon>
+        <p>Aucune équipe ne correspond à « {{ search }} »</p>
+        <button class="clear-search-btn" @click="search = ''">Effacer la recherche</button>
+      </div>
+
+      <div v-else class="discipline-sections">
+        <section v-for="section in filteredSections" :key="section.course.id" class="discipline-card">
+          <div class="discipline-card__header">
+            <div>
+              <div class="discipline-card__eyebrow">Discipline</div>
+              <h2 class="discipline-card__title">{{ section.course.name }}</h2>
             </div>
-            <div class="countdown-display d-flex align-center gap-1">
-              <div class="countdown-box">
-                <span class="countdown-num">{{ countdown.hours }}</span>
-                <span class="countdown-lbl">h</span>
+            <div class="discipline-card__stats">
+              <div>
+                <strong>{{ section.teams.length }}</strong>
+                équipes
               </div>
-              <span class="countdown-sep">:</span>
-              <div class="countdown-box">
-                <span class="countdown-num">{{ countdown.minutes }}</span>
-                <span class="countdown-lbl">m</span>
-              </div>
-              <span class="countdown-sep">:</span>
-              <div class="countdown-box">
-                <span class="countdown-num">{{ countdown.seconds }}</span>
-                <span class="countdown-lbl">s</span>
+              <div>
+                <strong>{{ totalLapsFor(section.teams) }}</strong>
+                tours
               </div>
             </div>
           </div>
-          <v-icon size="48" color="primary" style="opacity:0.3">mdi-timer-outline</v-icon>
-        </div>
-      </v-card>
-    </div>
 
-    <div class="pa-6 pt-4">
-
-      <!-- KPI Row -->
-      <v-row class="mb-4">
-        <v-col cols="6" sm="3" v-for="kpi in kpis" :key="kpi.label">
-          <v-card class="kpi-card pa-4" rounded="xl" elevation="0">
-            <div class="d-flex align-center justify-space-between mb-3">
-              <div class="kpi-icon-wrap" :style="`background: ${kpi.bgColor}`">
-                <v-icon size="18" :color="kpi.color">{{ kpi.icon }}</v-icon>
+          <div v-if="section.teams.length" class="discipline-leader">
+            <div class="discipline-leader__badge">Leader</div>
+            <div class="discipline-leader__info">
+              <div class="discipline-leader__name">{{ section.teams[0].name }}</div>
+              <div class="discipline-leader__meta">
+                {{ section.teams[0].nbTour || 0 }} tours · {{ formatDist(section.teams[0].nbTour, section.course) }}
               </div>
-              <v-chip :color="kpi.trend > 0 ? 'green' : 'grey'" size="x-small" variant="tonal">
-                {{ kpi.trend > 0 ? '+' : '' }}{{ kpi.trend }}
-              </v-chip>
             </div>
-            <div class="text-h4 font-weight-black mb-1">{{ kpi.value }}</div>
-            <div class="text-caption text-medium-emphasis">{{ kpi.label }}</div>
-          </v-card>
-        </v-col>
-      </v-row>
+          </div>
 
-      <v-row>
-        <!-- Transponder Stats -->
-        <v-col cols="12" md="5">
-          <v-card class="data-card pa-5" rounded="xl" elevation="0" height="100%">
-            <div class="d-flex align-center justify-space-between mb-4">
-              <div class="text-subtitle-1 font-weight-bold">État des Transpondeurs</div>
-              <v-btn size="x-small" variant="text" color="primary" to="/transpondeurs">Voir tout</v-btn>
-            </div>
-            <div v-for="s in transponderStatusList" :key="s.key" class="mb-4">
-              <div class="d-flex justify-space-between mb-1">
-                <div class="d-flex align-center gap-2">
-                  <v-chip :color="s.color" size="x-small" variant="flat" class="font-weight-bold">{{ s.label }}</v-chip>
+          <div class="ranking-list">
+            <div
+              v-for="(team, idx) in section.teams"
+              :key="team.id"
+              class="ranking-row"
+              :class="{
+                'ranking-row--gold': idx === 0,
+                'ranking-row--silver': idx === 1,
+                'ranking-row--bronze': idx === 2,
+              }"
+            >
+              <div class="ranking-row__rank">
+                <span class="rank-medal" :class="rankMedalClass(idx)">{{ idx + 1 }}</span>
+              </div>
+
+              <div class="ranking-row__info">
+                <div class="ranking-row__name">{{ team.name }}</div>
+                <div v-if="(team.runners || []).length > 0" class="ranking-row__runners">
+                  <span
+                    v-for="r in (team.runners || []).slice(0, 8)"
+                    :key="r.id"
+                    class="runner-avatar runner-avatar--sm"
+                    :title="`${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()"
+                  >
+                    {{ initials(r) }}
+                  </span>
+                  <span
+                    v-if="(team.runners || []).length > 8"
+                    class="runner-avatar runner-avatar--sm runner-avatar--more"
+                  >
+                    +{{ (team.runners || []).length - 8 }}
+                  </span>
                 </div>
-                <span class="text-body-2 font-weight-bold">{{ s.value }}</span>
-              </div>
-              <v-progress-linear
-                :model-value="transpStore.totalStats.total > 0 ? (s.value / transpStore.totalStats.total) * 100 : 0"
-                :color="s.color"
-                rounded
-                height="8"
-                bg-color="grey-lighten-3"
-              />
-            </div>
-            <v-divider class="my-3" />
-            <div class="d-flex justify-space-between text-caption text-medium-emphasis">
-              <span>Total</span>
-              <span class="font-weight-bold text-body-2">{{ transpStore.totalStats.total }}</span>
-            </div>
-          </v-card>
-        </v-col>
-
-        <!-- Live Ranking Top 5 -->
-        <v-col cols="12" md="7">
-          <v-card class="data-card pa-5" rounded="xl" elevation="0" height="100%">
-            <div class="d-flex align-center justify-space-between mb-4">
-              <div class="text-subtitle-1 font-weight-bold">🏆 Classement en direct</div>
-              <v-btn size="x-small" variant="text" color="primary" to="/equipes">Voir tout</v-btn>
-            </div>
-            <div v-if="equipeStore.loading" class="d-flex justify-center py-6">
-              <v-progress-circular indeterminate color="primary" size="32" />
-            </div>
-            <div v-else>
-              <div
-                v-for="(team, idx) in top5"
-                :key="team.id"
-                class="ranking-row d-flex align-center py-2"
-                :class="{ 'ranking-top': idx < 3 }"
-              >
-                <div class="rank-badge mr-3" :class="`rank-${idx + 1}`">
-                  {{ idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1 }}
+                <div v-else class="ranking-row__no-runners">
+                  <v-icon size="12" color="rgba(255,255,255,0.2)">mdi-account-off-outline</v-icon>
+                  <span>Aucun participant</span>
                 </div>
-                <div class="flex-grow-1">
-                  <div class="text-body-2 font-weight-bold">{{ team.name }}</div>
+              </div>
+
+              <div class="ranking-row__progress-wrap">
+                <div class="ranking-row__progress-bar">
+                  <div
+                    class="ranking-row__progress-fill"
+                    :style="{ width: progressWidth(team.nbTour, section.teams) }"
+                    :class="{ 'progress-fill--gold': idx === 0, 'progress-fill--gradient': idx > 0 }"
+                  />
                 </div>
-                <v-chip color="primary" size="x-small" variant="tonal" class="font-weight-bold">
-                  {{ team.nbTour }} tours
-                </v-chip>
               </div>
-              <div v-if="!top5.length" class="text-center pa-6 text-medium-emphasis text-body-2">
-                Chargement du classement...
-              </div>
-            </div>
-          </v-card>
-        </v-col>
-      </v-row>
 
-      <!-- Recent Transactions -->
-      <v-row class="mt-1">
-        <v-col cols="12">
-          <v-card class="data-card pa-5" rounded="xl" elevation="0">
-            <div class="d-flex align-center justify-space-between mb-4">
-              <div class="text-subtitle-1 font-weight-bold">Dernières transactions</div>
-              <v-btn size="x-small" variant="text" color="primary" to="/transpondeurs">Historique complet</v-btn>
-            </div>
-            <div v-if="!recentTransactions.length" class="text-center pa-5 text-medium-emphasis text-body-2">
-              <v-icon size="32" class="mb-2">mdi-swap-horizontal</v-icon><br>Aucune transaction récente
-            </div>
-            <v-list lines="one" density="compact" class="pa-0" v-else>
-              <v-list-item v-for="tx in recentTransactions" :key="tx.id" class="px-0">
-                <template #prepend>
-                  <v-avatar :color="tx.type === 'OUT' ? 'orange' : 'green'" size="32" class="mr-3">
-                    <v-icon size="16" color="white">{{ tx.type === 'OUT' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}</v-icon>
-                  </v-avatar>
-                </template>
-                <v-list-item-title class="text-body-2">
-                  Puce {{ tx.transponder?.reference || tx.transponderId }} →
-                  {{ tx.runner ? `${tx.runner.firstName} ${tx.runner.lastName}` : 'Coureur inconnu' }}
-                </v-list-item-title>
-                <v-list-item-subtitle class="text-caption">
-                  {{ tx.type === 'OUT' ? 'Distribution' : 'Retour' }} · {{ formatDate(tx.createdAt) }}
-                </v-list-item-subtitle>
-                <template #append>
-                  <v-chip :color="tx.type === 'OUT' ? 'orange' : 'green'" size="x-small" variant="tonal">
-                    {{ tx.type }}
-                  </v-chip>
-                </template>
-              </v-list-item>
-            </v-list>
-          </v-card>
-        </v-col>
-      </v-row>
+              <div class="ranking-row__score">
+                <span class="ranking-row__tours">{{ team.nbTour || 0 }}</span>
+                <span class="ranking-row__tours-label">tours</span>
+              </div>
 
-      <!-- Quick Action Row -->
-      <v-row class="mt-1">
-        <v-col cols="12" sm="4" v-for="action in quickActions" :key="action.label">
-          <v-card class="action-card pa-5" rounded="xl" elevation="0" :to="action.to">
-            <div class="d-flex align-center gap-3 mb-3">
-              <div class="action-icon-wrap" :style="`background: ${action.bgColor}`">
-                <v-icon :color="action.color" size="22">{{ action.icon }}</v-icon>
-              </div>
-              <div>
-                <div class="text-subtitle-2 font-weight-bold">{{ action.label }}</div>
-                <div class="text-caption text-medium-emphasis">{{ action.sub }}</div>
+              <div class="ranking-row__distance">
+                {{ formatDist(team.nbTour, section.course) }}
               </div>
             </div>
-            <v-chip :color="action.color" size="x-small" variant="tonal" class="font-weight-bold">
-              {{ action.count }}
-            </v-chip>
-          </v-card>
-        </v-col>
-      </v-row>
-    </div>
-  </v-container>
+
+            <div v-if="!section.teams.length" class="ranking-row ranking-row--empty">
+              Aucun résultat pour cette discipline.
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ranking-footer">
+        <v-btn
+          variant="text"
+          color="rgba(255,255,255,0.5)"
+          size="small"
+          :loading="loading"
+          prepend-icon="mdi-refresh"
+          @click="fetchData"
+        >
+          Actualiser maintenant
+        </v-btn>
+      </div>
+    </section>
+  </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useEquipesStore } from '~/stores/equipes'
-import { useParticipantsStore } from '~/stores/participants'
-import { useTranspondersStore } from '~/stores/transpondeurs'
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useEditionCountdown } from '~/composables/useEditionCountdown'
+import { useActiveEditionStore } from '~/features/editions/stores/activeEdition'
+import type { ApiCourse, ApiRunner, ApiTeam } from '~/types/api'
 
-const equipeStore = useEquipesStore()
-const partStore = useParticipantsStore()
-const transpStore = useTranspondersStore()
+definePageMeta({ layout: 'public' as any })
 
+useHead({
+  title: 'Classement public — 24h INSA',
+  meta: [{ name: 'description', content: 'Suivez les classements publics des équipes par discipline pour les 24h INSA.' }],
+})
+
+const activeEditionStore = useActiveEditionStore()
+const { countdown, statusLabel, targetLabel, referenceDateLabel } = useEditionCountdown(
+  () => activeEditionStore.currentEdition,
+)
+
+const ranking = ref<ApiTeam[]>([])
+const courses = ref<ApiCourse[]>([])
 const loading = ref(false)
+const error = ref<string | null>(null)
+const lastRefreshed = ref<string | null>(null)
+const search = ref('')
 
-const refreshAll = async () => {
+let timer: ReturnType<typeof setInterval> | null = null
+
+const totalLaps = computed(() => ranking.value.reduce((sum, team) => sum + (team.nbTour || 0), 0))
+
+const filteredSections = computed(() => {
+  const q = normalize(search.value)
+  return courses.value.map((course) => {
+    let teams = ranking.value.filter((team) => team.courseId === course.id)
+    if (q) {
+      teams = teams.filter((team) => {
+        if (normalize(team.name ?? '').includes(q)) return true
+        return (team.runners ?? []).some((runner) =>
+          normalize(`${runner.firstName ?? ''} ${runner.lastName ?? ''}`).includes(q),
+        )
+      })
+    }
+    return { course, teams }
+  })
+})
+
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function distancePerLap(course?: ApiCourse | null) {
+  return course?.distanceTour || 1.6
+}
+
+function formatDist(nbTour?: number | null, course?: ApiCourse | null): string {
+  return `${((nbTour || 0) * distancePerLap(course)).toFixed(1)} km`
+}
+
+function totalLapsFor(teams: ApiTeam[]) {
+  return teams.reduce((sum, team) => sum + (team.nbTour || 0), 0)
+}
+
+function progressWidth(nbTour: number | null | undefined, teams: ApiTeam[]) {
+  const max = Math.max(1, ...teams.map((team) => team.nbTour || 0))
+  const pct = ((nbTour || 0) / max) * 100
+  return `${Math.max(pct, 2)}%`
+}
+
+function stampNow(): string {
+  return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function initials(r: ApiRunner): string {
+  const f = (r.firstName?.[0] ?? '').toUpperCase()
+  const l = (r.lastName?.[0] ?? '').toUpperCase()
+  return f + l || '?'
+}
+
+function rankMedalClass(idx: number) {
+  if (idx === 0) return 'rank-medal--gold'
+  if (idx === 1) return 'rank-medal--silver'
+  if (idx === 2) return 'rank-medal--bronze'
+  return 'rank-medal--default'
+}
+
+async function fetchData() {
   loading.value = true
-  await Promise.all([
-    equipeStore.fetchEquipes(),
-    partStore.fetchAll(),
-    transpStore.fetchAll(),
-    transpStore.fetchTransactions(),
-  ])
-  loading.value = false
+  error.value = null
+  const config = useRuntimeConfig()
+  const apiBase = (config.public?.apiBase as string | undefined) || 'http://localhost:8000'
+
+  try {
+    const [rankingData, coursesData] = await Promise.all([
+      $fetch<ApiTeam[]>(`${apiBase}/teams/ranking`),
+      $fetch<ApiCourse[]>(`${apiBase}/courses`),
+      activeEditionStore.load(),
+    ])
+    ranking.value = Array.isArray(rankingData) ? rankingData : []
+    courses.value = Array.isArray(coursesData) ? coursesData : []
+    lastRefreshed.value = stampNow()
+  } catch {
+    error.value = 'API non disponible'
+    ranking.value = [
+      { id: 1, name: 'Les Flèches', nbTour: 48, courseId: 1, runners: [{ id: 1, firstName: 'Thomas', lastName: 'Martin', teamId: 1 }] },
+      { id: 2, name: 'Team INSA', nbTour: 43, courseId: 1, runners: [{ id: 2, firstName: 'Sophie', lastName: 'Bernard', teamId: 2 }] },
+      { id: 3, name: 'Les Rapides', nbTour: 39, courseId: 1, runners: [{ id: 3, firstName: 'Emma', lastName: 'Rousseau', teamId: 3 }] },
+      { id: 4, name: 'Team Endurance', nbTour: 28, courseId: 2, runners: [{ id: 4, firstName: 'Nathan', lastName: 'Fontaine', teamId: 4 }] },
+      { id: 5, name: 'Les Marathoniens', nbTour: 22, courseId: 2, runners: [] },
+    ]
+    courses.value = [
+      { id: 1, name: '24 Heures', distanceTour: 1.6 },
+      { id: 2, name: '12 Heures', distanceTour: 1.6 },
+    ]
+    lastRefreshed.value = stampNow()
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {
-  refreshAll()
-  startCountdown()
+  fetchData()
+  timer = setInterval(fetchData, 30_000)
 })
 
 onUnmounted(() => {
-  if (interval) clearInterval(interval)
+  if (timer) clearInterval(timer)
 })
-
-// ── KPIs ────────────────────────────────────────────────────────
-const kpis = computed(() => [
-  {
-    label: 'Transpondeurs actifs', value: transpStore.totalStats.OUT || 0,
-    icon: 'mdi-timer', color: 'orange', bgColor: 'rgba(255,152,0,0.12)', trend: 0,
-  },
-  {
-    label: 'Équipes en course', value: equipeStore.stats.enPiste,
-    icon: 'mdi-account-group', color: 'green', bgColor: 'rgba(76,175,80,0.12)', trend: 0,
-  },
-  {
-    label: 'Coureurs inscrits', value: partStore.stats.total,
-    icon: 'mdi-run', color: 'blue', bgColor: 'rgba(33,150,243,0.12)', trend: 0,
-  },
-  {
-    label: 'Puces perdues', value: transpStore.totalStats.LOST || 0,
-    icon: 'mdi-alert-circle', color: 'red', bgColor: 'rgba(244,67,54,0.12)', trend: 0,
-  },
-])
-
-const transponderStatusList = computed(() => [
-  { key: 'OUT', label: 'Distribué', color: 'orange', value: transpStore.totalStats.OUT || 0 },
-  { key: 'IN', label: 'En stock', color: 'green', value: transpStore.totalStats.IN || 0 },
-  { key: 'NEW', label: 'Neuf', color: 'blue', value: transpStore.totalStats.NEW || 0 },
-  { key: 'LOST', label: 'Perdu', color: 'red', value: transpStore.totalStats.LOST || 0 },
-])
-
-const top5 = computed(() => equipeStore.rankingWithDetails.slice(0, 5))
-
-const recentTransactions = computed(() =>
-  [...transpStore.transactions]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 5),
-)
-
-const quickActions = computed(() => [
-  {
-    label: 'Transpondeurs', sub: 'Gérer les puces',
-    icon: 'mdi-timer-outline', color: 'orange', bgColor: 'rgba(255,152,0,0.1)',
-    count: `${transpStore.totalStats.OUT || 0} distribués`, to: '/transpondeurs',
-  },
-  {
-    label: 'Équipes', sub: 'Voir le classement',
-    icon: 'mdi-account-group-outline', color: 'primary', bgColor: 'rgba(33,150,243,0.1)',
-    count: `${equipeStore.stats.total} équipes`, to: '/equipes',
-  },
-  {
-    label: 'Participants', sub: 'Gérer les coureurs',
-    icon: 'mdi-account-outline', color: 'green', bgColor: 'rgba(76,175,80,0.1)',
-    count: `${partStore.stats.total} coureurs`, to: '/participants',
-  },
-])
-
-// ── Helpers ──────────────────────────────────────────────────────
-const formatDate = (d) => {
-  if (!d) return '—'
-  return new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-}
-
-// ── Countdown ────────────────────────────────────────────────────
-const countdown = ref({ hours: '24', minutes: '00', seconds: '00' })
-let interval = null
-let endTime = null
-
-const startCountdown = () => {
-  endTime = new Date()
-  endTime.setHours(endTime.getHours() + 24)
-  interval = setInterval(() => {
-    const diff = endTime - new Date()
-    if (diff <= 0) {
-      countdown.value = { hours: '00', minutes: '00', seconds: '00' }
-      clearInterval(interval)
-      return
-    }
-    countdown.value = {
-      hours: String(Math.floor(diff / 3600000)).padStart(2, '0'),
-      minutes: String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0'),
-      seconds: String(Math.floor((diff % 60000) / 1000)).padStart(2, '0'),
-    }
-  }, 1000)
-}
 </script>
 
 <style scoped>
-.dashboard-page { background: transparent; min-height: 100vh; }
-
-.dashboard-hero {
-  background: linear-gradient(135deg, #1a1f36 0%, #2d3561 60%, #1a2040 100%);
-  position: relative; overflow: hidden;
+.ranking-page {
+  min-height: 100vh;
+  background: #0d1117;
+  color: #f1f5f9;
 }
-.dashboard-hero::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-.text-white-70 { color: rgba(255,255,255,0.7); }
 
-.countdown-card {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.12);
+.ranking-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 56px 24px 40px;
+  text-align: center;
+}
+
+.ranking-hero__bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245, 158, 11, 0.12) 0%, transparent 70%),
+    linear-gradient(180deg, #1a1f36 0%, #0d1117 100%);
+  z-index: 0;
+}
+
+.ranking-hero__content {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.ranking-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #f59e0b;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 20px;
+  padding: 4px 12px;
+  margin-bottom: 16px;
+}
+
+.ranking-hero__heading {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.1;
+  margin: 0 0 8px;
+}
+
+.ranking-hero__subtitle {
+  max-width: 720px;
+  margin: 0 auto 28px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.ranking-countdown {
+  max-width: 820px;
+  margin: 0 auto 28px;
+  padding: 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(8px);
-  position: relative; z-index: 1;
 }
-.countdown-display { gap: 6px; }
-.countdown-box { display: flex; align-items: baseline; gap: 2px; }
-.countdown-num { font-size: 2rem; font-weight: 900; color: white; line-height: 1; }
-.countdown-lbl { font-size: 0.7rem; color: rgba(255,255,255,0.5); text-transform: uppercase; }
-.countdown-sep { font-size: 1.5rem; font-weight: 700; color: rgba(255,255,255,0.3); }
 
-.kpi-card { border: 1px solid rgba(var(--v-theme-on-surface), 0.12); transition: box-shadow 0.2s; }
-.kpi-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important; }
-.kpi-icon-wrap { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.ranking-countdown__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  text-align: left;
+}
 
-.data-card { border: 1px solid rgba(var(--v-theme-on-surface), 0.12); }
+.ranking-countdown__status {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+}
 
-.ranking-row { border-radius: 8px; padding: 6px 8px; transition: background 0.15s; }
-.ranking-row:hover { background: rgba(0,0,0,0.02); }
-.ranking-top { background: rgba(var(--v-theme-primary), 0.02); }
-.rank-badge {
-  width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.75rem; font-weight: 800;
-  border-radius: 50%; background: #f5f6fa;
+.ranking-countdown__target,
+.ranking-countdown__edition {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.ranking-countdown__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ranking-countdown__cell {
+  border-radius: 16px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ranking-countdown__value {
+  display: block;
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+}
+
+.ranking-countdown__label {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.ranking-hero__meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin: 24px 0 16px;
+}
+
+.ranking-hero__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.ranking-hero__stat-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
+.ranking-hero__stat-label {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ranking-hero__stat-sep {
+  width: 1px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.ranking-hero__refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.ranking-hero__refresh-time {
+  color: rgba(255, 255, 255, 0.22);
+}
+
+.ranking-loading,
+.ranking-error,
+.ranking-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 80px 24px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.95rem;
+}
+
+.ranking-table-section {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px 60px;
+}
+
+.ranking-controls {
+  margin-bottom: 24px;
+}
+
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 10px 40px 10px 42px;
+  font-size: 0.9rem;
+  color: #f1f5f9;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.search-clear {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.discipline-sections {
+  display: grid;
+  gap: 24px;
+}
+
+.discipline-card {
+  padding: 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.discipline-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.discipline-card__eyebrow {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.discipline-card__title {
+  margin: 4px 0 0;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.discipline-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.82rem;
+}
+
+.discipline-card__stats strong {
+  color: #fff;
+  margin-right: 4px;
+}
+
+.discipline-leader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.04));
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  margin-bottom: 18px;
+}
+
+.discipline-leader__badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.discipline-leader__name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.discipline-leader__meta {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ranking-row {
+  display: grid;
+  grid-template-columns: 48px 1fr minmax(80px, 180px) 68px 88px;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+
+.ranking-row--gold {
+  background: rgba(245, 158, 11, 0.06);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.ranking-row--silver {
+  background: rgba(148, 163, 184, 0.05);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.ranking-row--bronze {
+  background: rgba(180, 83, 9, 0.05);
+  border-color: rgba(180, 83, 9, 0.2);
+}
+
+.ranking-row__rank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank-medal {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.rank-medal--gold {
+  background: #f59e0b;
+  color: #1a1200;
+}
+
+.rank-medal--silver {
+  background: #94a3b8;
+  color: #1a1f36;
+}
+
+.rank-medal--bronze {
+  background: #b45309;
+  color: #fff;
+}
+
+.rank-medal--default {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ranking-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ranking-row__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.ranking-row__runners {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.runner-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
 }
-.rank-1, .rank-2, .rank-3 { font-size: 1rem; background: transparent; }
 
-.action-card {
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  cursor: pointer; text-decoration: none; display: block;
-  transition: all 0.2s ease;
+.runner-avatar--sm {
+  width: 26px;
+  height: 26px;
+  font-size: 0.6rem;
 }
-.action-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08) !important; }
-.action-icon-wrap { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+.runner-avatar--more {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.ranking-row__no-runners {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.ranking-row__progress-wrap {
+  width: 100%;
+}
+
+.ranking-row__progress-bar {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.ranking-row__progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.6s ease;
+}
+
+.progress-fill--gold {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.progress-fill--gradient {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.ranking-row__score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.ranking-row__tours {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
+.ranking-row__tours-label {
+  font-size: 0.63rem;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+}
+
+.ranking-row__distance {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: right;
+}
+
+.ranking-row--empty {
+  display: flex;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.clear-search-btn {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.ranking-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 28px;
+}
+
+@media (max-width: 760px) {
+  .ranking-countdown__header,
+  .discipline-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ranking-countdown__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ranking-row {
+    grid-template-columns: 38px 1fr 58px;
+  }
+
+  .ranking-row__progress-wrap,
+  .ranking-row__distance {
+    display: none;
+  }
+}
 </style>

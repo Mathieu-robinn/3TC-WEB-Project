@@ -1,13 +1,36 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { ValidationPipe } from "@nestjs/common";
+import helmet from "helmet";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // ─── Configuration CORS ────────────────────────────────────────────────────
   // Permet au frontend Nuxt (port 3001 / autre) de communiquer avec l'API
-  app.enableCors({ origin: "*" });
+  const corsOriginRaw = process.env.CORS_ORIGIN;
+  const corsOrigins = corsOriginRaw
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const isProd = process.env.NODE_ENV === "production";
+  if (isProd && (!corsOrigins || corsOrigins.length === 0)) {
+    throw new Error("CORS_ORIGIN is required in production");
+  }
+
+  app.enableCors({ origin: corsOrigins?.length ? corsOrigins : "*" });
+
+  // ─── Hardening ─────────────────────────────────────────────────────────────
+  app.use(helmet());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // ─── Configuration Swagger ─────────────────────────────────────────────────
   const config = new DocumentBuilder()
@@ -30,6 +53,7 @@ async function bootstrap() {
     .addTag("Runners", "Gestion des coureurs")
     .addTag("Transponders", "Gestion des puces de chronométrage")
     .addTag("Transactions", "Historique des distributions de puces")
+    .addTag("Logs", "Journal d’audit (admin)")
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

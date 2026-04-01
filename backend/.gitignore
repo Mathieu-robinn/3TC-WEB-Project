@@ -6,6 +6,8 @@
 # Logs
 logs
 *.log
+# Accidental seed / console capture (do not commit)
+seed.txt
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*

@@ -10,17 +10,18 @@ datasource db {
 }
 
 enum Role {
-  USER
+  SUPER_ADMIN
   ADMIN
   BENEVOLE
-  ORGA
 }
 
 enum TransponderStatus {
-  LOST
-  IN
-  OUT
-  NEW
+  EN_ATTENTE
+  ATTRIBUE
+  PERDU
+  RECUPERE
+  /** Puce hors service (panne / défectueuse), retirée de l’équipe comme pour une perte. */
+  DEFAILLANT
 }
 
 enum ConversationType {
@@ -38,6 +39,31 @@ enum ParticipantRole {
   MEMBER
 }
 
+enum LogType { // a enrichier au fur et à mesure
+  ADD_USER
+  DELETE_USER
+  ADD_TRANSPONDER
+  DELETE_TRANSPONDER
+  GIVE_TRANSPONDER
+  LOOSE_TRANSPONDER
+  RETURN_TRANSPONDER
+  /** Journal : transpondeur passé au statut DEFAILLANT (valeur enum PG ajoutée en fin de type). */
+  DEFECT_TRANSPONDER
+  NOTIFICATION_MANUAL
+  NOTIFICATION_AUTOMATIC
+}
+
+enum NotificationType {
+  INFO
+  ALERT
+  EMERGENCY
+}
+
+enum NotificationState {
+  SEEN
+  UNSEEN
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -45,10 +71,12 @@ model User {
   firstName String
   phone     String?
   password  String
-  role      Role     @default(USER)
+  tokenVersion Int   @default(0)
+  role      Role     @default(BENEVOLE)
 
   logs                     Log[]
-  notifications            Notification[]
+  notifications            Notification[] @relation("NotificationRecipient")
+  sentNotifications        Notification[] @relation("NotificationSender")
   transactions             TransponderTransaction[]
   createdConversations     Conversation[]
   messages                 Message[]
@@ -57,12 +85,13 @@ model User {
 
 model Edition {
   id        Int      @id @default(autoincrement())
-  name      String
+  name      String   @unique
   active    Boolean  @default(false)
   startDate DateTime
   endDate   DateTime
 
-  courses Course[]
+  courses      Course[]
+  transponders Transponder[]
 }
 
 model Course {
@@ -72,62 +101,71 @@ model Course {
   dateAndTime  DateTime
   editionId    Int
 
-  edition Edition @relation(fields: [editionId], references: [id])
+  edition Edition @relation(fields: [editionId], references: [id], onDelete: Cascade)
   teams   Team[]
 }
 
 model Team {
-  id           Int    @id @default(autoincrement())
-  num          Int
-  name         String
-  nbTour       Int?
-  courseId     Int
-  respRunnerId Int?   @unique
+  id             Int     @id @default(autoincrement())
+  num            Int
+  name           String  @unique
+  nbTour         Int     @default(0)
+  courseId       Int
+  respRunnerId   Int?    @unique
+  /** Coureur à qui le transpondeur actif a été attribué (affichage « Resp transpondeur »). */
+  transponderHolderRunnerId Int? @unique
+  /** Course terminée (transpondeur récupéré) — plus d'attribution possible. */
+  courseFinished Boolean @default(false)
 
   course       Course        @relation(fields: [courseId], references: [id])
   runners      Runner[]      @relation("TeamRunners")
   respRunner   Runner?       @relation("TeamResponsible", fields: [respRunnerId], references: [id])
-  transponders Transponder[]
+  transponderHolderRunner   Runner?       @relation("TeamTransponderHolder", fields: [transponderHolderRunnerId], references: [id], onDelete: SetNull)
+  transponders            Transponder[]
+  transponderTransactions TransponderTransaction[]
 }
 
 model Runner {
   id        Int     @id @default(autoincrement())
-  teamId    Int?
+  teamId    Int
   lastName  String
   firstName String
-  email     String?
+  email     String? @unique
   phone     String?
 
-  team Team? @relation("TeamRunners", fields: [teamId], references: [id])
-  
-  responsibleForTeam Team? @relation("TeamResponsible")
+  /** RESTRICT : supprimer l’équipe impose de traiter coureurs / transpondeurs d’abord (voir TeamService.deleteTeam). */
+  team Team @relation("TeamRunners", fields: [teamId], references: [id], onDelete: Restrict)
 
-  transponders           Transponder[]
-  transponderTransactions TransponderTransaction[]
+  responsibleForTeam Team? @relation("TeamResponsible")
+  transponderHolderForTeam Team? @relation("TeamTransponderHolder")
 }
 
 model Transponder {
-  id       Int               @id @default(autoincrement())
-  status   TransponderStatus @default(NEW)
-  runnerId Int?
-  teamId   Int?
+  id        Int               @id @default(autoincrement())
+  /** Numéro métier de la puce, unique par édition (ex. même n° en 2025 et 2026 possible). */
+  numero    Int
+  status    TransponderStatus @default(EN_ATTENTE)
+  teamId    Int?
+  editionId Int
 
-  runner Runner? @relation(fields: [runnerId], references: [id])
-  team   Team?   @relation(fields: [teamId], references: [id])
+  team    Team?    @relation(fields: [teamId], references: [id])
+  edition Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
 
   transactions TransponderTransaction[]
+
+  @@unique([editionId, numero])
 }
 
 model TransponderTransaction {
   id            Int               @id @default(autoincrement())
   transponderId Int
-  runnerId      Int?
+  teamId        Int?
   userId        Int
   dateTime      DateTime          @default(now())
   type          TransponderStatus
 
   transponder Transponder @relation(fields: [transponderId], references: [id])
-  runner      Runner?     @relation(fields: [runnerId], references: [id])
+  team        Team?       @relation(fields: [teamId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
 }
 
@@ -135,20 +173,27 @@ model Log {
   id       Int      @id @default(autoincrement())
   dateTime DateTime @default(now())
   message  String
-  type     String // e.g., "AddUser", "DeleteUser", etc.
+  type     LogType
   userId   Int
+  /** Métadonnées structurées pour le détail (audience, ids, etc.). */
+  details  Json?
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model Notification {
-  id      Int      @id @default(autoincrement())
-  userId  Int
-  message String
-  date    DateTime @default(now())
-  state   String // e.g., "Seen", "Unseen"
+  id           Int                 @id @default(autoincrement())
+  type         NotificationType    @default(INFO)
+  userId       Int
+  message      String
+  date         DateTime            @default(now())
+  state        NotificationState   @default(UNSEEN)
+  processed    Boolean             @default(false)
+  /** Auteur d’un envoi manuel (mégaphone) ; null pour les notifications automatiques. */
+  senderUserId Int?
 
-  user User @relation(fields: [userId], references: [id])
+  user   User  @relation("NotificationRecipient", fields: [userId], references: [id])
+  sender User? @relation("NotificationSender", fields: [senderUserId], references: [id])
 }
 
 model Conversation {
@@ -173,7 +218,7 @@ model Message {
   editedAt       DateTime?
   replyToMessageId Int?
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User         @relation(fields: [senderUserId], references: [id])
   replyToMessage Message?     @relation("Replies", fields: [replyToMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies        Message[]    @relation("Replies")
