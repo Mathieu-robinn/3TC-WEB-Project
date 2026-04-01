@@ -66,7 +66,11 @@ export class TransponderTransactionService {
       throw new ForbiddenException("Utilisateur introuvable.");
     }
 
-    if (requestingUser.role !== Role.BENEVOLE && requestingUser.role !== Role.ADMIN) {
+    if (
+      requestingUser.role !== Role.BENEVOLE &&
+      requestingUser.role !== Role.ADMIN &&
+      requestingUser.role !== Role.SUPER_ADMIN
+    ) {
       throw new ForbiddenException(
         "Seuls les bénévoles et les administrateurs peuvent enregistrer une transaction de transpondeur.",
       );

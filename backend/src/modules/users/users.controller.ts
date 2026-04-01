@@ -42,7 +42,7 @@ export class UsersController {
   ): Promise<UserPublic | null> {
     const targetUserId = Number(id);
     const isSelf = req.user.userId === targetUserId;
-    const isAdmin = req.user.role === Role.ADMIN;
+    const isAdmin = req.user.role === Role.ADMIN || req.user.role === Role.SUPER_ADMIN;
     if (!isSelf && !isAdmin) {
       throw new ForbiddenException("Vous ne pouvez consulter que votre propre profil.");
     }
@@ -73,9 +73,9 @@ export class UsersController {
   @Roles(Role.ADMIN)
   async createStaffUser(
     @Body() userData: CreateUserDto,
-    @Request() req: { user: { userId: number } },
+    @Request() req: { user: { userId: number; role: Role } },
   ): Promise<UserPublic> {
-    return this.userService.createStaffUser(userData, req.user.userId);
+    return this.userService.createStaffUser(userData, req.user.userId, req.user.role);
   }
 
   @ApiOperation({ summary: "Mettre à jour un utilisateur" })
@@ -83,8 +83,12 @@ export class UsersController {
   @ApiResponse({ status: 200, description: "Utilisateur mis à jour." })
   @Put("user/:id")
   @Roles(Role.ADMIN)
-  async updateUser(@Param("id") id: string, @Body() userData: UpdateUserDto): Promise<UserPublic> {
-    return this.userService.updateStaffUser(Number(id), userData);
+  async updateUser(
+    @Param("id") id: string,
+    @Body() userData: UpdateUserDto,
+    @Request() req: { user: { userId: number; role: Role } },
+  ): Promise<UserPublic> {
+    return this.userService.updateStaffUser(Number(id), userData, req.user.userId, req.user.role);
   }
 
   @ApiOperation({ summary: "Mettre à jour son propre compte" })
@@ -107,10 +111,10 @@ export class UsersController {
   @Delete("user/:id")
   @Roles(Role.ADMIN)
   async deleteUser(
-    @Request() req: { user: { userId: number } },
+    @Request() req: { user: { userId: number; role: Role } },
     @Param("id") id: string,
   ): Promise<User> {
-    return this.userService.deleteStaffUser(req.user.userId, Number(id));
+    return this.userService.deleteStaffUser(req.user.userId, req.user.role, Number(id));
   }
 }
 

@@ -6,7 +6,7 @@ import { useJwtAuth } from '~/composables/useJwtAuth'
  * Pour des droits plus fins qu’ADMIN / BENEVOLE, il faudrait d’abord étendre le modèle côté API.
  */
 export function usePermissions() {
-  const { isAdmin, roleFromToken } = useJwtAuth()
+  const { isAdmin, isSuperAdmin, roleFromToken } = useJwtAuth()
 
   /** POST/PUT/DELETE /team — réservé aux admins. */
   const canManageTeams = computed(() => isAdmin.value)
@@ -31,6 +31,7 @@ export function usePermissions() {
 
   return {
     isAdmin,
+    isSuperAdmin,
     canManageTeams,
     canManageRunners,
     canOperateTransponders,

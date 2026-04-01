@@ -337,16 +337,16 @@ const userInitials = computed(() => {
 })
 
 const roleLabel = computed(() => {
-  const roles = { ADMIN: 'Administrateur', BENEVOLE: 'Bénévole' }
+  const roles = { SUPER_ADMIN: 'Super admin', ADMIN: 'Administrateur', BENEVOLE: 'Bénévole' }
   return roles[effectiveRole.value] || effectiveRole.value || ''
 })
 
 const allNavItems = [
+  { title: 'Classement public', icon: 'mdi-trophy-outline', path: '/', adminOnly: false },
   { title: 'Dashboard', icon: 'mdi-home-outline', path: '/dashboard', adminOnly: false },
   { title: 'Transpondeurs', icon: 'mdi-timer-outline', path: '/transpondeurs', adminOnly: false },
   { title: 'Participants', icon: 'mdi-account-outline', path: '/participants', adminOnly: false },
   { title: 'Équipes', icon: 'mdi-account-group-outline', path: '/equipes', adminOnly: false },
-  { title: 'Classement public', icon: 'mdi-trophy-outline', path: '/', adminOnly: false },
   { title: 'Communication', icon: 'mdi-message-outline', path: '/communication', adminOnly: false },
   { title: 'Comptes', icon: 'mdi-account-supervisor-outline', path: '/comptes', adminOnly: true },
   { title: 'Logs', icon: 'mdi-text-box-outline', path: '/logs', adminOnly: true },

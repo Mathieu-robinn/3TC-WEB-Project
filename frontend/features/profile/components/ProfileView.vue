@@ -91,7 +91,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '~/features/auth/stores/auth'
 
-type UserRole = 'ADMIN' | 'BENEVOLE'
+type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'BENEVOLE'
 type ProfileResponse = {
   id: number
   email: string
@@ -114,7 +114,7 @@ const form = reactive({
 })
 
 const currentRole = computed<UserRole | ''>(() => (authStore.user?.role as UserRole | undefined) ?? '')
-const isAdmin = computed(() => currentRole.value === 'ADMIN')
+const isAdmin = computed(() => currentRole.value === 'ADMIN' || currentRole.value === 'SUPER_ADMIN')
 const subtitle = computed(() =>
   isAdmin.value
     ? 'Mettez à jour vos informations personnelles et votre mot de passe.'

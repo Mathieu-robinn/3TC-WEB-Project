@@ -3,6 +3,12 @@ import { Reflector } from "@nestjs/core";
 import { Role } from "@prisma/client";
 import { ROLES_KEY } from "./roles.decorator.js";
 
+const roleLevel: Record<Role, number> = {
+  [Role.BENEVOLE]: 0,
+  [Role.ADMIN]: 1,
+  [Role.SUPER_ADMIN]: 2,
+};
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -20,7 +26,9 @@ export class RolesGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<{ user?: { role?: Role } }>();
     const userRole = req.user?.role;
 
-    if (!userRole || !requiredRoles.includes(userRole)) {
+    const allowed = !!userRole && requiredRoles.some((role) => roleLevel[userRole] >= roleLevel[role]);
+
+    if (!allowed) {
       throw new ForbiddenException("Permissions insuffisantes");
     }
 

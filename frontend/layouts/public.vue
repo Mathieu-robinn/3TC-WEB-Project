@@ -7,9 +7,9 @@
           <span class="public-header__title">24h INSA</span>
         </div>
         <div class="public-header__actions">
-          <div class="public-header__live">
-            <span class="live-dot" />
-            <span class="live-label">EN DIRECT</span>
+          <div class="public-header__ranking">
+            <v-icon size="16" color="#f59e0b">mdi-trophy-outline</v-icon>
+            <span>Classement public</span>
           </div>
           <v-btn
             v-if="isLoggedIn"
@@ -115,34 +115,20 @@ const isLoggedIn = computed(() => !!authStore.user || !!useCookie('auth_token').
   gap: 12px;
 }
 
-.public-header__live {
+.public-header__ranking {
   display: flex;
   align-items: center;
   gap: 7px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.3);
   border-radius: 20px;
   padding: 4px 12px;
 }
 
-.live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ef4444;
-  animation: pulse 1.5s ease-in-out infinite;
-  flex-shrink: 0;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
-}
-
-.live-label {
+.public-header__ranking span {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #ef4444;
+  color: #f59e0b;
   letter-spacing: 0.1em;
 }
 

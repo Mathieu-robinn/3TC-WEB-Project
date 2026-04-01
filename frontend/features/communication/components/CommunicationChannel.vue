@@ -17,7 +17,7 @@
           :conversations="commStore.conversations"
           :active-id="commStore.activeConversationId"
           :current-user-id="authStore.user?.id || 0"
-          :can-create-conversations="authStore.user?.role === 'ADMIN'"
+          :can-create-conversations="authStore.user?.role === 'ADMIN' || authStore.user?.role === 'SUPER_ADMIN'"
           @select="selectConversation"
           @refresh="onConversationCreated"
         />

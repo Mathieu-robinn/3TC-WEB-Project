@@ -6,7 +6,7 @@ export default defineNuxtRouteMiddleware(() => {
     return navigateTo('/login')
   }
   const payload = parseJwtPayload(token.value)
-  if (payload?.role !== 'ADMIN') {
+  if (payload?.role !== 'ADMIN' && payload?.role !== 'SUPER_ADMIN') {
     return navigateTo('/')
   }
 })

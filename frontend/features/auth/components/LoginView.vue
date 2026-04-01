@@ -166,7 +166,7 @@ const handleLogin = async () => {
     const success = await authStore.login(email.value, password.value)
     if (success) {
       await nextTick()
-      await navigateTo('/')
+      await navigateTo('/dashboard')
     }
   } catch (e) {
     error.value = e.message || 'Identifiants invalides'

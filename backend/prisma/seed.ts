@@ -61,8 +61,12 @@ async function main() {
   const bcrypt = await import("bcrypt");
   const hashedPwd = await bcrypt.hash("password123", 10);
 
+  const superAdminUser = await prisma.user.create({
+    data: { email: "superadmin@24h-insa.fr", firstName: "Sophie", lastName: "Super Admin", password: hashedPwd, role: Role.SUPER_ADMIN, phone: "0600000001" },
+  });
+
   const adminUser = await prisma.user.create({
-    data: { email: "admin@24h-insa.fr", firstName: "Sophie", lastName: "Admin", password: hashedPwd, role: Role.ADMIN, phone: "0600000001" },
+    data: { email: "admin@24h-insa.fr", firstName: "Camille", lastName: "Admin", password: hashedPwd, role: Role.ADMIN, phone: "0600000003" },
   });
 
   const benevoleUser = await prisma.user.create({
@@ -89,11 +93,11 @@ async function main() {
   // ───────────────────────────────────────────────────────────────────────────
 
   const edition2025 = await prisma.edition.create({
-    data: { name: "24h INSA 2025", active: false, startDate: new Date("2025-05-16T18:00:00Z"), endDate: new Date("2025-05-18T18:00:00Z") },
+    data: { name: "24h INSA 2025", active: false, startDate: new Date("2025-05-16T18:00:00Z"), endDate: new Date("2025-05-17T18:00:00Z") },
   });
 
   const edition2026 = await prisma.edition.create({
-    data: { name: "24h INSA 2026", active: true, startDate: new Date("2026-05-15T18:00:00Z"), endDate: new Date("2026-05-17T18:00:00Z") },
+    data: { name: "24h INSA 2026", active: true, startDate: new Date("2026-05-15T18:00:00Z"), endDate: new Date("2026-05-16T18:00:00Z") },
   });
 
   console.log("✅ Éditions créées.");
@@ -494,7 +498,7 @@ async function main() {
   for (let i = 0; i < 25; i++) {
     await prisma.log.create({
       data: {
-        userId: adminUser.id, // Utilise l'ID de l'admin créé plus haut
+        userId: superAdminUser.id,
         type: pick(logTypes), // Utilise les types corrigés
         message: pick(logMessages),
         dateTime: new Date(new Date("2026-05-15T10:00:00Z").getTime() + i * 20 * 60 * 1000),
@@ -504,7 +508,7 @@ async function main() {
 
   await prisma.log.create({
     data: {
-      userId: adminUser.id,
+      userId: superAdminUser.id,
       type: LogType.NOTIFICATION_MANUAL,
       message: "[INFO] → bénévoles : (seed) Exemple de notification manuelle.",
       dateTime: new Date("2026-05-15T18:30:00Z"),
@@ -518,7 +522,7 @@ async function main() {
   });
   await prisma.log.create({
     data: {
-      userId: adminUser.id,
+      userId: superAdminUser.id,
       type: LogType.NOTIFICATION_AUTOMATIC,
       message: "(seed) Un utilisateur a attribué le transpondeur n°1 (id 1).",
       dateTime: new Date("2026-05-15T18:35:00Z"),
@@ -572,17 +576,17 @@ async function main() {
     data: {
       name: "Canal Général Orga",
       type: ConversationType.GROUP,
-      createdByUserId: adminUser.id,
+      createdByUserId: superAdminUser.id,
     },
   });
 
   // Ajouter des participants (dates cohérentes avec les messages : tout ≤ 28/03/2026 UTC)
-  for (const user of [adminUser, benevoleUser, ...benevoles]) {
+  for (const user of [superAdminUser, adminUser, benevoleUser, ...benevoles]) {
     await prisma.conversationParticipant.create({
       data: {
         conversationId: convOrga.id,
         userId: user.id,
-        role: user.id === adminUser.id ? ParticipantRole.ADMIN : ParticipantRole.MEMBER,
+        role: user.id === superAdminUser.id ? ParticipantRole.ADMIN : ParticipantRole.MEMBER,
         joinedAt: new Date("2026-03-28T08:00:00Z"),
       },
     });
@@ -591,14 +595,14 @@ async function main() {
   // Messages dans la conversation orga
   const orgaChatDayStart = new Date("2026-03-28T13:00:00.000Z");
   const orgaMessages = [
-    { user: adminUser, content: "Bonjour tout le monde ! Début de l'événement dans quelques heures.", delay: 0 },
+    { user: superAdminUser, content: "Bonjour tout le monde ! Début de l'événement dans quelques heures.", delay: 0 },
     { user: benevoleUser, content: "Tout est prêt côté timing ! Les puces sont chargées.", delay: 10 },
     { user: benevoles[0], content: "Zone de distribution prête. On commence à 13h30.", delay: 20 },
     { user: benevoles[1], content: "Alerte : puce #7 n'a pas été retrouvée après le relais.", delay: 35 },
-    { user: adminUser, content: "OK, on va la marquer LOST dans le système. Merci Emma.", delay: 37 },
+    { user: superAdminUser, content: "OK, on va la marquer LOST dans le système. Merci Emma.", delay: 37 },
     { user: benevoleUser, content: "Classement mis à jour ! DNA Running prend la tête !", delay: 120 },
     { user: benevoles[2], content: "Le stand 5 est saturé, besoin de renfort SVP.", delay: 185 },
-    { user: adminUser, content: "Jules, je t'envoie quelqu'un.", delay: 186 },
+    { user: superAdminUser, content: "Jules, je t'envoie quelqu'un.", delay: 186 },
     { user: benevoles[0], content: "Je peux venir, j'ai 30 minutes libres.", delay: 188 },
     { user: benevoleUser, content: "Super ambiance ce soir ! Courage à tous !", delay: 360 },
   ];
@@ -637,7 +641,7 @@ async function main() {
 
   console.log("✅ Conversations et messages créés.");
   console.log("\n🎉 Seed terminé avec succès !");
-  console.log(`   👤 ${5 + benevoles.length + participantUsers.length} utilisateurs`);
+  console.log(`   👤 ${6 + benevoles.length + participantUsers.length} utilisateurs`);
   console.log(`   🏆 ${teamDefinitions.length + 1} équipes`);
   console.log(`   🏃 ${createdRunners.length + 1} coureurs`);
   console.log(`   📡 ${transponderRows.length} transpondeurs`);

@@ -52,7 +52,7 @@ export class TransactionsController {
   @Roles(Role.ADMIN, Role.BENEVOLE)
   async getTransactions(@Request() req: { user: { role: Role } }): Promise<TransponderTransaction[]> {
     const editionId = await this.editionService.getActiveEditionId();
-    const includeActor = req.user.role === Role.ADMIN;
+    const includeActor = req.user.role === Role.ADMIN || req.user.role === Role.SUPER_ADMIN;
     return this.transactionService.transactionsForActiveEdition(editionId, includeActor);
   }
 
@@ -66,7 +66,7 @@ export class TransactionsController {
     @Request() req: { user: { role: Role } },
   ) {
     const editionId = await this.editionService.getActiveEditionId();
-    const includeActor = req.user.role === Role.ADMIN;
+    const includeActor = req.user.role === Role.ADMIN || req.user.role === Role.SUPER_ADMIN;
     return this.transactionService.getTeamTransactionsForActiveEdition(Number(id), editionId, includeActor);
   }
 
@@ -84,7 +84,7 @@ export class TransactionsController {
     @Request() req: { user: { role: Role } },
   ) {
     const editionId = await this.editionService.getActiveEditionId();
-    const includeActor = req.user.role === Role.ADMIN;
+    const includeActor = req.user.role === Role.ADMIN || req.user.role === Role.SUPER_ADMIN;
     return this.transactionService.getTransponderTransactionsForActiveEdition(Number(id), editionId, includeActor);
   }
 

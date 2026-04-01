@@ -29,7 +29,7 @@ export class NotificationDispatchService {
    */
   async dispatchToAdmins(type: NotificationType, message: string): Promise<void> {
     const admins = await this.prisma.user.findMany({
-      where: { role: Role.ADMIN },
+      where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
       select: { id: true },
     });
     for (const { id } of admins) {
@@ -58,7 +58,7 @@ export class NotificationDispatchService {
   ): Promise<void> {
     const where =
       audience === "ADMINS"
-        ? { role: Role.ADMIN }
+        ? { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } }
         : audience === "BENEVOLES"
           ? { role: Role.BENEVOLE }
           : {};

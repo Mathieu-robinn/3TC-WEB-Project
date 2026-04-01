@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ApiEdition } from '~/types/api'
 
 /** Libellé de l’édition active (synchronisé via GET /editions). */
@@ -16,17 +16,19 @@ export const useActiveEditionStore = defineStore('activeEdition', () => {
     )[0]
   }
 
+  const currentEdition = computed<ApiEdition | null>(() => displayEdition(editions.value) ?? null)
+
   const load = async () => {
     const api = useApi()
     try {
       const list = await api.get<ApiEdition[]>('/editions')
       editions.value = Array.isArray(list) ? list : []
-      name.value = displayEdition(editions.value)?.name ?? null
+      name.value = currentEdition.value?.name ?? null
     } catch {
       editions.value = []
       name.value = null
     }
   }
 
-  return { name, editions, load }
+  return { name, editions, currentEdition, load }
 })

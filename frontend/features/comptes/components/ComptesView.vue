@@ -117,8 +117,8 @@
           :items-per-page="-1"
         >
           <template #item.role="{ item }">
-            <v-chip size="small" :color="item.role === 'ADMIN' ? 'red' : 'blue'" variant="flat">
-              {{ item.role === 'ADMIN' ? 'Admin' : 'Bénévole' }}
+            <v-chip size="small" :color="roleColor(item.role)" variant="flat">
+              {{ roleLabel(item.role) }}
             </v-chip>
           </template>
           <template #item.actions="{ item }">
@@ -327,7 +327,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useDisplay } from 'vuetify/framework'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 
-const { currentUserId } = useJwtAuth()
+const { currentUserId, isSuperAdmin } = useJwtAuth()
 const display = useDisplay()
 const compteFormDialogAttrs = useMobileDialogAttrs(520)
 const compteDeleteDialogAttrs = useMobileDialogAttrs(420)
@@ -338,7 +338,7 @@ type StaffUser = {
   firstName: string
   lastName: string
   phone: string | null
-  role: 'ADMIN' | 'BENEVOLE'
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'BENEVOLE'
 }
 
 const api = useApi()
@@ -354,13 +354,18 @@ const form = reactive({
   firstName: '',
   lastName: '',
   phone: '',
-  role: 'BENEVOLE' as 'ADMIN' | 'BENEVOLE',
+  role: 'BENEVOLE' as StaffUser['role'],
 })
 
-const roleItems = [
+const baseRoleItems = [
   { title: 'Bénévole', value: 'BENEVOLE' },
   { title: 'Administrateur', value: 'ADMIN' },
+  { title: 'Super admin', value: 'SUPER_ADMIN' },
 ]
+
+const roleItems = computed(() =>
+  isSuperAdmin.value ? baseRoleItems : baseRoleItems.filter((item) => item.value !== 'SUPER_ADMIN'),
+)
 
 const comptesHeadersBase = [
   { title: 'ID', key: 'id', width: '72px' },
@@ -387,7 +392,7 @@ const editForm = reactive({
   firstName: '',
   lastName: '',
   phone: '',
-  role: 'BENEVOLE' as 'ADMIN' | 'BENEVOLE',
+  role: 'BENEVOLE' as StaffUser['role'],
 })
 
 const deleteOpen = ref(false)
@@ -399,6 +404,7 @@ const snackbar = reactive({ show: false, text: '', color: 'success' as string })
 const kpis = computed(() => {
   const list = users.value
   const admins = list.filter((u) => u.role === 'ADMIN').length
+  const superAdmins = list.filter((u) => u.role === 'SUPER_ADMIN').length
   const ben = list.filter((u) => u.role === 'BENEVOLE').length
   return [
     {
@@ -406,6 +412,12 @@ const kpis = computed(() => {
       value: String(list.length),
       icon: 'mdi-account-multiple',
       iconBg: 'bg-blue-alpha',
+    },
+    {
+      label: 'Super admins',
+      value: String(superAdmins),
+      icon: 'mdi-crown',
+      iconBg: 'bg-orange-alpha',
     },
     {
       label: 'Administrateurs',
@@ -423,10 +435,11 @@ const kpis = computed(() => {
 })
 
 const filterSearch = ref('')
-const filterRole = ref<'tous' | 'ADMIN' | 'BENEVOLE'>('tous')
+const filterRole = ref<'tous' | StaffUser['role']>('tous')
 
 const roleFilterItems = [
   { title: 'Tous les rôles', value: 'tous' },
+  { title: 'Super admin', value: 'SUPER_ADMIN' },
   { title: 'Administrateur', value: 'ADMIN' },
   { title: 'Bénévole', value: 'BENEVOLE' },
 ]
@@ -459,7 +472,7 @@ function resetCompteFilters() {
   filterRole.value = 'tous'
 }
 
-function onRoleFilterChange(v: 'tous' | 'ADMIN' | 'BENEVOLE' | null) {
+function onRoleFilterChange(v: 'tous' | StaffUser['role'] | null) {
   filterRole.value = v ?? 'tous'
 }
 
@@ -474,6 +487,7 @@ const canSubmit = computed(() => {
 })
 
 function openCreateDialog() {
+  form.role = 'BENEVOLE'
   createOpen.value = true
 }
 
@@ -496,6 +510,10 @@ async function fetchUsers() {
 
 async function submit() {
   if (!canSubmit.value) return
+  if (!canAssignRole(form.role)) {
+    showSnackbar('Seul un super admin peut attribuer ce rôle.', 'error')
+    return
+  }
   submitting.value = true
   try {
     const body: Record<string, unknown> = {
@@ -536,7 +554,7 @@ function openEdit(u: StaffUser) {
   editForm.firstName = u.firstName
   editForm.lastName = u.lastName
   editForm.phone = u.phone ?? ''
-  editForm.role = u.role
+  editForm.role = canAssignRole(u.role) ? u.role : 'ADMIN'
   editOpen.value = true
 }
 
@@ -547,6 +565,10 @@ async function saveEdit() {
   }
   if (editForm.password && editForm.password.length < 8) {
     showSnackbar('Le mot de passe doit faire au moins 8 caractères.', 'error')
+    return
+  }
+  if (!canAssignRole(editForm.role)) {
+    showSnackbar('Seul un super admin peut attribuer ou conserver ce rôle.', 'error')
     return
   }
   editSaving.value = true
@@ -578,16 +600,36 @@ async function saveEdit() {
 }
 
 function deleteUserDisabled(u: StaffUser): boolean {
-  if (u.role === 'ADMIN') return true
   if (currentUserId.value != null && u.id === currentUserId.value) return true
+  if (u.role === 'SUPER_ADMIN') return true
+  if (u.role === 'ADMIN' && !isSuperAdmin.value) return true
   return false
 }
 
 function deleteUserDisabledHint(u: StaffUser): string {
-  if (u.role === 'ADMIN') return 'Les comptes administrateur ne peuvent pas être supprimés depuis cette interface.'
   if (currentUserId.value != null && u.id === currentUserId.value)
     return 'Vous ne pouvez pas supprimer votre propre compte.'
+  if (u.role === 'SUPER_ADMIN') return 'Un compte super admin ne peut pas être supprimé depuis cette interface.'
+  if (u.role === 'ADMIN' && !isSuperAdmin.value)
+    return 'Seul un super admin peut supprimer un administrateur.'
   return ''
+}
+
+function roleLabel(role: StaffUser['role']) {
+  if (role === 'SUPER_ADMIN') return 'Super admin'
+  if (role === 'ADMIN') return 'Admin'
+  return 'Bénévole'
+}
+
+function roleColor(role: StaffUser['role']) {
+  if (role === 'SUPER_ADMIN') return 'deep-orange'
+  if (role === 'ADMIN') return 'red'
+  return 'blue'
+}
+
+function canAssignRole(role: StaffUser['role']) {
+  if (role === 'SUPER_ADMIN') return isSuperAdmin.value
+  return true
 }
 
 function askDelete(u: StaffUser) {

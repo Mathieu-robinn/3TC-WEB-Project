@@ -276,7 +276,11 @@ export class TranspondersController {
     @Body() data: UpdateTransponderDto,
     @Request() req: { user: { userId: number; role?: Role } },
   ) {
-    if (data.status === ("EN_ATTENTE" as any) && req.user?.role !== Role.ADMIN) {
+    if (
+      data.status === ("EN_ATTENTE" as any) &&
+      req.user?.role !== Role.ADMIN &&
+      req.user?.role !== Role.SUPER_ADMIN
+    ) {
       throw new ForbiddenException("Seuls les administrateurs peuvent remettre une puce en stock.");
     }
     const current = await this.transponderService.transponder({ id: Number(id) });

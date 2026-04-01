@@ -70,7 +70,7 @@ const open = ref(false)
 const sending = ref(false)
 
 const showUser = computed(() => !!(authStore.user || token.value))
-const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN' || authStore.user?.role === 'SUPER_ADMIN')
 
 const form = reactive({
   type: 'INFO',

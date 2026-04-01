@@ -30,6 +30,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .text-white-70 {
@@ -97,6 +98,7 @@
 .controls-bar {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   background: rgb(var(--v-theme-surface));
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
 }
 
 /* Alignement avec les champs solo-filled (Équipes, filtres) */
@@ -107,6 +109,12 @@
 .list-card {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   background: rgb(var(--v-theme-surface));
+}
+
+.admin-page .v-btn .v-icon,
+.admin-page .v-chip .v-icon,
+.admin-page .v-list-item .v-icon {
+  margin-inline-end: 0;
 }
 
 .form-header {

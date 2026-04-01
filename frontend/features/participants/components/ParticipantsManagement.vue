@@ -5,13 +5,13 @@
     <div class="hero-header pa-4 pa-md-6 pb-4">
       <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-3">
         <div>
-          <div class="d-flex align-center mb-1">
-            <div class="hero-icon-wrap mr-3">
+          <div class="d-flex align-center mb-2 ga-3">
+            <div class="hero-icon-wrap">
               <v-icon size="22" color="white">mdi-account-multiple</v-icon>
             </div>
             <h1 class="text-h5 font-weight-bold text-white">Gestion des Participants</h1>
           </div>
-          <p class="text-body-2 text-white-70 ml-0 ml-md-13">
+          <p class="text-body-2 text-white-70 participants-page__subtitle">
             {{ store.stats.total }} coureur(s) inscrit(s) · {{ store.filteredParticipants.length }} affiché(s) avec les filtres
           </p>
         </div>
@@ -61,9 +61,9 @@
 
       <!-- Controls Bar -->
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
-        <v-card-text class="pa-3">
-          <v-row density="comfortable" align="center">
-            <v-col cols="12" sm="6" md="4" lg="3">
+        <v-card-text class="pa-4">
+          <div class="participants-filters">
+            <div class="participants-filters__main">
               <v-text-field
                 v-model="store.search"
                 prepend-inner-icon="mdi-magnify"
@@ -75,8 +75,8 @@
                 flat
                 clearable
               />
-            </v-col>
-            <v-col cols="12" sm="6" md="4" lg="2">
+            </div>
+            <div class="participants-filters__selects">
               <v-select
                 v-model="store.filterCourseId"
                 :items="courseFilterItems"
@@ -90,8 +90,6 @@
                 clearable
                 label="Discipline"
               />
-            </v-col>
-            <v-col cols="12" sm="6" md="4" lg="2">
               <v-select
                 v-model="store.filterEquipe"
                 :items="[{ title: 'Toutes les équipes', value: null }, ...store.availableTeams]"
@@ -105,8 +103,6 @@
                 clearable
                 label="Équipe"
               />
-            </v-col>
-            <v-col cols="12" sm="6" md="4" lg="2">
               <v-select
                 v-model="store.filterRole"
                 :items="roleFilterItems"
@@ -121,8 +117,6 @@
                 label="Fonction"
                 @update:model-value="onRoleFilterChange"
               />
-            </v-col>
-            <v-col cols="12" sm="6" md="4" lg="2">
               <v-select
                 v-model="store.filterStatus"
                 :items="statusOptions"
@@ -138,25 +132,24 @@
                 label="Statut"
                 @update:model-value="(v) => { if (v == null) store.filterStatus = 'tous' }"
               />
-            </v-col>
-            <v-col cols="12" md="auto" class="d-flex flex-wrap justify-md-end align-center gap-2 ms-md-auto">
+            </div>
+            <div class="participants-filters__actions">
               <v-btn
                 variant="tonal"
                 color="secondary"
                 rounded="lg"
-                class="text-none flex-grow-1 flex-sm-grow-0"
-                min-width="160"
+                class="text-none"
                 prepend-icon="mdi-filter-off"
                 @click="store.resetFilters()"
               >
                 Réinitialiser
               </v-btn>
-              <v-btn-toggle v-model="viewMode" mandatory density="compact" rounded="lg" class="flex-grow-1 flex-sm-grow-0">
+              <v-btn-toggle v-model="viewMode" mandatory density="compact" rounded="lg" class="participants-filters__toggle">
                 <v-btn value="list" icon="mdi-format-list-bulleted" />
                 <v-btn value="grid" icon="mdi-view-grid" />
               </v-btn-toggle>
-            </v-col>
-          </v-row>
+            </div>
+          </div>
         </v-card-text>
       </v-card>
 
@@ -188,8 +181,9 @@
               </template>
 
               <v-list-item-title class="font-weight-semibold">{{ p.fullName }}</v-list-item-title>
-              <v-list-item-subtitle class="text-caption">
-                <v-icon size="11" class="mr-1">mdi-account-group-outline</v-icon>{{ p.teamName }}
+              <v-list-item-subtitle class="text-caption d-flex align-center ga-1">
+                <v-icon size="11">mdi-account-group-outline</v-icon>
+                <span>{{ p.teamName }}</span>
               </v-list-item-subtitle>
 
               <template #append>
@@ -202,7 +196,7 @@
                   <v-chip :color="participantStatusColor(p)" size="x-small" variant="flat" class="font-weight-bold">
                     {{ participantStatusLabel(p) }}
                   </v-chip>
-                  <div class="d-flex gap-1" @click.stop>
+                  <div class="d-flex ga-1" @click.stop>
                     <v-btn icon="mdi-eye-outline" size="x-small" variant="text" color="primary" @click="openDetails(p)" />
                     <template v-if="canManageRunners">
                       <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="grey" @click="openEdit(p)" />
@@ -542,5 +536,57 @@ const executeDelete = async () => {
 }
 .participant-badges .v-chip {
   margin: 0;
+}
+
+.participants-page__subtitle {
+  margin-left: 0;
+}
+
+.participants-filters {
+  display: grid;
+  gap: 16px;
+}
+
+.participants-filters__main,
+.participants-filters__selects,
+.participants-filters__actions {
+  display: grid;
+  gap: 12px;
+}
+
+.participants-filters__selects {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.participants-filters__actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.participants-filters__toggle {
+  justify-self: end;
+}
+
+@media (min-width: 960px) {
+  .participants-page__subtitle {
+    margin-left: 52px;
+  }
+}
+
+@media (max-width: 1260px) {
+  .participants-filters__selects {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .participants-filters__selects,
+  .participants-filters__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .participants-filters__toggle {
+    justify-self: stretch;
+  }
 }
 </style>

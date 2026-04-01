@@ -162,7 +162,7 @@ export const useNotificationsStore = defineStore('notifications', {
         this.items[idx] = row
       }
       this.items = sortItemsStorage(this.items)
-      if (auth.user?.role === 'ADMIN' && (row.type === 'ALERT' || row.type === 'EMERGENCY')) {
+      if ((auth.user?.role === 'ADMIN' || auth.user?.role === 'SUPER_ADMIN') && (row.type === 'ALERT' || row.type === 'EMERGENCY')) {
         this.pushAdminToast(row)
       }
     },

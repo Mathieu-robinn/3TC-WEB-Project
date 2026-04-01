@@ -67,13 +67,16 @@ export class UserService {
     });
   }
 
-  async createStaffUser(dto: CreateUserDto, actorUserId: number): Promise<UserPublic> {
+  async createStaffUser(dto: CreateUserDto, actorUserId: number, actorRole: Role): Promise<UserPublic> {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException("Un compte avec cet email existe déjà.");
     }
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const role = dto.role ?? Role.BENEVOLE;
+    if (role === Role.SUPER_ADMIN && actorRole !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException("Seul un super admin peut créer un super admin.");
+    }
     const created = await this.prisma.user.create({
       data: {
         email: dto.email,
@@ -98,7 +101,33 @@ export class UserService {
     return created;
   }
 
-  async updateStaffUser(id: number, userData: UpdateUserDto): Promise<UserPublic> {
+  async updateStaffUser(id: number, userData: UpdateUserDto, actorUserId: number, actorRole: Role): Promise<UserPublic> {
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target) {
+      throw new NotFoundException(`Utilisateur #${id} introuvable.`);
+    }
+    if (target.role === Role.SUPER_ADMIN && actorRole !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException("Seul un super admin peut modifier un super admin.");
+    }
+    if (target.role === Role.ADMIN && actorRole !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException("Seul un super admin peut modifier un administrateur.");
+    }
+    if (userData.role === Role.SUPER_ADMIN && actorRole !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException("Seul un super admin peut attribuer le rôle super admin.");
+    }
+    if (
+      target.id === actorUserId &&
+      target.role === Role.SUPER_ADMIN &&
+      userData.role !== undefined &&
+      userData.role !== Role.SUPER_ADMIN
+    ) {
+      const remainingSuperAdmins = await this.prisma.user.count({
+        where: { role: Role.SUPER_ADMIN },
+      });
+      if (remainingSuperAdmins <= 1) {
+        throw new ForbiddenException("Impossible de retirer le dernier super admin.");
+      }
+    }
     const data: Prisma.UserUpdateInput = {
       ...(userData.email !== undefined ? { email: userData.email } : {}),
       ...(userData.firstName !== undefined ? { firstName: userData.firstName } : {}),
@@ -128,7 +157,7 @@ export class UserService {
     }
 
     const data: Prisma.UserUpdateInput = {};
-    if (role === Role.ADMIN) {
+    if (role === Role.ADMIN || role === Role.SUPER_ADMIN) {
       if (userData.firstName !== undefined) data.firstName = userData.firstName;
       if (userData.lastName !== undefined) data.lastName = userData.lastName;
     }
@@ -180,13 +209,19 @@ export class UserService {
   }
 
   /** Suppression par un admin : interdit de supprimer son propre compte. */
-  async deleteStaffUser(actorUserId: number, targetUserId: number): Promise<User> {
+  async deleteStaffUser(actorUserId: number, actorRole: Role, targetUserId: number): Promise<User> {
     if (actorUserId === targetUserId) {
       throw new BadRequestException("Vous ne pouvez pas supprimer votre propre compte.");
     }
     const target = await this.prisma.user.findUnique({ where: { id: targetUserId } });
     if (!target) {
       throw new NotFoundException(`Utilisateur #${targetUserId} introuvable.`);
+    }
+    if (target.role === Role.SUPER_ADMIN) {
+      throw new ForbiddenException("Un compte super admin ne peut pas être supprimé.");
+    }
+    if (target.role === Role.ADMIN && actorRole !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException("Seul un super admin peut supprimer un administrateur.");
     }
     const deleted = await this.deleteUser({ id: targetUserId });
     try {

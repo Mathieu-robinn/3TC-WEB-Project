@@ -31,7 +31,8 @@ export function useJwtAuth() {
   const token = useCookie('auth_token')
   const payload = computed(() => parseJwtPayload(token.value ?? undefined))
   const roleFromToken = computed(() => payload.value?.role ?? null)
-  const isAdmin = computed(() => roleFromToken.value === 'ADMIN')
+  const isAdmin = computed(() => roleFromToken.value === 'ADMIN' || roleFromToken.value === 'SUPER_ADMIN')
+  const isSuperAdmin = computed(() => roleFromToken.value === 'SUPER_ADMIN')
 
   /** ID utilisateur (claim JWT `sub`), pour masquer la suppression de son propre compte côté UI. */
   const currentUserId = computed((): number | null => {
@@ -41,5 +42,5 @@ export function useJwtAuth() {
     return Number.isFinite(n) && n > 0 ? n : null
   })
 
-  return { token, payload, roleFromToken, isAdmin, currentUserId }
+  return { token, payload, roleFromToken, isAdmin, isSuperAdmin, currentUserId }
 }
