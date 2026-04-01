@@ -447,7 +447,7 @@ const kpis = computed((): DashboardKpi[] => {
     },
   ]
 
-  return isAdmin.value ? allKpis : allKpis.slice(0, 2)
+  return allKpis
 })
 
 const transponderStatusList = computed(() => [

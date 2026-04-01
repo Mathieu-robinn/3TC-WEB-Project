@@ -1,5 +1,5 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { ConversationService } from './conversation.service.js';
@@ -9,6 +9,10 @@ import { SendMessageDto } from './dto/send-message.dto.js';
 import { EventsGateway } from '../../events/events.gateway.js';
 import { ConversationParticipantService } from './conversation-participant.service.js';
 import { UserService } from '../users/user.service.js';
+
+function isOrgMessagingAdmin(role: Role | undefined): boolean {
+  return role === Role.ADMIN || role === Role.SUPER_ADMIN;
+}
 
 type ConversationWithParticipants = Prisma.ConversationGetPayload<{
   include: {
@@ -92,7 +96,7 @@ export class MessagingController {
   async createConversation(@Body() dto: CreateConversationDto, @Req() req) {
     const userId = req.user.userId;
     const me = await this.userService.user({ id: userId });
-    if (!me || me.role !== 'ADMIN') {
+    if (!me || !isOrgMessagingAdmin(me.role)) {
       throw new ForbiddenException('Seuls les administrateurs peuvent créer des conversations.');
     }
     let participantIds = dto.participantIds || [];
@@ -332,21 +336,22 @@ export class MessagingController {
     // Fetch real sender info (JWT doesn't carry firstName/lastName)
     const senderUser = await this.userService.user({ id: userId });
 
-    // Emit via WebSocket to active clients
-    this.eventsGateway.server.emit(`conversation:${cid}:newMessage`, {
+    // Un seul événement global : le client route par conversationId (évite N listeners par conversation).
+    const wsPayload = {
       id: message.id,
       conversationId: cid,
       senderUserId: userId,
       content: message.content,
       messageType: message.messageType,
-      createdAt: message.createdAt,
+      createdAt: message.createdAt instanceof Date ? message.createdAt.toISOString() : message.createdAt,
       sender: {
         id: userId,
         email: senderUser?.email ?? '',
         firstName: senderUser?.firstName ?? '',
         lastName: senderUser?.lastName ?? '',
-      }
-    });
+      },
+    };
+    this.eventsGateway.server.emit('conversationNewMessage', wsPayload);
 
     return message;
   }

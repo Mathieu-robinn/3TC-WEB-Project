@@ -11,6 +11,50 @@ interface CommunicationState {
   isConnected: boolean;
 }
 
+function toIsoString(createdAt: unknown): string {
+  if (typeof createdAt === 'string') return createdAt;
+  if (createdAt instanceof Date) return createdAt.toISOString();
+  return new Date(String(createdAt)).toISOString();
+}
+
+/** Payload émis par le backend sur l’événement `conversationNewMessage`. */
+function normalizeWsMessage(raw: unknown): Message | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = o.id;
+  const conversationId = o.conversationId;
+  const senderUserId = o.senderUserId;
+  const content = o.content;
+  const messageType = o.messageType;
+  if (typeof id !== 'number' || typeof conversationId !== 'number' || typeof senderUserId !== 'number') {
+    return null;
+  }
+  if (typeof content !== 'string') return null;
+  if (messageType !== 'TEXT' && messageType !== 'IMAGE') return null;
+
+  const senderRaw = o.sender;
+  let sender: Message['sender'];
+  if (senderRaw && typeof senderRaw === 'object') {
+    const s = senderRaw as Record<string, unknown>;
+    sender = {
+      id: typeof s.id === 'number' ? s.id : senderUserId,
+      firstName: typeof s.firstName === 'string' ? s.firstName : '',
+      lastName: typeof s.lastName === 'string' ? s.lastName : '',
+      email: typeof s.email === 'string' ? s.email : '',
+    };
+  }
+
+  return {
+    id,
+    conversationId,
+    senderUserId,
+    content,
+    messageType,
+    createdAt: toIsoString(o.createdAt),
+    sender,
+  };
+}
+
 export const useCommunicationStore = defineStore('communication', {
   state: (): CommunicationState => ({
     conversations: [],
@@ -47,6 +91,10 @@ export const useCommunicationStore = defineStore('communication', {
       this.socket.on('disconnect', () => {
         this.isConnected = false;
       });
+
+      this.socket.on('conversationNewMessage', (raw: unknown) => {
+        this.handleConversationNewMessage(raw);
+      });
     },
 
     disconnectSocket() {
@@ -58,32 +106,30 @@ export const useCommunicationStore = defineStore('communication', {
       }
     },
 
-    attachConversationListeners() {
-      if (!this.socket) return;
+    handleConversationNewMessage(raw: unknown) {
+      const newMessage = normalizeWsMessage(raw);
+      if (!newMessage) return;
 
-      this.conversations.forEach((conv) => {
-        const eventName = `conversation:${conv.id}:newMessage`;
-        this.socket!.off(eventName);
-        this.socket!.on(eventName, (newMessage: Message) => {
-          const cid = conv.id;
-          const uid = useAuthStore().user?.id ?? 0;
-          if (this.activeConversationId === cid) {
-            if (!this.messages[cid]) {
-              this.messages[cid] = [];
-            }
-            const exists = this.messages[cid].find((m) => m.id === newMessage.id);
-            if (!exists) {
-              this.messages[cid].push(newMessage);
-            }
-            void this.markConversationRead(cid);
-          } else if (newMessage.senderUserId !== uid) {
-            const c = this.conversations.find((x) => x.id === cid);
-            if (c) {
-              c.unreadCount = (c.unreadCount ?? 0) + 1;
-            }
-          }
-        });
-      });
+      const cid = newMessage.conversationId;
+      const uid = useAuthStore().user?.id ?? 0;
+      const iso = newMessage.createdAt;
+
+      const conv = this.conversations.find((x) => x.id === cid);
+      if (conv) {
+        conv.lastMessageAt = iso;
+      }
+
+      if (this.activeConversationId === cid) {
+        const prev = this.messages[cid] ?? [];
+        if (prev.some((m) => m.id === newMessage.id)) return;
+        this.messages = { ...this.messages, [cid]: [...prev, newMessage] };
+        void this.markConversationRead(cid);
+      } else if (newMessage.senderUserId !== uid) {
+        const c = this.conversations.find((x) => x.id === cid);
+        if (c) {
+          c.unreadCount = (c.unreadCount ?? 0) + 1;
+        }
+      }
     },
 
     async fetchConversations() {
@@ -92,7 +138,6 @@ export const useCommunicationStore = defineStore('communication', {
       try {
         const data = await api.get<Conversation[]>('/messaging/conversations');
         this.conversations = data;
-        this.attachConversationListeners();
       } catch (e) {
         console.error('Failed to fetch conversations', e);
       }
@@ -114,7 +159,6 @@ export const useCommunicationStore = defineStore('communication', {
       this.activeConversationId = id;
       await this.fetchMessages(id);
       await this.markConversationRead(id);
-      this.attachConversationListeners();
     },
 
     async fetchMessages(conversationId: number) {
@@ -122,7 +166,7 @@ export const useCommunicationStore = defineStore('communication', {
       const api = await nuxtApp.runWithContext(() => useApi());
       try {
         const data = await api.get(`/messaging/conversations/${conversationId}/messages`);
-        this.messages[conversationId] = data;
+        this.messages = { ...this.messages, [conversationId]: data };
       } catch (e) {
         console.error('Failed to fetch messages', e);
       }
@@ -136,14 +180,13 @@ export const useCommunicationStore = defineStore('communication', {
           content,
           messageType,
         });
-        if (!this.messages[conversationId]) {
-          this.messages[conversationId] = [];
-        }
-        const exists = this.messages[conversationId].find((m) => m.id === message.id);
+        const prev = this.messages[conversationId] ?? [];
+        const exists = prev.find((m) => m.id === message.id);
         if (!exists) {
           const authStore = useAuthStore();
           const m: Message = {
             ...message,
+            createdAt: toIsoString(message.createdAt as unknown),
             sender: message.sender ?? {
               id: authStore.user?.id ?? 0,
               firstName: authStore.user?.firstName ?? '',
@@ -151,7 +194,7 @@ export const useCommunicationStore = defineStore('communication', {
               email: authStore.user?.email ?? '',
             },
           };
-          this.messages[conversationId].push(m);
+          this.messages = { ...this.messages, [conversationId]: [...prev, m] };
         }
         await this.markConversationRead(conversationId);
       } catch (e) {
