@@ -57,8 +57,8 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  // Interface Swagger disponible à http://localhost:3000/api
-  SwaggerModule.setup("api", app, document, {
+  // Interface Swagger disponible à http://localhost:3000/docs
+  SwaggerModule.setup("docs", app, document, {
     // Titre de l'onglet navigateur
     customSiteTitle: "24h INSA — API Docs",
     // Favicon personnalisé (logo INSA)
