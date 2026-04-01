@@ -1,5 +1,8 @@
 <template>
-  <v-card class="chat-window d-flex flex-column fill-height elevation-3 rounded-lg overflow-hidden border">
+  <v-card
+    class="chat-window d-flex flex-column fill-height elevation-3 rounded-lg overflow-hidden border"
+    :class="{ 'chat-window--fab-safe': reserveFabSpace }"
+  >
     
     <!-- Header -->
     <v-toolbar color="surface" elevation="1" class="px-2 px-sm-4 header-glass">
@@ -94,8 +97,9 @@ const props = withDefaults(
     messages: Message[]
     currentUserId: number
     showMobileBack?: boolean
+    reserveFabSpace?: boolean
   }>(),
-  { showMobileBack: false },
+  { showMobileBack: false, reserveFabSpace: false },
 )
 
 const emit = defineEmits<{
@@ -180,6 +184,10 @@ const send = () => {
   z-index: 10;
 }
 
+.chat-window--fab-safe .input-glass {
+  padding-right: 88px !important;
+}
+
 .chat-input {
   :deep(.v-field) {
     border-radius: 24px !important;
@@ -194,6 +202,13 @@ const send = () => {
   
   &:active {
     transform: scale(0.9);
+  }
+}
+
+@media (max-width: 600px) {
+  .chat-window--fab-safe .input-glass {
+    padding-right: 74px !important;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 </style>

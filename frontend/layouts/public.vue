@@ -1,5 +1,5 @@
 <template>
-  <div class="public-layout">
+  <div class="public-layout" :class="themeStore.isDark ? 'public-layout--dark' : 'public-layout--light'">
     <header class="public-header">
       <div class="public-header__inner">
         <div class="public-header__brand">
@@ -11,6 +11,15 @@
             <v-icon size="16" color="#f59e0b">mdi-trophy-outline</v-icon>
             <span>Classement public</span>
           </div>
+          <v-btn
+            :icon="themeStore.isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'"
+            variant="text"
+            :color="themeStore.isDark ? 'white' : 'grey-darken-3'"
+            size="small"
+            class="public-header__theme-toggle"
+            :title="themeStore.isDark ? 'Mode clair' : 'Mode sombre'"
+            @click="themeStore.toggle()"
+          />
           <v-btn
             v-if="isLoggedIn"
             to="/dashboard"
@@ -26,8 +35,8 @@
             v-else
             to="/login"
             variant="outlined"
-            color="white"
-            class="d-none d-sm-flex"
+            :color="themeStore.isDark ? 'white' : 'primary'"
+            class="d-none d-sm-flex public-header__auth-btn"
             prepend-icon="mdi-login"
             size="small"
           >
@@ -48,8 +57,8 @@
             to="/login"
             icon="mdi-login"
             variant="outlined"
-            color="white"
-            class="d-sm-none"
+            :color="themeStore.isDark ? 'white' : 'primary'"
+            class="d-sm-none public-header__auth-btn"
             size="small"
           />
         </div>
@@ -64,22 +73,46 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '~/features/auth/stores/auth'
+import { useThemeStore } from '~/features/theme/stores/theme'
 
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 const isLoggedIn = computed(() => !!authStore.user || !!useCookie('auth_token').value)
 </script>
 
 <style scoped>
 .public-layout {
   min-height: 100vh;
-  background: #0d1117;
+  background: var(--public-bg);
+  color: var(--public-text);
   display: flex;
   flex-direction: column;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.public-layout--dark {
+  --public-bg: #0d1117;
+  --public-text: #f8fafc;
+  --public-header-bg: linear-gradient(135deg, #0d1117 0%, #1a1f36 100%);
+  --public-header-border: rgba(255, 255, 255, 0.08);
+  --public-title-color: #fff;
+  --public-ranking-bg: rgba(245, 158, 11, 0.14);
+  --public-ranking-border: rgba(245, 158, 11, 0.3);
+}
+
+.public-layout--light {
+  --public-bg: #f8fafc;
+  --public-text: #0f172a;
+  --public-header-bg: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%);
+  --public-header-border: rgba(15, 23, 42, 0.08);
+  --public-title-color: #0f172a;
+  --public-ranking-bg: rgba(245, 158, 11, 0.12);
+  --public-ranking-border: rgba(245, 158, 11, 0.28);
 }
 
 .public-header {
-  background: linear-gradient(135deg, #0d1117 0%, #1a1f36 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--public-header-bg);
+  border-bottom: 1px solid var(--public-header-border);
   padding: 0 24px;
   position: sticky;
   top: 0;
@@ -105,7 +138,7 @@ const isLoggedIn = computed(() => !!authStore.user || !!useCookie('auth_token').
 .public-header__title {
   font-size: 1.2rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--public-title-color);
   letter-spacing: 0.02em;
 }
 
@@ -119,8 +152,8 @@ const isLoggedIn = computed(() => !!authStore.user || !!useCookie('auth_token').
   display: flex;
   align-items: center;
   gap: 7px;
-  background: rgba(245, 158, 11, 0.14);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: var(--public-ranking-bg);
+  border: 1px solid var(--public-ranking-border);
   border-radius: 20px;
   padding: 4px 12px;
 }
@@ -136,5 +169,36 @@ const isLoggedIn = computed(() => !!authStore.user || !!useCookie('auth_token').
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+.public-layout--light .public-header__auth-btn {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(var(--v-theme-primary), 0.45);
+}
+
+@media (max-width: 600px) {
+  .public-header {
+    padding: 0 12px;
+  }
+
+  .public-header__inner {
+    height: 56px;
+  }
+
+  .public-header__actions {
+    gap: 8px;
+  }
+
+  .public-header__ranking span {
+    display: none;
+  }
+
+  .public-header__ranking {
+    padding: 4px 8px;
+  }
+
+  .public-header__theme-toggle {
+    margin-right: -4px;
+  }
 }
 </style>

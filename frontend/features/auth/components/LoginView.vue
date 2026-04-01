@@ -14,7 +14,7 @@
 
     <div class="login-container">
       <!-- Left decorative panel -->
-      <div class="login-side d-none d-md-flex">
+      <div class="login-side login-side--desktop d-none d-md-flex">
         <div class="login-side-content">
           <v-icon size="64" color="white" class="mb-4">mdi-timer-outline</v-icon>
           <h2 class="text-h4 font-weight-black text-white mb-3">24h INSA</h2>
@@ -266,5 +266,75 @@ const handleLogin = async () => {
   height: 48px;
   font-size: 1rem;
   letter-spacing: 0.03em;
+}
+
+@media (max-width: 960px) {
+  .login-container {
+    display: block;
+    min-height: 100dvh;
+  }
+
+  .login-side--desktop {
+    display: none !important;
+  }
+
+  .login-form-panel {
+    min-height: 100dvh;
+    padding: 28px 20px 24px;
+    align-items: center;
+  }
+
+  .login-form-inner {
+    max-width: 420px;
+    margin: 0 auto;
+    padding-top: 28px;
+  }
+}
+
+@media (max-width: 600px) {
+  .login-page {
+    min-height: 100dvh;
+  }
+
+  .theme-toggle {
+    top: max(10px, env(safe-area-inset-top, 0px));
+    right: max(10px, env(safe-area-inset-right, 0px));
+    transform: scale(0.92);
+    transform-origin: top right;
+  }
+
+  .login-container {
+    min-height: 100dvh;
+  }
+
+  .login-form-panel {
+    min-height: 100dvh;
+    padding: 18px 16px 24px;
+  }
+
+  .login-form-inner {
+    max-width: none;
+    padding-top: 24px;
+  }
+
+  .field-label {
+    margin-bottom: 6px;
+  }
+
+  .login-btn {
+    height: 46px;
+    font-size: 0.96rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .login-form-panel {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .login-form-inner {
+    padding-top: 40px;
+  }
 }
 </style>

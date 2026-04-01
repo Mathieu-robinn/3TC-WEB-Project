@@ -1,5 +1,5 @@
 <template>
-  <div class="ranking-page">
+  <div class="ranking-page" :class="themeStore.isDark ? 'ranking-page--dark' : 'ranking-page--light'">
     <section class="ranking-hero">
       <div class="ranking-hero__bg" aria-hidden="true" />
       <div class="ranking-hero__content">
@@ -226,6 +226,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useEditionCountdown } from '~/composables/useEditionCountdown'
 import { useActiveEditionStore } from '~/features/editions/stores/activeEdition'
+import { useThemeStore } from '~/features/theme/stores/theme'
 import type { ApiCourse, ApiRunner, ApiTeam } from '~/types/api'
 
 definePageMeta({ layout: 'public' as any })
@@ -236,6 +237,7 @@ useHead({
 })
 
 const activeEditionStore = useActiveEditionStore()
+const themeStore = useThemeStore()
 const { countdown, statusLabel, targetLabel, referenceDateLabel } = useEditionCountdown(
   () => activeEditionStore.currentEdition,
 )
@@ -356,8 +358,53 @@ onUnmounted(() => {
 <style scoped>
 .ranking-page {
   min-height: 100vh;
-  background: #0d1117;
-  color: #f1f5f9;
+  background: var(--ranking-page-bg);
+  color: var(--ranking-page-text);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.ranking-page--dark {
+  --ranking-page-bg: #0d1117;
+  --ranking-page-text: #f1f5f9;
+  --ranking-hero-bg: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245, 158, 11, 0.12) 0%, transparent 70%),
+    linear-gradient(180deg, #1a1f36 0%, #0d1117 100%);
+  --ranking-heading: #fff;
+  --ranking-muted: rgba(255, 255, 255, 0.65);
+  --ranking-subtle: rgba(255, 255, 255, 0.45);
+  --ranking-faint: rgba(255, 255, 255, 0.35);
+  --ranking-soft: rgba(255, 255, 255, 0.22);
+  --ranking-panel: rgba(255, 255, 255, 0.06);
+  --ranking-panel-strong: rgba(255, 255, 255, 0.05);
+  --ranking-border: rgba(255, 255, 255, 0.12);
+  --ranking-border-soft: rgba(255, 255, 255, 0.08);
+  --ranking-row-bg: rgba(255, 255, 255, 0.035);
+  --ranking-input-bg: rgba(255, 255, 255, 0.06);
+  --ranking-input-placeholder: rgba(255, 255, 255, 0.3);
+  --ranking-runner-bg: rgba(255, 255, 255, 0.1);
+  --ranking-runner-text: rgba(255, 255, 255, 0.75);
+  --ranking-empty: rgba(255, 255, 255, 0.4);
+}
+
+.ranking-page--light {
+  --ranking-page-bg: #f8fafc;
+  --ranking-page-text: #0f172a;
+  --ranking-hero-bg: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245, 158, 11, 0.18) 0%, transparent 70%),
+    linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+  --ranking-heading: #0f172a;
+  --ranking-muted: rgba(15, 23, 42, 0.72);
+  --ranking-subtle: rgba(15, 23, 42, 0.58);
+  --ranking-faint: rgba(15, 23, 42, 0.42);
+  --ranking-soft: rgba(15, 23, 42, 0.28);
+  --ranking-panel: rgba(255, 255, 255, 0.78);
+  --ranking-panel-strong: rgba(255, 255, 255, 0.92);
+  --ranking-border: rgba(148, 163, 184, 0.28);
+  --ranking-border-soft: rgba(148, 163, 184, 0.2);
+  --ranking-row-bg: rgba(255, 255, 255, 0.72);
+  --ranking-input-bg: rgba(255, 255, 255, 0.9);
+  --ranking-input-placeholder: rgba(15, 23, 42, 0.38);
+  --ranking-runner-bg: rgba(226, 232, 240, 0.9);
+  --ranking-runner-text: rgba(15, 23, 42, 0.7);
+  --ranking-empty: rgba(15, 23, 42, 0.52);
 }
 
 .ranking-hero {
@@ -370,8 +417,7 @@ onUnmounted(() => {
 .ranking-hero__bg {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245, 158, 11, 0.12) 0%, transparent 70%),
-    linear-gradient(180deg, #1a1f36 0%, #0d1117 100%);
+  background: var(--ranking-hero-bg);
   z-index: 0;
 }
 
@@ -401,7 +447,7 @@ onUnmounted(() => {
 .ranking-hero__heading {
   font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 900;
-  color: #fff;
+  color: var(--ranking-heading);
   line-height: 1.1;
   margin: 0 0 8px;
 }
@@ -409,7 +455,7 @@ onUnmounted(() => {
 .ranking-hero__subtitle {
   max-width: 720px;
   margin: 0 auto 28px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--ranking-muted);
 }
 
 .ranking-countdown {
@@ -417,8 +463,8 @@ onUnmounted(() => {
   margin: 0 auto 28px;
   padding: 20px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--ranking-panel);
+  border: 1px solid var(--ranking-border);
   backdrop-filter: blur(8px);
 }
 
@@ -434,13 +480,13 @@ onUnmounted(() => {
 .ranking-countdown__status {
   font-size: 1rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--ranking-heading);
 }
 
 .ranking-countdown__target,
 .ranking-countdown__edition {
   font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--ranking-subtle);
 }
 
 .ranking-countdown__grid {
@@ -452,15 +498,15 @@ onUnmounted(() => {
 .ranking-countdown__cell {
   border-radius: 16px;
   padding: 16px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--ranking-panel-strong);
+  border: 1px solid var(--ranking-border-soft);
 }
 
 .ranking-countdown__value {
   display: block;
   font-size: clamp(1.4rem, 4vw, 2.2rem);
   font-weight: 900;
-  color: #fff;
+  color: var(--ranking-heading);
   line-height: 1;
 }
 
@@ -470,7 +516,7 @@ onUnmounted(() => {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.46);
+  color: var(--ranking-subtle);
 }
 
 .ranking-hero__meta {
@@ -492,13 +538,13 @@ onUnmounted(() => {
 .ranking-hero__stat-value {
   font-size: 1.6rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--ranking-heading);
   line-height: 1;
 }
 
 .ranking-hero__stat-label {
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--ranking-subtle);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -506,7 +552,7 @@ onUnmounted(() => {
 .ranking-hero__stat-sep {
   width: 1px;
   height: 32px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ranking-border);
 }
 
 .ranking-hero__refresh {
@@ -515,11 +561,11 @@ onUnmounted(() => {
   justify-content: center;
   gap: 5px;
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--ranking-faint);
 }
 
 .ranking-hero__refresh-time {
-  color: rgba(255, 255, 255, 0.22);
+  color: var(--ranking-soft);
 }
 
 .ranking-loading,
@@ -530,7 +576,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 16px;
   padding: 80px 24px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--ranking-empty);
   font-size: 0.95rem;
 }
 
@@ -558,17 +604,17 @@ onUnmounted(() => {
 
 .search-input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--ranking-input-bg);
+  border: 1px solid var(--ranking-border);
   border-radius: 12px;
   padding: 10px 40px 10px 42px;
   font-size: 0.9rem;
-  color: #f1f5f9;
+  color: var(--ranking-page-text);
   outline: none;
 }
 
 .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--ranking-input-placeholder);
 }
 
 .search-clear {
@@ -590,8 +636,8 @@ onUnmounted(() => {
 .discipline-card {
   padding: 20px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--ranking-panel);
+  border: 1px solid var(--ranking-border-soft);
 }
 
 .discipline-card__header {
@@ -606,25 +652,25 @@ onUnmounted(() => {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--ranking-subtle);
 }
 
 .discipline-card__title {
   margin: 4px 0 0;
   font-size: 1.5rem;
-  color: #fff;
+  color: var(--ranking-heading);
 }
 
 .discipline-card__stats {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--ranking-muted);
   font-size: 0.82rem;
 }
 
 .discipline-card__stats strong {
-  color: #fff;
+  color: var(--ranking-heading);
   margin-right: 4px;
 }
 
@@ -652,12 +698,12 @@ onUnmounted(() => {
 .discipline-leader__name {
   font-size: 1rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--ranking-heading);
 }
 
 .discipline-leader__meta {
   font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.56);
+  color: var(--ranking-subtle);
 }
 
 .ranking-list {
@@ -671,8 +717,8 @@ onUnmounted(() => {
   grid-template-columns: 48px 1fr minmax(80px, 180px) 68px 88px;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--ranking-row-bg);
+  border: 1px solid var(--ranking-border-soft);
   border-radius: 14px;
   padding: 12px 16px;
 }
@@ -725,8 +771,8 @@ onUnmounted(() => {
 }
 
 .rank-medal--default {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--ranking-panel);
+  color: var(--ranking-page-text);
 }
 
 .ranking-row__info {
@@ -739,7 +785,7 @@ onUnmounted(() => {
 .ranking-row__name {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--ranking-page-text);
 }
 
 .ranking-row__runners {
@@ -755,9 +801,9 @@ onUnmounted(() => {
   justify-content: center;
   border-radius: 50%;
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--ranking-runner-bg);
+  color: var(--ranking-runner-text);
+  border: 1px solid var(--ranking-border);
   flex-shrink: 0;
 }
 
@@ -778,7 +824,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--ranking-soft);
 }
 
 .ranking-row__progress-wrap {
@@ -787,7 +833,7 @@ onUnmounted(() => {
 
 .ranking-row__progress-bar {
   height: 5px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--ranking-border-soft);
   border-radius: 99px;
   overflow: hidden;
 }
@@ -816,27 +862,44 @@ onUnmounted(() => {
 .ranking-row__tours {
   font-size: 1.2rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--ranking-heading);
   line-height: 1;
 }
 
 .ranking-row__tours-label {
   font-size: 0.63rem;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--ranking-faint);
   text-transform: uppercase;
 }
 
 .ranking-row__distance {
   font-size: 0.8rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--ranking-faint);
   text-align: right;
 }
 
 .ranking-row--empty {
   display: flex;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ranking-subtle);
+}
+
+.ranking-page--light .ranking-row--silver {
+  background: rgba(148, 163, 184, 0.14);
+}
+
+.ranking-page--light .ranking-row--bronze {
+  background: rgba(180, 83, 9, 0.09);
+}
+
+.ranking-page--light .search-icon,
+.ranking-page--light .search-clear :deep(.v-icon),
+.ranking-page--light .ranking-hero__refresh :deep(.v-icon),
+.ranking-page--light .ranking-error :deep(.v-icon),
+.ranking-page--light .ranking-empty :deep(.v-icon),
+.ranking-page--light .ranking-row__no-runners :deep(.v-icon) {
+  color: var(--ranking-faint) !important;
 }
 
 .clear-search-btn {

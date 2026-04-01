@@ -1,5 +1,9 @@
 <template>
-  <div v-if="showUser" class="notification-fab">
+  <div
+    v-if="showUser"
+    class="notification-fab"
+    :class="{ 'notification-fab--chat-safe': isCommunicationRoute }"
+  >
     <v-btn
       color="primary"
       icon="mdi-bullhorn-outline"
@@ -55,12 +59,14 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { useAuthStore } from '~/features/auth/stores/auth'
 import { useJwtAuth } from '~/composables/useJwtAuth'
 import { useNotificationsStore } from '../stores/notifications.store'
 
 const authStore = useAuthStore()
+const route = useRoute()
 const { token } = useJwtAuth()
 const notifStore = useNotificationsStore()
 
@@ -71,6 +77,7 @@ const sending = ref(false)
 
 const showUser = computed(() => !!(authStore.user || token.value))
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN' || authStore.user?.role === 'SUPER_ADMIN')
+const isCommunicationRoute = computed(() => route.path.startsWith('/communication'))
 
 const form = reactive({
   type: 'INFO',
@@ -125,7 +132,22 @@ async function submit() {
   z-index: 10040;
 }
 
+.notification-fab--chat-safe {
+  bottom: max(92px, calc(env(safe-area-inset-bottom, 0px) + 92px));
+}
+
 .notification-fab__btn {
   border-radius: 50% !important;
+}
+
+@media (max-width: 600px) {
+  .notification-fab {
+    right: max(14px, env(safe-area-inset-right, 0px));
+    bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .notification-fab--chat-safe {
+    bottom: max(86px, calc(env(safe-area-inset-bottom, 0px) + 86px));
+  }
 }
 </style>

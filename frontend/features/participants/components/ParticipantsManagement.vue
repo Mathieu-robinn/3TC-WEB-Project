@@ -236,26 +236,26 @@
               <v-avatar
                 :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : p.status === 'au_repos' ? 'error' : 'grey-lighten-2'"
                 size="60"
-                class="mb-3"
+                class="mb-3 participant-card__avatar"
               >
                 <span class="text-h6 font-weight-bold text-white">
                   {{ initials(p) }}
                 </span>
               </v-avatar>
-              <div class="text-subtitle-1 font-weight-bold">{{ p.fullName }}</div>
-              <div class="text-caption text-medium-emphasis mb-2">{{ p.teamName }}</div>
-              <div class="d-flex flex-wrap justify-center participant-badges mb-2">
+              <div class="text-subtitle-1 font-weight-bold participant-card__name">{{ p.fullName }}</div>
+              <div class="text-caption text-medium-emphasis mb-2 participant-card__team">{{ p.teamName }}</div>
+              <div class="d-flex flex-wrap justify-center participant-badges mb-2 participant-card__details">
                 <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
                 <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
               </div>
-              <v-chip v-if="p.activeTransponder" color="blue" size="small" variant="flat" prepend-icon="mdi-timer" class="mb-2">
+              <v-chip v-if="p.activeTransponder" color="blue" size="small" variant="flat" prepend-icon="mdi-timer" class="mb-2 participant-card__details">
                 {{ p.activeTransponder }}
               </v-chip>
-              <v-chip :color="participantStatusColor(p)" size="small" variant="flat" class="font-weight-bold mb-3">
+              <v-chip :color="participantStatusColor(p)" size="small" variant="flat" class="font-weight-bold mb-3 participant-card__details">
                 {{ participantStatusLabel(p) }}
               </v-chip>
-              <v-divider class="mb-3" />
-              <div class="d-flex justify-center gap-1" @click.stop>
+              <v-divider class="mb-3 participant-card__details" />
+              <div class="d-flex justify-center gap-1 participant-card__details" @click.stop>
                 <v-btn icon="mdi-eye-outline" size="small" variant="text" color="primary" @click="openDetails(p)" />
                 <template v-if="canManageRunners">
                   <v-btn icon="mdi-pencil-outline" size="small" variant="text" color="grey" @click="openEdit(p)" />
@@ -587,6 +587,26 @@ const executeDelete = async () => {
 
   .participants-filters__toggle {
     justify-self: stretch;
+  }
+
+  .participant-card .participant-card__avatar,
+  .participant-card .participant-card__details {
+    display: none !important;
+  }
+
+  .participant-card :deep(.v-card-text) {
+    padding: 18px 16px !important;
+    text-align: left !important;
+  }
+
+  .participant-card__name {
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  .participant-card__team {
+    margin-bottom: 0 !important;
+    font-size: 0.82rem;
   }
 }
 </style>
