@@ -145,20 +145,53 @@
   }
 }
 
-/* Dialogs plein écran (téléphone) : marge par rapport aux bords + encoches */
+/*
+ * Dialogs « plein écran » mobile : Vuetify impose sur .v-overlay__content
+ * margin:0, height:100%, et la .v-card min-height:100%, ce qui annule les marges visuelles.
+ * On surcharge avec une spécificité plus haute + marge basse large (scroll dans la carte).
+ */
 .dialog-mobile-inset {
-  --dialog-mobile-inset-v: 28px;
+  --dialog-mobile-inset-top: 32px;
+  --dialog-mobile-inset-bottom: 72px;
   --dialog-mobile-inset-h: 16px;
-  margin: max(var(--dialog-mobile-inset-v), env(safe-area-inset-top, 0px))
-    max(var(--dialog-mobile-inset-h), env(safe-area-inset-right, 0px))
-    max(var(--dialog-mobile-inset-v), env(safe-area-inset-bottom, 0px))
-    max(var(--dialog-mobile-inset-h), env(safe-area-inset-left, 0px)) !important;
-  width: calc(100% - 2 * var(--dialog-mobile-inset-h)) !important;
-  max-width: calc(100% - 2 * var(--dialog-mobile-inset-h)) !important;
-  max-height: calc(
-    100vh - 2 * var(--dialog-mobile-inset-v) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
-  );
   align-self: center !important;
   border-radius: 16px;
   overflow: hidden;
+}
+
+.v-dialog.v-dialog--fullscreen > .v-overlay__content.dialog-mobile-inset {
+  margin-top: max(var(--dialog-mobile-inset-top), env(safe-area-inset-top, 0px)) !important;
+  margin-right: max(var(--dialog-mobile-inset-h), env(safe-area-inset-right, 0px)) !important;
+  margin-bottom: max(var(--dialog-mobile-inset-bottom), env(safe-area-inset-bottom, 0px)) !important;
+  margin-left: max(var(--dialog-mobile-inset-h), env(safe-area-inset-left, 0px)) !important;
+  width: calc(100% - 2 * var(--dialog-mobile-inset-h)) !important;
+  max-width: calc(100% - 2 * var(--dialog-mobile-inset-h)) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: calc(
+    100vh - var(--dialog-mobile-inset-top) - var(--dialog-mobile-inset-bottom) - env(safe-area-inset-top, 0px) -
+      env(safe-area-inset-bottom, 0px)
+  ) !important;
+  top: auto !important;
+  left: auto !important;
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+
+/* Barre d’adresse mobile : 100dvh évite que le bas soit collé au viewport */
+@supports (height: 100dvh) {
+  .v-dialog.v-dialog--fullscreen > .v-overlay__content.dialog-mobile-inset {
+    max-height: calc(
+      100dvh - var(--dialog-mobile-inset-top) - var(--dialog-mobile-inset-bottom) - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    ) !important;
+  }
+}
+
+.v-dialog.v-dialog--fullscreen > .v-overlay__content.dialog-mobile-inset > .v-card,
+.v-dialog.v-dialog--fullscreen > .v-overlay__content.dialog-mobile-inset > form > .v-card {
+  min-height: 0 !important;
+  min-width: 0 !important;
+  border-radius: 16px !important;
+  max-height: 100% !important;
 }

@@ -63,19 +63,35 @@
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-4">
           <div class="participants-filters">
-            <div class="participants-filters__main">
-              <v-text-field
-                v-model="store.search"
-                prepend-inner-icon="mdi-magnify"
-                placeholder="Participant, équipe…"
-                variant="solo-filled"
-                density="compact"
-                hide-details
+            <div class="participants-filters__search-row d-flex align-center ga-2">
+              <div class="participants-filters__main flex-grow-1 min-w-0">
+                <v-text-field
+                  v-model="store.search"
+                  prepend-inner-icon="mdi-magnify"
+                  placeholder="Participant, équipe…"
+                  variant="solo-filled"
+                  density="compact"
+                  hide-details
+                  rounded="lg"
+                  flat
+                  clearable
+                />
+              </div>
+              <v-btn
+                v-if="isPhoneFilters"
+                icon
+                variant="tonal"
                 rounded="lg"
-                flat
-                clearable
-              />
+                density="comfortable"
+                :aria-expanded="phoneFiltersExpanded"
+                aria-label="Afficher ou masquer les filtres"
+                @click="togglePhoneFilters"
+              >
+                <v-icon size="22">{{ phoneFiltersExpanded ? 'mdi-chevron-up' : 'mdi-triangle-small-down' }}</v-icon>
+              </v-btn>
             </div>
+            <v-expand-transition>
+              <div v-show="!isPhoneFilters || phoneFiltersExpanded" class="participants-filters__collapsible mt-2 mt-sm-0">
             <div class="participants-filters__selects">
               <v-select
                 v-model="store.filterCourseId"
@@ -149,6 +165,8 @@
                 <v-btn value="grid" icon="mdi-view-grid" />
               </v-btn-toggle>
             </div>
+              </div>
+            </v-expand-transition>
           </div>
         </v-card-text>
       </v-card>
@@ -168,7 +186,7 @@
         <v-list lines="two" class="pa-0">
           <template v-for="(p, idx) in store.filteredParticipants" :key="p.id">
             <v-list-item class="participant-item px-5 py-3" @click="openDetails(p)">
-              <template v-if="!isXs" #prepend>
+              <template v-if="!isPhoneFilters" #prepend>
                 <v-avatar
                   :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : p.status === 'au_repos' ? 'error' : 'grey-lighten-2'"
                   size="44"
@@ -182,12 +200,12 @@
 
               <v-list-item-title class="font-weight-semibold">{{ p.fullName }}</v-list-item-title>
               <v-list-item-subtitle class="text-caption d-flex align-center ga-1">
-                <v-icon v-if="!isXs" size="11">mdi-account-group-outline</v-icon>
+                <v-icon v-if="!isPhoneFilters" size="11">mdi-account-group-outline</v-icon>
                 <span>{{ p.teamName }}</span>
               </v-list-item-subtitle>
 
               <template #append>
-                <div v-if="!isXs" class="d-flex align-center flex-wrap justify-end participant-badges">
+                <div v-if="!isPhoneFilters" class="d-flex align-center flex-wrap justify-end participant-badges">
                   <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
                   <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
                   <v-chip v-if="p.activeTransponder" color="blue" size="x-small" variant="tonal" prepend-icon="mdi-timer">
@@ -204,7 +222,7 @@
                     </template>
                   </div>
                 </div>
-                <div v-else-if="canManageRunners" class="d-flex align-center" @click.stop>
+                <div v-else-if="canManageRunners && isPhoneFilters" class="d-flex align-center" @click.stop>
                   <v-menu location="bottom end">
                     <template #activator="{ props: menuProps }">
                       <v-btn v-bind="menuProps" icon="mdi-dots-vertical" size="small" variant="text" color="grey" aria-label="Actions participant" />
@@ -244,7 +262,7 @@
                       : 'accent-grey'
               "
             ></div>
-            <div v-if="canManageRunners && isXs" class="participant-card__xs-menu" @click.stop>
+            <div v-if="canManageRunners && isPhoneFilters" class="participant-card__xs-menu" @click.stop>
               <v-menu location="bottom end">
                 <template #activator="{ props: menuProps }">
                   <v-btn v-bind="menuProps" icon="mdi-dots-vertical" size="small" variant="text" color="grey" aria-label="Actions participant" />
@@ -256,9 +274,9 @@
                 </v-list>
               </v-menu>
             </div>
-            <v-card-text class="pa-4 text-center" :class="{ 'participant-card__text--compact': isXs }">
+            <v-card-text class="pa-4 text-center" :class="{ 'participant-card__text--compact': isPhoneFilters }">
               <v-avatar
-                v-if="!isXs"
+                v-if="!isPhoneFilters"
                 :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : p.status === 'au_repos' ? 'error' : 'grey-lighten-2'"
                 size="60"
                 class="mb-3 participant-card__avatar"
@@ -269,7 +287,7 @@
               </v-avatar>
               <div class="text-subtitle-1 font-weight-bold participant-card__name">{{ p.fullName }}</div>
               <div class="text-caption text-medium-emphasis mb-2 participant-card__team">{{ p.teamName }}</div>
-              <template v-if="!isXs">
+              <template v-if="!isPhoneFilters">
                 <div class="d-flex flex-wrap justify-center participant-badges mb-2 participant-card__details">
                   <v-chip v-if="p.isCaptain" color="primary" size="x-small" variant="tonal">Capitaine</v-chip>
                   <v-chip v-if="p.isTransponderHolder" color="blue" size="x-small" variant="tonal">Resp transpondeur</v-chip>
@@ -384,16 +402,15 @@
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
-import { useDisplay } from 'vuetify/framework'
 import { useParticipantsStore } from '~/features/participants/stores/participants'
 import { usePermissions } from '~/composables/usePermissions'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
 
 const participantFormDialogAttrs = useMobileDialogAttrs(520)
 const participantDeleteDialogAttrs = useMobileDialogAttrs(420)
 
-const display = useDisplay()
-const isXs = computed(() => display.xs.value)
+const { isPhoneFilters, phoneFiltersExpanded, togglePhoneFilters } = usePhoneFilterExpand()
 
 const store = useParticipantsStore()
 const { canManageRunners } = usePermissions()
@@ -612,6 +629,11 @@ const executeDelete = async () => {
 
 .participants-filters__toggle {
   justify-self: end;
+}
+
+.participants-filters__collapsible {
+  display: grid;
+  gap: 16px;
 }
 
 @media (min-width: 960px) {

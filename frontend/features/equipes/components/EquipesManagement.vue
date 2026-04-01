@@ -60,7 +60,106 @@
       <!-- Controls Bar -->
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
-          <v-row density="comfortable" align="center">
+          <template v-if="isPhoneFilters">
+            <div class="d-flex align-center ga-2">
+              <v-text-field
+                v-model="store.search"
+                class="flex-grow-1"
+                prepend-inner-icon="mdi-magnify"
+                placeholder="Rechercher une équipe..."
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+              />
+              <v-btn
+                icon
+                variant="tonal"
+                rounded="lg"
+                density="comfortable"
+                :aria-expanded="phoneFiltersExpanded"
+                aria-label="Afficher ou masquer les filtres"
+                @click="togglePhoneFilters"
+              >
+                <v-icon size="22">{{ phoneFiltersExpanded ? 'mdi-chevron-up' : 'mdi-triangle-small-down' }}</v-icon>
+              </v-btn>
+            </div>
+            <v-expand-transition>
+              <div v-show="phoneFiltersExpanded" class="mt-3">
+                <v-row density="comfortable" align="center">
+                  <v-col cols="12">
+                    <v-select
+                      v-model="store.filterCourseId"
+                      :items="courseFilterItems"
+                      item-title="title"
+                      item-value="value"
+                      label="Discipline"
+                      variant="solo-filled"
+                      density="compact"
+                      hide-details
+                      rounded="lg"
+                      flat
+                      clearable
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-select
+                      v-model="store.filterTranspondeur"
+                      :items="transponderOptions"
+                      item-title="title"
+                      item-value="value"
+                      variant="solo-filled"
+                      density="compact"
+                      hide-details
+                      rounded="lg"
+                      flat
+                      clearable
+                      @update:model-value="(v) => { if (v == null) store.filterTranspondeur = 'tous' }"
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-select
+                      v-model="store.sortBy"
+                      :items="sortOptions"
+                      item-title="title"
+                      item-value="value"
+                      variant="solo-filled"
+                      density="compact"
+                      hide-details
+                      rounded="lg"
+                      flat
+                      prepend-inner-icon="mdi-sort"
+                      clearable
+                      @update:model-value="(v) => { if (v == null) store.sortBy = 'ranking' }"
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-btn
+                      variant="tonal"
+                      color="secondary"
+                      rounded="lg"
+                      block
+                      class="text-none"
+                      prepend-icon="mdi-filter-off"
+                      @click="store.resetFilters()"
+                    >
+                      Réinitialiser
+                    </v-btn>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-btn-toggle v-model="viewMode" mandatory density="compact" rounded="lg" class="w-100 d-flex">
+                      <v-btn value="grid" icon="mdi-view-grid" class="flex-grow-1" />
+                      <v-btn value="list" icon="mdi-format-list-bulleted" class="flex-grow-1" />
+                      <v-btn value="ranking" icon="mdi-podium" class="flex-grow-1" />
+                    </v-btn-toggle>
+                  </v-col>
+                </v-row>
+              </div>
+            </v-expand-transition>
+          </template>
+          <v-row v-else density="comfortable" align="center">
             <v-col cols="12" md="2">
               <v-text-field
                 v-model="store.search"
@@ -144,7 +243,7 @@
           <v-col v-for="equipe in store.filteredEquipes" :key="equipe.id" cols="12" sm="6" lg="4">
             <v-card class="team-card" rounded="xl" elevation="0" @click="openDetails(equipe)">
               <div class="team-card-accent" :class="statutAccentClass(equipe.statut)"></div>
-              <div v-if="canManageTeams && isXs" class="team-card__xs-menu" @click.stop>
+              <div v-if="canManageTeams && isPhoneFilters" class="team-card__xs-menu" @click.stop>
                 <v-menu location="bottom end">
                   <template #activator="{ props: menuProps }">
                     <v-btn v-bind="menuProps" icon="mdi-dots-vertical" size="small" variant="text" color="grey" aria-label="Actions équipe" />
@@ -156,18 +255,18 @@
                   </v-list>
                 </v-menu>
               </div>
-              <v-card-text class="pa-5" :class="{ 'team-card__text--compact': isXs }">
+              <v-card-text class="pa-5" :class="{ 'team-card__text--compact': isPhoneFilters }">
                 <!-- Team header -->
-                <div class="d-flex justify-space-between align-start" :class="isXs ? 'mb-0' : 'mb-3'">
+                <div class="d-flex justify-space-between align-start" :class="isPhoneFilters ? 'mb-0' : 'mb-3'">
                   <div class="d-flex align-center flex-grow-1" style="min-width: 0">
-                    <v-avatar v-if="!isXs" :color="getStatutColor(equipe.statut)" size="40" class="mr-3">
+                    <v-avatar v-if="!isPhoneFilters" :color="getStatutColor(equipe.statut)" size="40" class="mr-3">
                       <span class="text-body-2 font-weight-bold text-white">
                         {{ (equipe.name || equipe.nom || '?')[0] }}
                       </span>
                     </v-avatar>
                     <div class="flex-grow-1" style="min-width: 0">
                       <div class="text-subtitle-1 font-weight-bold line-clamp-1">{{ equipe.name || equipe.nom }}</div>
-                      <template v-if="!isXs">
+                      <template v-if="!isPhoneFilters">
                         <div class="text-caption text-medium-emphasis mt-1">Capitaine: {{ equipe.capitaine || '—' }}</div>
                         <div v-if="courseLabel(equipe.courseId)" class="text-caption text-primary mt-1">{{ courseLabel(equipe.courseId) }}</div>
                       </template>
@@ -179,7 +278,7 @@
                       </div>
                     </div>
                   </div>
-                  <div v-if="!isXs" class="d-flex flex-column align-end gap-1">
+                  <div v-if="!isPhoneFilters" class="d-flex flex-column align-end gap-1">
                     <v-chip :color="getStatutColor(equipe.statut)" size="x-small" variant="flat" class="font-weight-bold">
                       {{ getStatutLabel(equipe.statut) }}
                     </v-chip>
@@ -187,7 +286,7 @@
                 </div>
 
                 <!-- Stats bar -->
-                <template v-if="!isXs">
+                <template v-if="!isPhoneFilters">
                   <v-divider class="mb-3" />
                   <div class="d-flex justify-space-between text-center">
                     <div>
@@ -211,7 +310,7 @@
               </v-card-text>
 
               <!-- Card actions -->
-              <v-card-actions v-if="!isXs" class="px-5 pb-4 pt-0" @click.stop>
+              <v-card-actions v-if="!isPhoneFilters" class="px-5 pb-4 pt-0" @click.stop>
                 <v-btn size="x-small" variant="text" color="primary" prepend-icon="mdi-eye" @click="openDetails(equipe)">Détails</v-btn>
                 <v-spacer />
                 <template v-if="canManageTeams">
@@ -239,13 +338,13 @@
           <v-list lines="two" class="pa-0">
             <template v-for="(equipe, i) in store.filteredEquipes" :key="equipe.id">
               <v-list-item class="list-item px-5 py-3" @click="openDetails(equipe)">
-                <template v-if="!isXs" #prepend>
+                <template v-if="!isPhoneFilters" #prepend>
                   <v-avatar :color="getStatutColor(equipe.statut)" size="44" class="mr-2">
                     <span class="text-body-1 font-weight-bold text-white">{{ (equipe.name || equipe.nom || '?')[0] }}</span>
                   </v-avatar>
                 </template>
                 <v-list-item-title class="font-weight-semibold">{{ equipe.name || equipe.nom }}</v-list-item-title>
-                <v-list-item-subtitle v-if="!isXs">
+                <v-list-item-subtitle v-if="!isPhoneFilters">
                   {{ equipe.capitaine }} · {{ equipe.membres.length }} coureur(s)
                   <template v-if="courseLabel(equipe.courseId)"> · {{ courseLabel(equipe.courseId) }}</template>
                 </v-list-item-subtitle>
@@ -256,7 +355,7 @@
                   <span>{{ equipe.transpondeur || 'Aucune puce' }}</span>
                 </v-list-item-subtitle>
                 <template #append>
-                  <div v-if="!isXs" class="d-flex align-center list-equipe-append">
+                  <div v-if="!isPhoneFilters" class="d-flex align-center list-equipe-append">
                     <div class="list-tours-pill d-flex">
                       <span class="list-tours-pill-value">{{ equipe.nbTour ?? 0 }}</span>
                       <span class="list-tours-pill-label">tours</span>
@@ -470,16 +569,15 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
-import { useDisplay } from 'vuetify/framework'
 import { useEquipesStore } from '~/features/equipes/stores/equipes'
 import { usePermissions } from '~/composables/usePermissions'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
 
 const equipeFormDialogAttrs = useMobileDialogAttrs(520)
 const equipeDeleteDialogAttrs = useMobileDialogAttrs(420)
 
-const display = useDisplay()
-const isXs = computed(() => display.xs.value)
+const { isPhoneFilters, phoneFiltersExpanded, togglePhoneFilters } = usePhoneFilterExpand()
 
 const store = useEquipesStore()
 const { canManageTeams } = usePermissions()

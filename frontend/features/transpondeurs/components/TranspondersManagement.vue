@@ -75,7 +75,69 @@
 
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
-          <v-row density="comfortable" align="center">
+          <template v-if="isPhoneFilters">
+            <div class="d-flex align-center ga-2">
+              <v-text-field
+                v-model="store.search"
+                class="flex-grow-1"
+                prepend-inner-icon="mdi-magnify"
+                placeholder="Référence, ID ou équipe…"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+              />
+              <v-btn
+                icon
+                variant="tonal"
+                rounded="lg"
+                density="comfortable"
+                :aria-expanded="phoneFiltersExpanded"
+                aria-label="Afficher ou masquer les filtres"
+                @click="togglePhoneFilters"
+              >
+                <v-icon size="22">{{ phoneFiltersExpanded ? 'mdi-chevron-up' : 'mdi-triangle-small-down' }}</v-icon>
+              </v-btn>
+            </div>
+            <v-expand-transition>
+              <div v-show="phoneFiltersExpanded" class="mt-3">
+                <v-row density="comfortable" align="center">
+                  <v-col cols="12">
+                    <v-select
+                      v-model="store.filterStatus"
+                      :items="statusFilterItems"
+                      item-title="title"
+                      item-value="value"
+                      label="Statut"
+                      variant="solo-filled"
+                      density="compact"
+                      hide-details
+                      rounded="lg"
+                      flat
+                      clearable
+                      @update:model-value="(v) => { if (v == null) store.filterStatus = 'tous' }"
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-btn
+                      variant="tonal"
+                      color="secondary"
+                      rounded="lg"
+                      block
+                      class="text-none"
+                      prepend-icon="mdi-filter-off"
+                      @click="store.resetFilters()"
+                    >
+                      Réinitialiser les filtres
+                    </v-btn>
+                  </v-col>
+                </v-row>
+              </div>
+            </v-expand-transition>
+          </template>
+          <v-row v-else density="comfortable" align="center">
             <v-col cols="12" md="5">
               <v-text-field
                 v-model="store.search"
@@ -474,6 +536,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify/framework'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
 import { usePermissions } from '~/composables/usePermissions'
 import { transponderNumeroLabel } from '~/utils/transponder'
@@ -488,6 +551,7 @@ import {
 const store = useTranspondersStore()
 const { isAdmin, canOperateTransponders, canCreateTransponder, canRestockTransponder } = usePermissions()
 const display = useDisplay()
+const { isPhoneFilters, phoneFiltersExpanded, togglePhoneFilters } = usePhoneFilterExpand()
 
 const selectedIds = ref([])
 
