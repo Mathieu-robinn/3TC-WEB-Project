@@ -21,6 +21,9 @@ import type { NotificationJson } from "../modules/notification/notification-json
   cors: {
     origin: "*", // À restreindre à l'URL du frontend en production
   },
+  transports: ["websocket", "polling"],
+  pingTimeout: 60000,
+  pingInterval: 25000,
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
