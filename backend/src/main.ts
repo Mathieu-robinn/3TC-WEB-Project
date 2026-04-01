@@ -85,7 +85,7 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
   console.log(`🚀 API démarrée sur http://localhost:${process.env.PORT ?? 3000}`);
-  console.log(`📚 Swagger disponible sur http://localhost:${process.env.PORT ?? 3000}/api`);
+  console.log(`📚 Swagger disponible sur http://localhost:${process.env.PORT ?? 3000}/docs`);
 }
 
 bootstrap();
