@@ -53,6 +53,8 @@ async function bootstrap() {
     .addTag("Runners", "Gestion des coureurs")
     .addTag("Transponders", "Gestion des puces de chronométrage")
     .addTag("Transactions", "Historique des distributions de puces")
+    .addTag("Notifications", "Centre de notifications et alertes")
+    .addTag("Messaging", "Messagerie interne (conversations et messages)")
     .addTag("Logs", "Journal d’audit (admin)")
     .build();
 

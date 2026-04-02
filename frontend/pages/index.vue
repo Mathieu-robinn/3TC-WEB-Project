@@ -130,47 +130,53 @@
             </div>
           </div>
 
-          <div v-if="section.teams.length" class="discipline-leader">
+          <div v-if="section.leader" class="discipline-leader">
             <div class="discipline-leader__badge">Leader</div>
             <div class="discipline-leader__info">
-              <div class="discipline-leader__name">{{ section.teams[0].name }}</div>
+              <div class="discipline-leader__name">{{ section.leader.name }}</div>
               <div class="discipline-leader__meta">
-                {{ section.teams[0].nbTour || 0 }} tours · {{ formatDist(section.teams[0].nbTour, section.course) }}
+                {{ section.leader.nbTour || 0 }} tours · {{ formatDist(section.leader.nbTour, section.course) }}
               </div>
             </div>
           </div>
 
           <div class="ranking-list">
             <div
-              v-for="(team, idx) in section.teams"
-              :key="team.id"
+              v-for="entry in section.teams"
+              :key="entry.team.id"
               class="ranking-row"
               :class="{
-                'ranking-row--gold': idx === 0,
-                'ranking-row--silver': idx === 1,
-                'ranking-row--bronze': idx === 2,
+                'ranking-row--gold': entry.rank === 1,
+                'ranking-row--silver': entry.rank === 2,
+                'ranking-row--bronze': entry.rank === 3,
               }"
             >
               <div class="ranking-row__rank">
-                <span class="rank-medal" :class="rankMedalClass(idx)">{{ idx + 1 }}</span>
+                <span class="rank-medal" :class="rankMedalClass(entry.rank)">{{ entry.rank }}</span>
               </div>
 
               <div class="ranking-row__info">
-                <div class="ranking-row__name">{{ team.name }}</div>
-                <div v-if="(team.runners || []).length > 0" class="ranking-row__runners">
-                  <span
-                    v-for="r in (team.runners || []).slice(0, 8)"
+                <div class="ranking-row__name">{{ entry.team.name }}</div>
+                <div v-if="(entry.team.runners || []).length > 0" class="ranking-row__runners">
+                  <v-tooltip
+                    v-for="r in (entry.team.runners || []).slice(0, 8)"
                     :key="r.id"
-                    class="runner-avatar runner-avatar--sm"
-                    :title="`${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()"
+                    location="top"
+                    open-on-hover
+                    open-on-click
                   >
-                    {{ initials(r) }}
-                  </span>
+                    <template #activator="{ props }">
+                      <span v-bind="props" class="runner-avatar runner-avatar--sm">
+                        {{ initials(r) }}
+                      </span>
+                    </template>
+                    <span>{{ fullName(r) }}</span>
+                  </v-tooltip>
                   <span
-                    v-if="(team.runners || []).length > 8"
+                    v-if="(entry.team.runners || []).length > 8"
                     class="runner-avatar runner-avatar--sm runner-avatar--more"
                   >
-                    +{{ (team.runners || []).length - 8 }}
+                    +{{ (entry.team.runners || []).length - 8 }}
                   </span>
                 </div>
                 <div v-else class="ranking-row__no-runners">
@@ -183,19 +189,19 @@
                 <div class="ranking-row__progress-bar">
                   <div
                     class="ranking-row__progress-fill"
-                    :style="{ width: progressWidth(team.nbTour, section.teams) }"
-                    :class="{ 'progress-fill--gold': idx === 0, 'progress-fill--gradient': idx > 0 }"
+                    :style="{ width: progressWidth(entry.team.nbTour, section.fullTeams) }"
+                    :class="{ 'progress-fill--gold': entry.rank === 1, 'progress-fill--gradient': entry.rank > 1 }"
                   />
                 </div>
               </div>
 
               <div class="ranking-row__score">
-                <span class="ranking-row__tours">{{ team.nbTour || 0 }}</span>
+                <span class="ranking-row__tours">{{ entry.team.nbTour || 0 }}</span>
                 <span class="ranking-row__tours-label">tours</span>
               </div>
 
               <div class="ranking-row__distance">
-                {{ formatDist(team.nbTour, section.course) }}
+                {{ formatDist(entry.team.nbTour, section.course) }}
               </div>
             </div>
 
@@ -256,16 +262,18 @@ const totalLaps = computed(() => ranking.value.reduce((sum, team) => sum + (team
 const filteredSections = computed(() => {
   const q = normalize(search.value)
   return courses.value.map((course) => {
-    let teams = ranking.value.filter((team) => team.courseId === course.id)
+    const fullTeams = ranking.value.filter((team) => team.courseId === course.id)
+    const rankedTeams = fullTeams.map((team, index) => ({ team, rank: index + 1 }))
+    let teams = rankedTeams
     if (q) {
-      teams = teams.filter((team) => {
+      teams = teams.filter(({ team }) => {
         if (normalize(team.name ?? '').includes(q)) return true
         return (team.runners ?? []).some((runner) =>
           normalize(`${runner.firstName ?? ''} ${runner.lastName ?? ''}`).includes(q),
         )
       })
     }
-    return { course, teams }
+    return { course, fullTeams, teams, leader: fullTeams[0] }
   })
 })
 
@@ -284,8 +292,11 @@ function formatDist(nbTour?: number | null, course?: ApiCourse | null): string {
   return `${((nbTour || 0) * distancePerLap(course)).toFixed(1)} km`
 }
 
-function totalLapsFor(teams: ApiTeam[]) {
-  return teams.reduce((sum, team) => sum + (team.nbTour || 0), 0)
+function totalLapsFor(teams: Array<ApiTeam | { team: ApiTeam }>) {
+  return teams.reduce((sum, item) => {
+    const team = 'team' in item ? item.team : item
+    return sum + (team.nbTour || 0)
+  }, 0)
 }
 
 function progressWidth(nbTour: number | null | undefined, teams: ApiTeam[]) {
@@ -304,10 +315,15 @@ function initials(r: ApiRunner): string {
   return f + l || '?'
 }
 
-function rankMedalClass(idx: number) {
-  if (idx === 0) return 'rank-medal--gold'
-  if (idx === 1) return 'rank-medal--silver'
-  if (idx === 2) return 'rank-medal--bronze'
+function fullName(r: ApiRunner): string {
+  const value = `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()
+  return value || 'Participant'
+}
+
+function rankMedalClass(rank: number) {
+  if (rank === 1) return 'rank-medal--gold'
+  if (rank === 2) return 'rank-medal--silver'
+  if (rank === 3) return 'rank-medal--bronze'
   return 'rank-medal--default'
 }
 

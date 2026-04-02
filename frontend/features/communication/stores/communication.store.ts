@@ -47,6 +47,10 @@ export const useCommunicationStore = defineStore('communication', {
       this.socket.on('disconnect', () => {
         this.isConnected = false;
       });
+
+      this.socket.on('conversation:created', async () => {
+        await this.fetchConversations();
+      });
     },
 
     disconnectSocket() {

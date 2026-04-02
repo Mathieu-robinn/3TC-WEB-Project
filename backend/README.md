@@ -1,98 +1,190 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Backend - API 24h INSA
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST et WebSocket du projet 24h INSA, construite avec NestJS, Prisma et PostgreSQL.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Sommaire
 
-## Description
+- [Stack technique](#stack-technique)
+- [Prérequis](#prerequis)
+- [Installation rapide](#installation-rapide)
+- [Configuration](#configuration)
+- [Base de donnees](#base-de-donnees)
+- [Lancement](#lancement)
+- [Documentation API](#documentation-api)
+- [WebSocket temps reel](#websocket-temps-reel)
+- [Scripts disponibles](#scripts-disponibles)
+- [Structure fonctionnelle](#structure-fonctionnelle)
+- [Securite](#securite)
+- [Depannage](#depannage)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Stack technique
 
-## Project setup
+- `NestJS` 11 (`@nestjs/common`, `@nestjs/core`, `@nestjs/swagger`)
+- `Prisma` 7 (`@prisma/client`, migrations SQL, seed TypeScript)
+- `PostgreSQL` (via `pg` et `@prisma/adapter-pg`)
+- `JWT` + `Passport` pour l'authentification
+- `Socket.IO` pour la messagerie et les notifications en temps reel
+- Validation et hardening: `class-validator`, `class-transformer`, `helmet`
 
-```bash
-$ pnpm install
-```
+## Prerequis
 
-## Compile and run the project
+- `Node.js` 20+ (recommande)
+- `pnpm` 9+
+- Une base PostgreSQL accessible
 
-```bash
-# development
-$ pnpm run start
+## Installation rapide
 
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
-```
-
-## Run tests
+Depuis le dossier `backend`:
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm install
 ```
 
-## Deployment
+## Configuration
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+L'application charge les variables via `ConfigModule.forRoot()` et `dotenv`.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Variables attendues:
+
+- `DATABASE_URL`: URL PostgreSQL principale
+- `SHADOW_DATABASE_URL`: URL PostgreSQL shadow pour les migrations Prisma
+- `JWT_SECRET`: secret de signature des tokens
+- `JWT_EXPIRES_IN`: duree de validite des tokens (ex: `24h`)
+- `PORT`: port HTTP de l'API (defaut `3000`)
+- `CORS_ORIGIN`: origines autorisees (liste separee par des virgules)
+
+Exemple:
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/insa?schema=public"
+SHADOW_DATABASE_URL="postgresql://user:password@localhost:5432/insa_shadow?schema=public"
+JWT_SECRET="replace-with-a-long-random-secret"
+JWT_EXPIRES_IN="24h"
+PORT=8000
+CORS_ORIGIN=http://localhost:3000,http://localhost:3001
+```
+
+## Base de donnees
+
+Schema Prisma: `prisma/schema.prisma`.
+
+Commandes usuelles:
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+# appliquer les migrations en local
+pnpm prisma migrate dev
+
+# regenerer le client prisma
+pnpm prisma generate
+
+# seed de donnees de demo
+pnpm run db:seed
+
+# reset complet (sans seed)
+pnpm run db:reset
+
+# reset complet + seed
+pnpm run db:reset:seed
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Le seed cree un jeu de donnees realiste (utilisateurs, editions, courses, equipes, puces, transactions, logs, notifications et messagerie).
 
-## Resources
+## Lancement
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+# mode developpement (watch)
+pnpm run start:dev
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# mode standard
+pnpm run start
 
-## Support
+# build + execution production
+pnpm run build
+pnpm run start:prod
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Une fois demarree:
 
-## Stay in touch
+- API: `http://localhost:<PORT>`
+- Swagger: `http://localhost:<PORT>/docs`
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Documentation API
 
-## License
+La documentation OpenAPI est exposee via Swagger sur `/docs`.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Authentification:
+
+1. Appeler `POST /auth/login` pour obtenir un JWT.
+2. Dans Swagger, cliquer sur **Authorize**.
+3. Renseigner `Bearer <token>`.
+
+La route `POST /auth/register` est reservee aux utilisateurs `ADMIN` authentifies.
+
+## WebSocket temps reel
+
+Gateway Socket.IO active via `EventsGateway`.
+
+- Auth a la connexion via JWT (`handshake.auth.token` ou header `Authorization`)
+- Emission de messages de conversation sur `conversation:<id>:newMessage`
+- Emission de notifications ciblees sur `newNotification`
+
+## Scripts disponibles
+
+| Script | Description |
+| --- | --- |
+| `pnpm run start` | Demarrage NestJS |
+| `pnpm run start:dev` | Demarrage avec watch |
+| `pnpm run start:debug` | Demarrage avec debug + watch |
+| `pnpm run start:prod` | Execution du build `dist/main` |
+| `pnpm run build` | Build TypeScript |
+| `pnpm run lint` | Lint ESLint (`--fix`) |
+| `pnpm run format` | Format Prettier |
+| `pnpm run test` | Tests unitaires |
+| `pnpm run test:e2e` | Tests end-to-end |
+| `pnpm run test:cov` | Couverture de tests |
+| `pnpm run db:seed` | Seed Prisma |
+| `pnpm run db:reset` | Reset Prisma sans seed |
+| `pnpm run db:reset:seed` | Reset Prisma avec seed |
+
+## Structure fonctionnelle
+
+Domaines principaux exposes par l'API:
+
+- Authentification (`/auth`)
+- Utilisateurs (`/users`, `/user/:id`, `/me`)
+- Editions et courses (`/editions`, `/edition/:id/*`, `/courses`, `/course/:id`)
+- Equipes et coureurs (`/teams`, `/team/:id`, `/runners`, `/runner/:id`)
+- Transpondeurs et transactions (`/transponders`, `/transponder/:id/*`, `/transactions`)
+- Notifications (`/notifications`)
+- Messagerie interne (`/messaging/*`)
+- Logs d'audit (`/logs`)
+
+La reference contractuelle des routes et schemas reste Swagger (`/docs`).
+
+## Securite
+
+- `helmet` active des headers de securite HTTP.
+- Validation globale activee avec `ValidationPipe`:
+  - `whitelist: true`
+  - `forbidNonWhitelisted: true`
+  - `transform: true`
+- En production, `CORS_ORIGIN` est obligatoire au demarrage.
+
+Bonnes pratiques:
+
+- ne jamais versionner des secrets reels (`.env`)
+- utiliser un `JWT_SECRET` long, aleatoire et unique par environnement
+- restreindre strictement `CORS_ORIGIN` en production
+
+## Depannage
+
+- **Erreur CORS en prod**: verifier que `CORS_ORIGIN` est defini et correct.
+- **Connexion BDD impossible**: verifier `DATABASE_URL` et l'accessibilite PostgreSQL.
+- **JWT invalide**: verifier `JWT_SECRET` et le format `Authorization: Bearer <token>`.
+- **Migrations Prisma en echec**: verifier `SHADOW_DATABASE_URL` et les droits SQL.
+
+## Ressources
+
+- [NestJS Documentation](https://docs.nestjs.com)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [Socket.IO Documentation](https://socket.io/docs/v4)

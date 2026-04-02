@@ -550,6 +550,7 @@ async function main() {
   ];
 
   const notifTypes = ["INFO", "ALERT", "EMERGENCY"] as const;
+  const notifBaseDate = new Date("2026-03-28T09:00:00Z"); // Toujours avant le 29/03/2026 UTC
   for (const user of [...benevoles, ...participantUsers]) {
     for (let i = 0; i < rand(1, 3); i++) {
       await prisma.notification.create({
@@ -557,7 +558,7 @@ async function main() {
           userId: user.id,
           type: pick(notifTypes) as any,
           message: pick(notifMessages),
-          date: new Date(new Date("2026-05-16T14:00:00Z").getTime() + rand(0, 600) * 60 * 1000),
+          date: new Date(notifBaseDate.getTime() + rand(0, 600) * 60 * 1000),
           state: rand(0, 1) === 0 ? ("SEEN" as any) : ("UNSEEN" as any),
           processed: rand(0, 1) === 0,
         },

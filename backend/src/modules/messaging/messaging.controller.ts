@@ -130,6 +130,13 @@ export class MessagingController {
         })),
       },
     });
+
+    for (const participantId of participantIds) {
+      this.eventsGateway.emitToUser(participantId, 'conversation:created', {
+        conversationId: conversation.id,
+      });
+    }
+
     return conversation;
   }
 

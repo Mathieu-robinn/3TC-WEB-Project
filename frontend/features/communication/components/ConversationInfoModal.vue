@@ -1,13 +1,20 @@
 <template>
-  <v-dialog v-model="internalValue" v-bind="convInfoDialogAttrs" transition="dialog-bottom-transition">
-    <v-card class="glass-modal rounded-xl overflow-hidden">
-      <v-toolbar color="transparent" class="px-2">
-        <v-toolbar-title class="text-h6 font-weight-bold">Détails de la conversation</v-toolbar-title>
+  <v-dialog
+    v-model="internalValue"
+    v-bind="convInfoDialogAttrs"
+    transition="dialog-bottom-transition"
+    scrollable
+  >
+    <v-card class="glass-modal conv-info-card rounded-xl overflow-hidden d-flex flex-column">
+      <v-toolbar color="transparent" class="px-2 flex-shrink-0">
+        <v-toolbar-title class="text-h6 font-weight-bold text-truncate pr-2">
+          Détails de la conversation
+        </v-toolbar-title>
         <v-spacer></v-spacer>
         <v-btn icon="mdi-close" variant="text" @click="internalValue = false"></v-btn>
       </v-toolbar>
 
-      <v-card-text>
+      <v-card-text class="conv-info-card-text px-3 px-sm-4 pb-safe">
         <!-- Avatar + Name -->
         <div class="text-center mb-4 mt-2">
           <v-avatar :color="conversation.type === 'GROUP' ? 'secondary' : 'primary'" size="64" class="elevation-3 mb-3">
@@ -16,26 +23,32 @@
 
           <!-- Editable name (GROUP + admin only) -->
           <div v-if="conversation.type === 'GROUP' && isAdmin">
-            <div v-if="!editingName" class="d-flex align-center justify-center gap-2">
-              <h2 class="text-h5 font-weight-bold">{{ conversation.name || `Groupe #${conversation.id}` }}</h2>
+            <div v-if="!editingName" class="d-flex align-center justify-center gap-2 flex-wrap px-1">
+              <h2 class="text-h5 font-weight-bold text-wrap text-center">
+                {{ conversation.name || `Groupe #${conversation.id}` }}
+              </h2>
               <v-btn icon="mdi-pencil" size="x-small" variant="text" color="primary" @click="startEditName"></v-btn>
             </div>
-            <div v-else class="d-flex align-center gap-2 px-4">
+            <div v-else class="d-flex flex-column flex-sm-row align-stretch gap-2 px-1 px-sm-4">
               <v-text-field
                 v-model="newName"
                 density="compact"
                 variant="outlined"
                 hide-details
                 autofocus
-                class="flex-grow-1"
+                class="flex-grow-1 min-w-0"
                 @keyup.enter="saveName"
                 @keyup.esc="editingName = false"
               ></v-text-field>
-              <v-btn icon="mdi-check" size="small" color="success" variant="tonal" :loading="savingName" @click="saveName"></v-btn>
-              <v-btn icon="mdi-close" size="small" variant="text" @click="editingName = false"></v-btn>
+              <div class="d-flex align-center justify-center justify-sm-end gap-1 flex-shrink-0">
+                <v-btn icon="mdi-check" size="small" color="success" variant="tonal" :loading="savingName" @click="saveName"></v-btn>
+                <v-btn icon="mdi-close" size="small" variant="text" @click="editingName = false"></v-btn>
+              </div>
             </div>
           </div>
-          <h2 v-else class="text-h5 font-weight-bold">{{ conversation.name || `Conversation #${conversation.id}` }}</h2>
+          <h2 v-else class="text-h5 font-weight-bold text-wrap text-center px-1">
+            {{ conversation.name || `Conversation #${conversation.id}` }}
+          </h2>
 
           <p class="text-subtitle-1 text-medium-emphasis mt-1">
             {{ conversation.type === 'GROUP' ? 'Groupe' : 'Privé' }}
@@ -46,21 +59,21 @@
 
         <h3 class="text-subtitle-2 mb-3">Participants ({{ conversation.participants?.length || 0 }})</h3>
 
-        <v-list class="bg-transparent" lines="two">
+        <v-list class="bg-transparent conv-info-list" lines="two">
           <v-list-item
             v-for="part in conversation.participants"
             :key="part.id"
-            class="px-0 rounded-lg mb-1"
+            class="px-0 rounded-lg mb-1 conv-info-participant-item"
           >
             <template v-slot:prepend>
-              <v-avatar color="indigo-lighten-4" class="mr-3 text-white">
+              <v-avatar color="indigo-lighten-4" class="mr-3 text-white flex-shrink-0">
                 <span class="text-caption font-weight-bold">
                   {{ part.user?.firstName?.charAt(0) }}{{ part.user?.lastName?.charAt(0) }}
                 </span>
               </v-avatar>
             </template>
 
-            <v-list-item-title class="font-weight-medium">
+            <v-list-item-title class="font-weight-medium text-wrap">
               {{ part.user?.firstName }} {{ part.user?.lastName }}
             </v-list-item-title>
             <v-list-item-subtitle class="text-caption">
@@ -79,7 +92,7 @@
               <div class="d-flex align-center gap-2">
                 <v-tooltip
                   :text="part.role === 'ADMIN' ? 'Rétrograder Membre' : 'Promouvoir Admin'"
-                  location="left"
+                  :location="tooltipLocation"
                 >
                   <template v-slot:activator="{ props: tooltipProps }">
                     <v-btn
@@ -94,7 +107,7 @@
                   </template>
                 </v-tooltip>
 
-                <v-tooltip text="Retirer du groupe" location="left">
+                <v-tooltip text="Retirer du groupe" :location="tooltipLocation">
                   <template v-slot:activator="{ props: tooltipProps }">
                     <v-btn
                       v-bind="tooltipProps"
@@ -125,12 +138,15 @@
             hide-details
             rounded="lg"
             label="Utilisateur"
+            class="min-w-0"
+            :menu-props="{ maxHeight: 280 }"
           ></v-select>
-          <div class="d-flex justify-end mt-3">
+          <div class="d-flex justify-sm-end mt-3">
             <v-btn
               color="primary"
               variant="flat"
               rounded="lg"
+              class="conv-info-add-btn"
               :disabled="selectedUserToAdd == null || addingParticipant"
               :loading="addingParticipant"
               @click="addParticipant"
@@ -149,10 +165,15 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useDisplay } from 'vuetify/framework'
 import type { Conversation, ConversationParticipant, UserSnippet } from '../types/communication'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 
+const display = useDisplay()
 const convInfoDialogAttrs = useMobileDialogAttrs(480)
+
+/** Tooltips « left » sortent de l’écran sur mobile ; on les met en bas. */
+const tooltipLocation = computed(() => (display.smAndDown.value ? 'bottom' : 'left'))
 
 const props = defineProps<{
   modelValue: boolean;
@@ -293,5 +314,47 @@ watch(internalValue, (val) => {
   background: rgba(var(--v-theme-surface), 0.85) !important;
   backdrop-filter: blur(20px);
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+
+/* Plein écran : la carte remplit la hauteur et le corps défile (avec scrollable sur v-dialog). */
+.conv-info-card {
+  max-height: 100%;
+  min-height: 0;
+}
+
+.conv-info-card-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+
+/* Lignes participants : pas de débordement horizontal sur téléphone (boutons sous le nom). */
+.conv-info-list :deep(.v-list-item__content) {
+  min-width: 0;
+}
+
+@media (max-width: 599px) {
+  .conv-info-participant-item {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .conv-info-list :deep(.v-list-item__append) {
+    flex-basis: 100%;
+    width: 100%;
+    margin-inline-start: 0 !important;
+    padding-inline-start: 52px;
+    justify-content: flex-end;
+  }
+}
+
+.conv-info-add-btn {
+  width: 100%;
+}
+
+@media (min-width: 600px) {
+  .conv-info-add-btn {
+    width: auto;
+  }
 }
 </style>
