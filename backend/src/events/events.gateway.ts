@@ -123,8 +123,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Emit any socket event to a specific connected user.
    */
   emitToUser(userId: number, eventName: string, payload: unknown) {
-    const socketId = this.connectedUsers.get(userId);
-    if (socketId) {
+    const sockets = this.connectedUsers.get(userId);
+    if (!sockets?.size) return;
+    for (const socketId of sockets) {
       this.server.to(socketId).emit(eventName, payload);
     }
   }
