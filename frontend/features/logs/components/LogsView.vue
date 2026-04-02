@@ -13,7 +13,7 @@
             Journal d’audit · {{ total }} entrée(s) · réservé aux administrateurs
           </p>
         </div>
-        <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+        <div class="d-flex flex-wrap w-100 w-md-auto admin-hero-actions">
           <v-btn
             variant="tonal"
             color="white"
@@ -31,7 +31,116 @@
     <div class="pa-4 pa-md-6 pt-4">
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
-          <v-row density="comfortable" align="center">
+          <template v-if="isPhoneFilters">
+            <div class="d-flex align-center ga-2">
+              <v-text-field
+                v-model="filterUserSearch"
+                class="flex-grow-1"
+                prepend-inner-icon="mdi-account-search"
+                placeholder="Prénom ou nom de l’auteur"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+              />
+              <v-btn
+                icon
+                variant="tonal"
+                rounded="lg"
+                density="comfortable"
+                :aria-expanded="phoneFiltersExpanded"
+                aria-label="Afficher ou masquer les filtres"
+                @click="togglePhoneFilters"
+              >
+                <v-icon size="22">{{ phoneFiltersExpanded ? 'mdi-chevron-up' : 'mdi-triangle-small-down' }}</v-icon>
+              </v-btn>
+            </div>
+            <v-expand-transition>
+              <div v-show="phoneFiltersExpanded" class="mt-3">
+                <v-row density="comfortable" align="center">
+                  <v-col cols="12">
+                    <v-select
+                      v-model="filterTypes"
+                      :items="logTypeItems"
+                      item-title="title"
+                      item-value="value"
+                      label="Types de log"
+                      variant="solo-filled"
+                      density="compact"
+                      hide-details
+                      rounded="lg"
+                      flat
+                      multiple
+                      chips
+                      closable-chips
+                      clearable
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-select
+                      v-model="filterSort"
+                      :items="sortItems"
+                      item-title="title"
+                      item-value="value"
+                      label="Tri"
+                      variant="solo-filled"
+                      density="compact"
+                      hide-details
+                      rounded="lg"
+                      flat
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-btn
+                      variant="tonal"
+                      color="secondary"
+                      rounded="lg"
+                      block
+                      class="text-none"
+                      prepend-icon="mdi-filter-off"
+                      @click="resetFilters"
+                    >
+                      Réinitialiser
+                    </v-btn>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="filterFrom"
+                      type="datetime-local"
+                      label="À partir de"
+                      variant="solo-filled"
+                      density="compact"
+                      hide-details
+                      rounded="lg"
+                      flat
+                      clearable
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="filterTo"
+                      type="datetime-local"
+                      label="Jusqu’à"
+                      variant="solo-filled"
+                      density="compact"
+                      hide-details
+                      rounded="lg"
+                      flat
+                      clearable
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-btn color="primary" rounded="lg" block prepend-icon="mdi-filter" class="text-none" @click="applyFilters">
+                      Appliquer les filtres
+                    </v-btn>
+                  </v-col>
+                </v-row>
+              </div>
+            </v-expand-transition>
+          </template>
+          <v-row v-else density="comfortable" align="center">
             <v-col cols="12" md="4">
               <v-select
                 v-model="filterTypes"
@@ -223,6 +332,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useDisplay } from 'vuetify/framework'
 import { useApi } from '~/composables/useApi'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
 
 interface LogUser {
   id: number
@@ -264,6 +374,7 @@ const sortItems = [
 
 const api = useApi()
 const display = useDisplay()
+const { isPhoneFilters, phoneFiltersExpanded, togglePhoneFilters } = usePhoneFilterExpand()
 const loading = ref(false)
 const items = ref<LogRow[]>([])
 const total = ref(0)
@@ -297,6 +408,9 @@ const logHeadersBase = [
 ]
 
 const tableHeaders = computed(() => {
+  if (display.xs.value) {
+    return logHeadersBase.filter((h) => h.key === 'dateTime' || h.key === 'type')
+  }
   if (display.smAndDown.value) return logHeadersBase.filter((h) => h.key !== 'user')
   return logHeadersBase
 })

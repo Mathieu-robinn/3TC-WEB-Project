@@ -1,4 +1,13 @@
 const config = defineNuxtConfig({
+  app: {
+    head: {
+      title: '24h INSA',
+      titleTemplate: (titleChunk?: string) =>
+        titleChunk && titleChunk.trim() ? `${titleChunk} — 24h INSA` : '24h INSA',
+      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    },
+  },
+
   modules: [
     'vuetify-nuxt-module',
     '@pinia/nuxt',
@@ -35,6 +44,11 @@ const config = defineNuxtConfig({
     public: {
       /** Base URL de l’API (surchargée par NUXT_PUBLIC_API_BASE en .env) */
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
+      /**
+       * Origine pour Socket.IO (sans chemin). Vide = dérivée de apiBase en retirant `/api`.
+       * Utile si le WS est sur un autre host que l’API (sinon laisser vide).
+       */
+      socketOrigin: process.env.NUXT_PUBLIC_SOCKET_ORIGIN || '',
     },
   },
 

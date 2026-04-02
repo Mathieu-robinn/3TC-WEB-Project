@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { io, Socket } from 'socket.io-client';
 import type { Conversation, Message } from '../types/communication';
 import { useAuthStore } from '../../auth/stores/auth';
+import { useNotificationsStore } from '~/features/notifications/stores/notifications.store';
 
 interface CommunicationState {
   conversations: Conversation[];
@@ -9,6 +10,62 @@ interface CommunicationState {
   messages: Record<number, Message[]>; // conversationId -> messages
   socket: Socket | null;
   isConnected: boolean;
+}
+
+function toIsoString(createdAt: unknown): string {
+  if (typeof createdAt === 'string') return createdAt;
+  if (createdAt instanceof Date) return createdAt.toISOString();
+  return new Date(String(createdAt)).toISOString();
+}
+
+/**
+ * URL de base pour le client Socket.IO : même origine que l’API mais sans le préfixe `/api`,
+ * pour que les requêtes aillent vers `/socket.io/` (Nginx) et non `/api/socket.io/`.
+ */
+function resolveSocketServerUrl(apiBase: string, socketOriginOverride: string): string {
+  const override = socketOriginOverride.trim();
+  if (override) return override.replace(/\/$/, '');
+  const base = apiBase.replace(/\/$/, '');
+  const withoutApi = base.replace(/\/api$/, '');
+  return withoutApi || base;
+}
+
+/** Payload émis par le backend sur l’événement `conversationNewMessage`. */
+function normalizeWsMessage(raw: unknown): Message | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = o.id;
+  const conversationId = o.conversationId;
+  const senderUserId = o.senderUserId;
+  const content = o.content;
+  const messageType = o.messageType;
+  if (typeof id !== 'number' || typeof conversationId !== 'number' || typeof senderUserId !== 'number') {
+    return null;
+  }
+  if (typeof content !== 'string') return null;
+  if (messageType !== 'TEXT' && messageType !== 'IMAGE') return null;
+
+  const senderRaw = o.sender;
+  let sender: Message['sender'];
+  if (senderRaw && typeof senderRaw === 'object') {
+    const s = senderRaw as Record<string, unknown>;
+    sender = {
+      id: typeof s.id === 'number' ? s.id : senderUserId,
+      firstName: typeof s.firstName === 'string' ? s.firstName : '',
+      lastName: typeof s.lastName === 'string' ? s.lastName : '',
+      email: typeof s.email === 'string' ? s.email : '',
+    };
+  }
+
+  return {
+    id,
+    conversationId,
+    senderUserId,
+    content,
+    messageType,
+    createdAt: toIsoString(o.createdAt),
+    sender,
+  };
 }
 
 export const useCommunicationStore = defineStore('communication', {
@@ -29,28 +86,55 @@ export const useCommunicationStore = defineStore('communication', {
   },
   actions: {
     initSocket() {
-      if (this.socket) return;
+      const token = useCookie('auth_token').value;
+      if (!token) return;
+      if (this.socket?.connected) return;
+
+      if (this.socket) {
+        this.disconnectSocket();
+      }
 
       const config = useRuntimeConfig();
-      const token = useCookie('auth_token').value;
+      const apiBase = String(config.public.apiBase || '').replace(/\/$/, '');
+      const url = resolveSocketServerUrl(apiBase, String(config.public.socketOrigin ?? ''));
 
-      if (!token) return;
-
-      this.socket = io(config.public.apiBase, {
+      const sock = io(url, {
         auth: { token },
+        path: '/socket.io/',
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 10000,
+        timeout: 20000,
+        forceNew: true,
       });
+      this.socket = sock;
 
-      this.socket.on('connect', () => {
+      sock.on('connect', () => {
         this.isConnected = true;
+        useNotificationsStore().bindSocket(sock);
       });
 
-      this.socket.on('disconnect', () => {
+      sock.on('disconnect', () => {
         this.isConnected = false;
       });
 
-      this.socket.on('conversation:created', async () => {
-        await this.fetchConversations();
+      sock.on('connect_error', (err) => {
+        console.warn('[socket] connect_error', err?.message ?? err);
       });
+
+      sock.on('conversationNewMessage', (raw: unknown) => {
+        this.handleConversationNewMessage(raw);
+      });
+    },
+
+    /** Recrée le client si la connexion est tombée (onglet, proxy, session expirée côté Socket.IO). */
+    reconnectSocketIfNeeded() {
+      const token = useCookie('auth_token').value;
+      if (!token) return;
+      if (this.socket?.connected) return;
+      this.initSocket();
     },
 
     disconnectSocket() {
@@ -62,32 +146,30 @@ export const useCommunicationStore = defineStore('communication', {
       }
     },
 
-    attachConversationListeners() {
-      if (!this.socket) return;
+    handleConversationNewMessage(raw: unknown) {
+      const newMessage = normalizeWsMessage(raw);
+      if (!newMessage) return;
 
-      this.conversations.forEach((conv) => {
-        const eventName = `conversation:${conv.id}:newMessage`;
-        this.socket!.off(eventName);
-        this.socket!.on(eventName, (newMessage: Message) => {
-          const cid = conv.id;
-          const uid = useAuthStore().user?.id ?? 0;
-          if (this.activeConversationId === cid) {
-            if (!this.messages[cid]) {
-              this.messages[cid] = [];
-            }
-            const exists = this.messages[cid].find((m) => m.id === newMessage.id);
-            if (!exists) {
-              this.messages[cid].push(newMessage);
-            }
-            void this.markConversationRead(cid);
-          } else if (newMessage.senderUserId !== uid) {
-            const c = this.conversations.find((x) => x.id === cid);
-            if (c) {
-              c.unreadCount = (c.unreadCount ?? 0) + 1;
-            }
-          }
-        });
-      });
+      const cid = newMessage.conversationId;
+      const uid = useAuthStore().user?.id ?? 0;
+      const iso = newMessage.createdAt;
+
+      const conv = this.conversations.find((x) => x.id === cid);
+      if (conv) {
+        conv.lastMessageAt = iso;
+      }
+
+      if (this.activeConversationId === cid) {
+        const prev = this.messages[cid] ?? [];
+        if (prev.some((m) => m.id === newMessage.id)) return;
+        this.messages = { ...this.messages, [cid]: [...prev, newMessage] };
+        void this.markConversationRead(cid);
+      } else if (newMessage.senderUserId !== uid) {
+        const c = this.conversations.find((x) => x.id === cid);
+        if (c) {
+          c.unreadCount = (c.unreadCount ?? 0) + 1;
+        }
+      }
     },
 
     async fetchConversations() {
@@ -96,7 +178,6 @@ export const useCommunicationStore = defineStore('communication', {
       try {
         const data = await api.get<Conversation[]>('/messaging/conversations');
         this.conversations = data;
-        this.attachConversationListeners();
       } catch (e) {
         console.error('Failed to fetch conversations', e);
       }
@@ -118,7 +199,6 @@ export const useCommunicationStore = defineStore('communication', {
       this.activeConversationId = id;
       await this.fetchMessages(id);
       await this.markConversationRead(id);
-      this.attachConversationListeners();
     },
 
     async fetchMessages(conversationId: number) {
@@ -126,7 +206,7 @@ export const useCommunicationStore = defineStore('communication', {
       const api = await nuxtApp.runWithContext(() => useApi());
       try {
         const data = await api.get(`/messaging/conversations/${conversationId}/messages`);
-        this.messages[conversationId] = data;
+        this.messages = { ...this.messages, [conversationId]: data };
       } catch (e) {
         console.error('Failed to fetch messages', e);
       }
@@ -140,14 +220,13 @@ export const useCommunicationStore = defineStore('communication', {
           content,
           messageType,
         });
-        if (!this.messages[conversationId]) {
-          this.messages[conversationId] = [];
-        }
-        const exists = this.messages[conversationId].find((m) => m.id === message.id);
+        const prev = this.messages[conversationId] ?? [];
+        const exists = prev.find((m) => m.id === message.id);
         if (!exists) {
           const authStore = useAuthStore();
           const m: Message = {
             ...message,
+            createdAt: toIsoString(message.createdAt as unknown),
             sender: message.sender ?? {
               id: authStore.user?.id ?? 0,
               firstName: authStore.user?.firstName ?? '',
@@ -155,7 +234,9 @@ export const useCommunicationStore = defineStore('communication', {
               email: authStore.user?.email ?? '',
             },
           };
-          this.messages[conversationId].push(m);
+          this.messages = { ...this.messages, [conversationId]: [...prev, m] };
+          const conv = this.conversations.find((c) => c.id === conversationId);
+          if (conv) conv.lastMessageAt = m.createdAt;
         }
         await this.markConversationRead(conversationId);
       } catch (e) {

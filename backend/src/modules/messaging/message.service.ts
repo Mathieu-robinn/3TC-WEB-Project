@@ -31,9 +31,14 @@ export class MessageService {
     } as any);
   }
 
-  async createMessage(data: Prisma.MessageCreateInput): Promise<Message> {
+  async createMessage(data: Prisma.MessageCreateInput) {
     return this.prisma.message.create({
       data,
+      include: {
+        sender: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
     });
   }
 

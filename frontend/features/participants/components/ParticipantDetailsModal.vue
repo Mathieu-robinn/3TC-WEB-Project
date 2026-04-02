@@ -10,7 +10,7 @@
       <!-- Header -->
       <div class="modal-header pa-5">
         <div class="d-flex align-center justify-space-between">
-          <div class="d-flex align-center gap-3">
+          <div class="d-flex align-center ga-5">
             <v-avatar
               :color="avatarColor"
               size="52"
@@ -19,7 +19,7 @@
                 {{ initials }}
               </span>
             </v-avatar>
-            <div>
+            <div class="pl-1">
               <div class="text-h6 font-weight-bold text-white">{{ participant.fullName }}</div>
               <div class="text-caption" style="color: rgba(255,255,255,0.65)">
                 <v-icon size="11" class="mr-1">mdi-account-group-outline</v-icon>{{ participant.teamName }}
@@ -30,7 +30,7 @@
         </div>
 
         <!-- Rôles + mini stats -->
-        <div class="d-flex flex-wrap gap-1 mt-3">
+        <div class="d-flex flex-wrap ga-3 mt-4">
           <v-chip v-if="participant.isCaptain" color="primary" size="small" variant="flat">Capitaine</v-chip>
           <v-chip v-if="participant.isTransponderHolder" color="blue-lighten-1" size="small" variant="flat">Resp transpondeur</v-chip>
         </div>

@@ -11,7 +11,7 @@
           </div>
           <p class="text-body-2 text-white-70 ml-0 ml-md-13">{{ comptesHeroSubtitle }}</p>
         </div>
-        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-md-auto">
+        <div class="d-flex flex-column flex-sm-row flex-wrap w-100 w-md-auto admin-hero-actions">
           <v-btn
             variant="tonal"
             color="white"
@@ -54,7 +54,69 @@
     <div class="pa-4 pa-md-6 pt-4">
       <v-card class="controls-bar mb-5" rounded="xl" elevation="0">
         <v-card-text class="pa-3">
-          <v-row density="comfortable" align="center">
+          <template v-if="isPhoneFilters">
+            <div class="d-flex align-center ga-2">
+              <v-text-field
+                v-model="filterSearch"
+                class="flex-grow-1"
+                prepend-inner-icon="mdi-magnify"
+                placeholder="Email, nom, prénom, téléphone…"
+                variant="solo-filled"
+                density="compact"
+                hide-details
+                rounded="lg"
+                flat
+                clearable
+              />
+              <v-btn
+                icon
+                variant="tonal"
+                rounded="lg"
+                density="comfortable"
+                :aria-expanded="phoneFiltersExpanded"
+                aria-label="Afficher ou masquer les filtres"
+                @click="togglePhoneFilters"
+              >
+                <v-icon size="22">{{ phoneFiltersExpanded ? 'mdi-chevron-up' : 'mdi-triangle-small-down' }}</v-icon>
+              </v-btn>
+            </div>
+            <v-expand-transition>
+              <div v-show="phoneFiltersExpanded" class="mt-3">
+                <v-row density="comfortable" align="center">
+                  <v-col cols="12">
+                    <v-select
+                      v-model="filterRole"
+                      :items="roleFilterItems"
+                      item-title="title"
+                      item-value="value"
+                      label="Rôle"
+                      variant="solo-filled"
+                      density="compact"
+                      hide-details
+                      rounded="lg"
+                      flat
+                      clearable
+                      @update:model-value="onRoleFilterChange"
+                    />
+                  </v-col>
+                  <v-col cols="12">
+                    <v-btn
+                      variant="tonal"
+                      color="secondary"
+                      rounded="lg"
+                      block
+                      class="text-none"
+                      prepend-icon="mdi-filter-off"
+                      @click="resetCompteFilters"
+                    >
+                      Réinitialiser les filtres
+                    </v-btn>
+                  </v-col>
+                </v-row>
+              </div>
+            </v-expand-transition>
+          </template>
+          <v-row v-else density="comfortable" align="center">
             <v-col cols="12" md="5">
               <v-text-field
                 v-model="filterSearch"
@@ -326,9 +388,11 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useDisplay } from 'vuetify/framework'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
+import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
 
 const { currentUserId, isSuperAdmin } = useJwtAuth()
 const display = useDisplay()
+const { isPhoneFilters, phoneFiltersExpanded, togglePhoneFilters } = usePhoneFilterExpand()
 const compteFormDialogAttrs = useMobileDialogAttrs(520)
 const compteDeleteDialogAttrs = useMobileDialogAttrs(420)
 

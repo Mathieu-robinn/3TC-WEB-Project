@@ -76,10 +76,26 @@ function sortWithinCategory(items: ApiNotification[], dateDesc: boolean): ApiNot
 }
 
 function normalizeNotification(n: ApiNotification): ApiNotification {
-  return { ...n, sender: n.sender ?? null }
+  const sender = n.sender ?? null
+  let date = n.date
+  if (typeof date !== 'string') {
+    try {
+      date = new Date(date as unknown as string).toISOString()
+    } catch {
+      date = new Date().toISOString()
+    }
+  }
+  return {
+    ...n,
+    date,
+    sender,
+    state: n.state === 'SEEN' || n.state === 'UNSEEN' ? n.state : 'UNSEEN',
+    processed: Boolean(n.processed),
+    type: n.type === 'EMERGENCY' || n.type === 'ALERT' || n.type === 'INFO' ? n.type : 'INFO',
+  }
 }
 
-export interface AdminToast {
+export interface UrgentToast {
   key: string
   type: 'ALERT' | 'EMERGENCY'
   message: string
@@ -93,9 +109,9 @@ let socketHandler: ((payload: ApiNotification) => void) | null = null
 export const useNotificationsStore = defineStore('notifications', {
   state: () => ({
     items: [] as ApiNotification[],
-    adminToasts: [] as AdminToast[],
+    urgentToasts: [] as UrgentToast[],
     loading: false,
-    notifFilter: 'unprocessed' as NotifUiFilter,
+    notifFilter: 'all' as NotifUiFilter,
     notifSortDate: 'desc' as NotifSortDate,
     notifSearch: '',
   }),
@@ -156,29 +172,27 @@ export const useNotificationsStore = defineStore('notifications', {
       const auth = useAuthStore()
       const row = normalizeNotification(payload)
       const idx = this.items.findIndex((n) => n.id === row.id)
-      if (idx === -1) {
-        this.items.push(row)
-      } else {
-        this.items[idx] = row
-      }
-      this.items = sortItemsStorage(this.items)
-      if ((auth.user?.role === 'ADMIN' || auth.user?.role === 'SUPER_ADMIN') && (row.type === 'ALERT' || row.type === 'EMERGENCY')) {
-        this.pushAdminToast(row)
+      const next =
+        idx === -1 ? [...this.items, row] : this.items.map((n, i) => (i === idx ? row : n))
+      this.items = sortItemsStorage(next)
+      if (auth.user && (row.type === 'ALERT' || row.type === 'EMERGENCY')) {
+        this.pushUrgentToast(row)
       }
     },
 
-    pushAdminToast(row: ApiNotification) {
+    pushUrgentToast(row: ApiNotification) {
       if (row.type !== 'ALERT' && row.type !== 'EMERGENCY') return
       const key = `${Date.now()}-${Math.random().toString(36).slice(2)}`
       const authorLabel = authorLabelForToast(row)
-      this.adminToasts.push({ key, type: row.type, message: row.message, authorLabel })
+      const toast: UrgentToast = { key, type: row.type, message: row.message, authorLabel }
+      this.urgentToasts = [...this.urgentToasts, toast]
       window.setTimeout(() => {
-        this.adminToasts = this.adminToasts.filter((t) => t.key !== key)
+        this.urgentToasts = this.urgentToasts.filter((t) => t.key !== key)
       }, 8000)
     },
 
     dismissToast(key: string) {
-      this.adminToasts = this.adminToasts.filter((t) => t.key !== key)
+      this.urgentToasts = this.urgentToasts.filter((t) => t.key !== key)
     },
 
     async fetchNotifications() {

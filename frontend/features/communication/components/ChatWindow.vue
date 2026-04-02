@@ -50,7 +50,7 @@
 
     <!-- Input Area -->
     <v-divider></v-divider>
-    <v-card-actions class="pa-3 bg-surface input-glass d-flex align-center">
+    <v-card-actions class="pa-3 bg-surface input-glass chat-input-row">
       <v-text-field
         v-model="newMessage"
         placeholder="Écrivez votre message..."
@@ -58,22 +58,21 @@
         density="compact"
         hide-details
         rounded="pill"
-        class="flex-grow-1 px-1 chat-input"
+        class="flex-grow-1 flex-shrink-1 min-w-0 chat-input"
         bg-color="background"
         @keyup.enter="send"
-      >
-        <template v-slot:append-inner>
-          <v-btn 
-            icon="mdi-send" 
-            size="small"
-            color="primary"
-            variant="flat"
-            class="send-btn"
-            :disabled="!newMessage.trim()"
-            @click="send"
-          ></v-btn>
-        </template>
-      </v-text-field>
+      />
+      <v-btn
+        icon="mdi-send"
+        size="large"
+        color="primary"
+        variant="flat"
+        class="send-btn flex-shrink-0"
+        rounded="pill"
+        :disabled="!newMessage.trim()"
+        aria-label="Envoyer"
+        @click="send"
+      />
     </v-card-actions>
 
     <ConversationInfoModal
@@ -184,7 +183,17 @@ const send = () => {
   z-index: 10;
 }
 
-.chat-window--fab-safe .input-glass {
+.chat-input-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.chat-window--fab-safe .chat-input-row {
   padding-right: 88px !important;
 }
 
@@ -196,19 +205,16 @@ const send = () => {
 }
 
 .send-btn {
-  border-radius: 50%;
-  margin-right: -4px;
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  
+
   &:active {
-    transform: scale(0.9);
+    transform: scale(0.96);
   }
 }
 
 @media (max-width: 600px) {
-  .chat-window--fab-safe .input-glass {
+  .chat-window--fab-safe .chat-input-row {
     padding-right: 74px !important;
-    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 </style>

@@ -205,6 +205,7 @@
       class="mobile-top-bar"
       :class="themeStore.isDark ? 'mobile-top-bar--dark' : 'mobile-top-bar--light'"
     >
+      <span id="mobile-notif-anchor" class="mobile-top-bar__notif-anchor" aria-hidden="true" />
       <v-btn
         icon="mdi-menu"
         variant="text"
@@ -225,13 +226,15 @@
       <slot />
     </v-main>
 
-    <NotificationToastStack v-if="isAdmin" />
-    <NotificationFab v-if="showUserBar" />
+    <NotificationToastStack v-if="showUserBar" />
+    <ClientOnly>
+      <NotificationFab v-if="showUserBar" />
+    </ClientOnly>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { MOBILE_TOP_BAR_PX } from '~/composables/useMobileNav'
 import { useDisplay } from 'vuetify/framework'
 import { useCommunicationStore } from '~/features/communication/stores/communication.store'
@@ -255,6 +258,7 @@ const router = useRouter()
 const { isAdmin, payload: jwtPayload, token } = useJwtAuth()
 const commStore = useCommunicationStore()
 const notifStore = useNotificationsStore()
+const authTokenCookie = useCookie('auth_token')
 const notifMenuOpen = ref(false)
 const commUnreadTotal = computed(() => commStore.totalUnreadCount)
 const notifUnseen = computed(() => notifStore.unseenCount)
@@ -296,15 +300,26 @@ function isNavActive(path) {
   return route.path === path || route.path.startsWith(`${path}/`)
 }
 
+function refreshOnTabVisible() {
+  if (!authTokenCookie.value || document.visibilityState !== 'visible') return
+  commStore.reconnectSocketIfNeeded()
+  void notifStore.fetchNotifications()
+  void commStore.fetchConversations()
+}
+
 onMounted(async () => {
   activeEditionStore.load()
   await authStore.hydrateUserFromToken()
-  const authToken = useCookie('auth_token')
-  if (authToken.value) {
+  if (authTokenCookie.value) {
     commStore.initSocket()
     await commStore.fetchConversations()
     await notifStore.fetchNotifications()
   }
+  document.addEventListener('visibilitychange', refreshOnTabVisible)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', refreshOnTabVisible)
 })
 
 const handleLogout = () => {
@@ -587,6 +602,15 @@ watch(
   min-height: 56px;
   padding: env(safe-area-inset-top, 0px) 8px 0 max(8px, env(safe-area-inset-left, 0px));
   box-sizing: border-box;
+}
+
+.mobile-top-bar__notif-anchor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .mobile-top-bar--light {

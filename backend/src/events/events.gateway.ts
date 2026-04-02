@@ -21,6 +21,9 @@ import type { NotificationJson } from "../modules/notification/notification-json
   cors: {
     origin: "*", // À restreindre à l'URL du frontend en production
   },
+  transports: ["websocket", "polling"],
+  pingTimeout: 60000,
+  pingInterval: 25000,
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
@@ -32,8 +35,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  /** Mappe userId -> socketId pour tracker les utilisateurs connectés */
-  private connectedUsers = new Map<number, string>();
+  /** Mappe userId -> sockets (plusieurs onglets / appareils par utilisateur) */
+  private connectedUsers = new Map<number, Set<string>>();
 
   /**
    * Appelé automatiquement quand un client se connecte.
@@ -58,7 +61,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         client.disconnect(true);
         return;
       }
-      this.connectedUsers.set(payload.sub, client.id);
+      let sockets = this.connectedUsers.get(payload.sub);
+      if (!sockets) {
+        sockets = new Set<string>();
+        this.connectedUsers.set(payload.sub, sockets);
+      }
+      sockets.add(client.id);
       console.log(`[WS] Utilisateur ${payload.sub} connecté (socket: ${client.id})`);
     } catch {
       client.disconnect(true);
@@ -69,10 +77,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Appelé automatiquement quand un client se déconnecte.
    */
   handleDisconnect(client: Socket) {
-    for (const [userId, socketId] of this.connectedUsers.entries()) {
-      if (socketId === client.id) {
-        this.connectedUsers.delete(userId);
-        console.log(`[WS] Utilisateur ${userId} déconnecté`);
+    for (const [userId, sockets] of this.connectedUsers.entries()) {
+      if (sockets.has(client.id)) {
+        sockets.delete(client.id);
+        if (sockets.size === 0) {
+          this.connectedUsers.delete(userId);
+        }
+        console.log(`[WS] Utilisateur ${userId} déconnecté (socket: ${client.id})`);
+        break;
       }
     }
   }
@@ -100,8 +112,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Appelable depuis n'importe quel service NestJS via injection.
    */
   sendNotificationToUser(userId: number, notification: NotificationJson) {
-    const socketId = this.connectedUsers.get(userId);
-    if (socketId) {
+    const sockets = this.connectedUsers.get(userId);
+    if (!sockets?.size) return;
+    for (const socketId of sockets) {
       this.server.to(socketId).emit("newNotification", notification);
     }
   }
