@@ -834,6 +834,9 @@ async function confirmDeleteCourse() {
   }
 }
 
+const ACTIVE_EDITION_NO_COURSES_HINT =
+  ' Édition active sans parcours : les listes participants et équipes restent vides jusqu’à l’ajout d’une course.'
+
 async function loadCoursesForSelection() {
   if (!isAdmin || selectedEditionId.value == null) {
     courses.value = []
@@ -850,6 +853,16 @@ async function loadCoursesForSelection() {
   } finally {
     coursesLoading.value = false
   }
+}
+
+function appendActiveEditionWithoutCoursesHint(baseMessage: string): string {
+  const isActiveSelection =
+    selectedEditionId.value != null &&
+    activeEditionStore.editions.find((e) => e.id === selectedEditionId.value)?.active
+  if (isActiveSelection && courses.value.length === 0) {
+    return `${baseMessage}${ACTIVE_EDITION_NO_COURSES_HINT}`
+  }
+  return baseMessage
 }
 
 onMounted(async () => {
@@ -887,8 +900,11 @@ async function applyEdition() {
   try {
     await api.patch(`/edition/${selectedEditionId.value}/activate`, {})
     await activeEditionStore.load()
+    await loadCoursesForSelection()
     await refreshAppData()
-    successMsg.value = 'Édition active mise à jour. Les listes ont été rechargées.'
+    successMsg.value = appendActiveEditionWithoutCoursesHint(
+      'Édition active mise à jour. Les listes ont été rechargées.',
+    )
   } catch (e: unknown) {
     const err = e as { response?: { _data?: { message?: string } }; message?: string }
     error.value = err.response?._data?.message || err.message || 'Impossible de changer l’édition active.'
@@ -918,19 +934,24 @@ async function createEdition() {
     })
     if (shouldActivate && created?.id != null) {
       await api.patch(`/edition/${created.id}/activate`, {})
-      await refreshAppData()
     }
     await activeEditionStore.load()
     selectedEditionId.value = created.id
+    await loadCoursesForSelection()
+    if (shouldActivate && created?.id != null) {
+      await refreshAppData()
+    }
     newEditionName.value = ''
     newEditionStart.value = ''
     newEditionEnd.value = ''
     activateNewEditionAfterCreate.value = false
-    createEditionSuccess.value = shouldActivate
+    const createBaseMessage = shouldActivate
       ? 'Édition créée et activée.'
       : 'Édition créée. Vous pouvez lui ajouter des courses ci-dessous.'
+    createEditionSuccess.value = shouldActivate
+      ? appendActiveEditionWithoutCoursesHint(createBaseMessage)
+      : createBaseMessage
     createEditionDialogOpen.value = false
-    await loadCoursesForSelection()
   } catch (e: unknown) {
     const err = e as { response?: { _data?: { message?: string } }; message?: string }
     createEditionError.value = err.response?._data?.message || err.message || 'Impossible de créer l’édition.'

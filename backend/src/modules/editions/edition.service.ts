@@ -12,8 +12,8 @@ export class EditionService {
 
   /**
    * Édition utilisée pour filtrer équipes / coureurs / etc.
-   * Priorité : édition `active: true` **qui a au moins un parcours** ; sinon la plus récente (`startDate`)
-   * parmi les éditions qui ont des parcours (sinon listes toujours vides si l’active n’a pas encore de `Course`).
+   * Priorité : édition `active: true` (même sans parcours → listes vides).
+   * Si aucune édition n’est active : la plus récente (`startDate`) parmi celles qui ont au moins un parcours.
    */
   async getActiveEditionId(): Promise<number | null> {
     const ordered = await this.prisma.edition.findMany({
@@ -24,7 +24,7 @@ export class EditionService {
       return null;
     }
     const active = ordered.find((e) => e.active);
-    if (active && active._count.courses > 0) {
+    if (active) {
       return active.id;
     }
     const withCourses = ordered.find((e) => e._count.courses > 0);
