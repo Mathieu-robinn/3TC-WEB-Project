@@ -105,7 +105,7 @@ export class NotificationDispatchService {
 
   private static notifTypeForStatus(status: TransponderStatus): NotificationType | null {
     switch (status) {
-      case TransponderStatus.ATTRIBUE:
+      case TransponderStatus.DONNE:
       case TransponderStatus.RECUPERE:
         return NotificationType.INFO;
       case TransponderStatus.DEFAILLANT:
@@ -141,8 +141,8 @@ export class NotificationDispatchService {
       const teamPart = params.teamName ? ` — équipe « ${params.teamName} »` : "";
       let message: string;
       switch (params.newStatus) {
-        case TransponderStatus.ATTRIBUE:
-          message = `${who} a attribué le transpondeur n°${params.transponderNumero} (id ${params.transponderId})${teamPart}.`;
+        case TransponderStatus.DONNE:
+          message = `${who} a donné le transpondeur n°${params.transponderNumero} (id ${params.transponderId})${teamPart}.`;
           break;
         case TransponderStatus.RECUPERE:
           message = `${who} a récupéré le transpondeur n°${params.transponderNumero} (id ${params.transponderId})${teamPart}.`;

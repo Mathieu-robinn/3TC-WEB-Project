@@ -267,7 +267,7 @@ async function main() {
         status: TransponderStatus.RECUPERE,
         teamId: null,
         events: [
-          { type: TransponderStatus.ATTRIBUE, teamId: scenario.teamId },
+          { type: TransponderStatus.DONNE, teamId: scenario.teamId },
           { type: TransponderStatus.RECUPERE, teamId: scenario.teamId },
         ],
       });
@@ -283,28 +283,28 @@ async function main() {
         status: issueType,
         teamId: null,
         events: [
-          { type: TransponderStatus.ATTRIBUE, teamId: scenario.teamId },
+          { type: TransponderStatus.DONNE, teamId: scenario.teamId },
           { type: issueType, teamId: scenario.teamId },
         ],
       });
       seededTransponders.push({
-        status: TransponderStatus.ATTRIBUE,
+        status: TransponderStatus.DONNE,
         teamId: scenario.teamId,
-        events: [{ type: TransponderStatus.ATTRIBUE, teamId: scenario.teamId }],
+        events: [{ type: TransponderStatus.DONNE, teamId: scenario.teamId }],
       });
       continue;
     }
 
     seededTransponders.push({
-      status: TransponderStatus.ATTRIBUE,
+      status: TransponderStatus.DONNE,
       teamId: scenario.teamId,
-      events: [{ type: TransponderStatus.ATTRIBUE, teamId: scenario.teamId }],
+      events: [{ type: TransponderStatus.DONNE, teamId: scenario.teamId }],
     });
   }
 
   while (seededTransponders.length < TOTAL_TRANSPONDERS) {
     seededTransponders.push({
-      status: TransponderStatus.EN_ATTENTE,
+      status: TransponderStatus.INITIALISE,
       teamId: null,
       events: [],
     });
@@ -333,7 +333,7 @@ async function main() {
   const activeTeamIds = [
     ...new Set(
       transponderRows
-        .filter((t) => t.status === TransponderStatus.ATTRIBUE && t.teamId != null)
+        .filter((t) => t.status === TransponderStatus.DONNE && t.teamId != null)
         .map((t) => t.teamId as number),
     ),
   ];
@@ -381,7 +381,7 @@ async function main() {
     const orderedTeamTransponders = teamTransponders.sort((a, b) => {
       const aLast = a.events[a.events.length - 1]?.type;
       const bLast = b.events[b.events.length - 1]?.type;
-      const score = (s?: TransponderStatus) => (s === TransponderStatus.ATTRIBUE ? 2 : 1);
+      const score = (s?: TransponderStatus) => (s === TransponderStatus.DONNE ? 2 : 1);
       return score(aLast) - score(bLast);
     });
     const base = new Date(
@@ -411,7 +411,7 @@ async function main() {
 
   // Assertions d'invariants métier post-seed.
   const activeTransponders = await prisma.transponder.findMany({
-    where: { status: TransponderStatus.ATTRIBUE, editionId: edition2026.id },
+    where: { status: TransponderStatus.DONNE, editionId: edition2026.id },
     select: { id: true, teamId: true },
   });
   const activeCountByTeam = new Map<number, number>();
@@ -430,7 +430,7 @@ async function main() {
   const finishedTeamsWithActive = await prisma.team.findMany({
     where: {
       courseFinished: true,
-      transponders: { some: { status: TransponderStatus.ATTRIBUE } },
+      transponders: { some: { status: TransponderStatus.DONNE } },
     },
     select: { id: true },
   });
@@ -447,9 +447,9 @@ async function main() {
       select: { type: true },
     });
     for (let i = 1; i < tx.length; i++) {
-      if (tx[i - 1].type === TransponderStatus.ATTRIBUE && tx[i].type === TransponderStatus.ATTRIBUE) {
+      if (tx[i - 1].type === TransponderStatus.DONNE && tx[i].type === TransponderStatus.DONNE) {
         throw new Error(
-          `Seed incohérente: équipe #${scenario.teamId} a deux ATTRIBUE consécutifs dans l'historique.`,
+          `Seed incohérente: équipe #${scenario.teamId} a deux DONNE consécutifs dans l'historique.`,
         );
       }
     }
@@ -461,7 +461,7 @@ async function main() {
     }
     if (
       scenario.finalState !== "FINISHED" &&
-      lastType !== TransponderStatus.ATTRIBUE &&
+      lastType !== TransponderStatus.DONNE &&
       lastType !== TransponderStatus.PERDU &&
       lastType !== TransponderStatus.DEFAILLANT
     ) {
@@ -532,7 +532,7 @@ async function main() {
         notificationType: "INFO",
         transponderId: 1,
         transponderNumero: 1,
-        newStatus: "ATTRIBUE",
+        newStatus: "DONNE",
       },
     },
   });

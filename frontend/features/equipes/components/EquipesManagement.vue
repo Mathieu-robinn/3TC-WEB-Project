@@ -271,8 +271,8 @@
                         <div v-if="courseLabel(equipe.courseId)" class="text-caption text-primary mt-1">{{ courseLabel(equipe.courseId) }}</div>
                       </template>
                       <div v-else class="d-flex align-center ga-2 mt-2 text-body-2">
-                        <v-icon :color="equipe.transpondeur ? 'blue' : 'grey'" size="20">
-                          mdi-timer{{ equipe.transpondeur ? '' : '-off' }}
+                        <v-icon :color="teamTransponderColor(equipe)" size="20">
+                          {{ teamTransponderIcon(equipe) }}
                         </v-icon>
                         <span class="font-weight-medium">{{ equipe.transpondeur || 'Aucune puce' }}</span>
                       </div>
@@ -300,8 +300,8 @@
                     </div>
                     <v-divider vertical />
                     <div>
-                      <v-icon :color="equipe.transpondeur ? 'blue' : 'grey'" size="20">
-                        mdi-timer{{ equipe.transpondeur ? '' : '-off' }}
+                      <v-icon :color="teamTransponderColor(equipe)" size="20">
+                        {{ teamTransponderIcon(equipe) }}
                       </v-icon>
                       <div class="text-caption text-medium-emphasis mt-1">{{ equipe.transpondeur || 'Aucun' }}</div>
                     </div>
@@ -349,8 +349,8 @@
                   <template v-if="courseLabel(equipe.courseId)"> · {{ courseLabel(equipe.courseId) }}</template>
                 </v-list-item-subtitle>
                 <v-list-item-subtitle v-else class="d-flex align-center ga-2">
-                  <v-icon size="16" :color="equipe.transpondeur ? 'blue' : 'grey'">
-                    mdi-timer{{ equipe.transpondeur ? '' : '-off' }}
+                  <v-icon size="16" :color="teamTransponderColor(equipe)">
+                    {{ teamTransponderIcon(equipe) }}
                   </v-icon>
                   <span>{{ equipe.transpondeur || 'Aucune puce' }}</span>
                 </v-list-item-subtitle>
@@ -363,10 +363,10 @@
                     <div class="d-flex align-center gap-2 flex-wrap list-equipe-chips">
                       <v-chip
                         v-if="equipe.transpondeur"
-                        color="blue"
+                        :color="teamTransponderChipColor(equipe)"
                         size="x-small"
                         variant="tonal"
-                        prepend-icon="mdi-timer"
+                        :prepend-icon="teamTransponderIcon(equipe)"
                       >
                         {{ equipe.transpondeur }}
                       </v-chip>
@@ -721,6 +721,22 @@ const executeDelete = async () => {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
+function teamTransponderIcon(equipe) {
+  if (equipe.transponderUiStatus === 'given') return 'mdi-hand-extended'
+  if (equipe.transponderUiStatus === 'pending') return 'mdi-link-variant'
+  return 'mdi-timer-off-outline'
+}
+function teamTransponderColor(equipe) {
+  if (equipe.transponderUiStatus === 'given') return 'green'
+  if (equipe.transponderUiStatus === 'pending') return 'blue'
+  return 'grey'
+}
+function teamTransponderChipColor(equipe) {
+  if (equipe.transponderUiStatus === 'given') return 'green'
+  if (equipe.transponderUiStatus === 'pending') return 'blue'
+  return 'grey'
+}
+
 const getStatutColor = (s) =>
   ({
     en_piste: 'green',

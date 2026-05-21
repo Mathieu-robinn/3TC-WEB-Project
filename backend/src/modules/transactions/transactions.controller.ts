@@ -23,11 +23,11 @@ export class TransactionsController {
   @ApiResponse({
     status: 403,
     description:
-      "L'utilisateur doit avoir le rôle BENEVOLE ou ADMIN. La puce ne doit pas être ATTRIBUE ou PERDU.",
+      "L'utilisateur doit avoir le rôle BENEVOLE ou ADMIN. La puce ne doit pas être DONNE ou PERDU.",
   })
   @ApiBody({
     schema: {
-      example: { transponderId: 1, teamId: 1, type: "ATTRIBUE" },
+      example: { transponderId: 1, teamId: 1, type: "DONNE" },
     },
   })
   @ApiResponse({ status: 201, description: "Transaction créée, statut de la puce mis à jour." })

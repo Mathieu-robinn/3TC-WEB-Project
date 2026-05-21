@@ -92,10 +92,9 @@ export class TransponderTransactionService {
       throw new BadRequestException(`Transpondeur #${transponderId} introuvable.`);
     }
 
-    // Un transpondeur "ATTRIBUE" (prêté) ne peut pas être ré-assigné sans une restitution préalable.
-    if (transponder.status === TransponderStatus.ATTRIBUE) {
+    if (transponder.status === TransponderStatus.DONNE) {
       throw new BadRequestException(
-        `Le transpondeur #${transponderId} est déjà en cours d'utilisation (statut ATTRIBUE). Il doit être rendu avant de pouvoir être réassigné.`,
+        `Le transpondeur #${transponderId} est déjà donné à une équipe. Il doit être récupéré avant toute nouvelle opération.`,
       );
     }
 
@@ -111,10 +110,10 @@ export class TransponderTransactionService {
 
     const teamConnect = (data as { team?: { connect?: { id: number } } }).team?.connect;
     const linkedTeamId = teamConnect?.id;
-    if (data.type === TransponderStatus.ATTRIBUE) {
+    if (data.type === TransponderStatus.DONNE) {
       if (linkedTeamId == null) {
         throw new BadRequestException(
-          "Une équipe est requise pour une transaction de type ATTRIBUE.",
+          "Une équipe est requise pour une transaction de type DONNE.",
         );
       }
       const team = await this.prisma.team.findUnique({

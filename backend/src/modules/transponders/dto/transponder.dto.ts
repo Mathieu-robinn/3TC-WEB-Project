@@ -41,15 +41,19 @@ export class UpdateTransponderDto {
   status: TransponderStatus;
 }
 
-export class AssignTransponderDto {
-  @IsOptional()
+export class LinkTransponderTeamDto {
   @Type(() => Number)
   @IsInt()
-  teamId?: number | null;
+  teamId: number;
+}
 
-  /** Obligatoire lorsque `teamId` est défini : coureur de l'équipe qui reçoit la puce. */
-  @ValidateIf((o: AssignTransponderDto) => o.teamId != null)
+export class AssignTransponderDto {
   @Type(() => Number)
   @IsInt()
-  holderRunnerId?: number;
+  teamId: number;
+
+  /** Coureur de l'équipe qui reçoit la puce (remise physique). */
+  @Type(() => Number)
+  @IsInt()
+  holderRunnerId: number;
 }

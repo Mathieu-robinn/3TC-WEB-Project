@@ -6,11 +6,14 @@ import type { ApiCourse, ApiTeam, TransponderTransaction } from '~/types/api'
 
 type SortKey = 'ranking' | 'name' | 'members'
 
+export type TeamTransponderUiStatus = 'none' | 'pending' | 'given'
+
 type TeamWithStatus = ApiTeam & {
   statut: string
   membres: NonNullable<ApiTeam['runners']>
   capitaine: string
   transpondeur: string | null
+  transponderUiStatus: TeamTransponderUiStatus
 }
 
 export const useEquipesStore = defineStore('equipes', () => {
@@ -121,18 +124,31 @@ export const useEquipesStore = defineStore('equipes', () => {
       const nbTour = inRanking?.nbTour ?? e.nbTour ?? 0
       const runners = e.runners || []
 
-      const activeTransponderLabels = (e.transponders || (e as any).transpondeurs || [])
-        .filter((t: any) => t.status === 'DONNE' || t.status === 'EN_ATTENTE')
-        .map((t: any) => transponderNumeroLabel(t))
+      const teamTransponders = (e.transponders || (e as any).transpondeurs || []) as {
+        status?: string
+        numero?: number
+        id?: number
+      }[]
+      const givenTp = teamTransponders.find((t) => t.status === 'DONNE')
+      const pendingTp = teamTransponders.find((t) => t.status === 'EN_ATTENTE')
 
-      const activeRef =
-        activeTransponderLabels.length > 0 ? activeTransponderLabels.join('  ·  ') : null
+      let transponderUiStatus: TeamTransponderUiStatus = 'none'
+      let transpondeur: string | null = null
+      if (givenTp) {
+        transponderUiStatus = 'given'
+        transpondeur = `${transponderNumeroLabel(givenTp)} · donné`
+      } else if (pendingTp) {
+        transponderUiStatus = 'pending'
+        transpondeur = `${transponderNumeroLabel(pendingTp)} · en attente`
+      }
+
+      const hasLinkedTransponder = transponderUiStatus !== 'none'
 
       const statut = e.courseFinished
         ? 'terminé'
         : runners.length === 0
           ? 'aucun membre'
-          : activeRef
+          : hasLinkedTransponder
             ? 'en_piste'
             : 'en_attente'
 
@@ -150,7 +166,8 @@ export const useEquipesStore = defineStore('equipes', () => {
         statut,
         membres: runners,
         capitaine,
-        transpondeur: activeRef,
+        transpondeur,
+        transponderUiStatus,
       }
     }),
   )

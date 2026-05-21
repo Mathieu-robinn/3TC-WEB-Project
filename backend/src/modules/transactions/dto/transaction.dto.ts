@@ -10,10 +10,10 @@ export class CreateTransactionDto {
   @IsEnum(TransponderStatus)
   type: TransponderStatus;
 
-  /** Obligatoire si `type` est `ATTRIBUE` (attribution à une équipe). */
-  @ValidateIf((o: CreateTransactionDto) => o.type === TransponderStatus.ATTRIBUE)
-  @IsNotEmpty({ message: "L'équipe est requise pour une transaction de type ATTRIBUE." })
-  @ValidateIf((o: CreateTransactionDto) => o.type !== TransponderStatus.ATTRIBUE)
+  /** Obligatoire si `type` est `DONNE` (remise à une équipe). */
+  @ValidateIf((o: CreateTransactionDto) => o.type === TransponderStatus.DONNE)
+  @IsNotEmpty({ message: "L'équipe est requise pour une transaction de type DONNE." })
+  @ValidateIf((o: CreateTransactionDto) => o.type !== TransponderStatus.DONNE)
   @IsOptional()
   @Type(() => Number)
   @IsInt()

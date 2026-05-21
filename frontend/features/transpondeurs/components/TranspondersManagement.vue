@@ -260,7 +260,7 @@
                   variant="text"
                   size="small"
                   color="primary"
-                  title="Donner au coureur"
+                  title="Marquer comme donné"
                   @click="openGiveDialog(item)"
                 >
                   <v-icon size="18">mdi-hand-extended</v-icon>
@@ -440,7 +440,7 @@
       <v-card rounded="xl" elevation="8">
         <div class="form-header pa-4 d-flex align-center flex-wrap gap-2">
           <v-icon color="white">mdi-hand-extended</v-icon>
-          <span class="text-h6 text-white font-weight-bold">Donner le transpondeur</span>
+          <span class="text-h6 text-white font-weight-bold">Marquer comme donné</span>
           <v-spacer />
           <span class="text-body-2 text-white-70">
             <span v-if="selectedTransponder"> · {{ labelFor(selectedTransponder) }}</span>
@@ -483,7 +483,7 @@
             prepend-icon="mdi-check"
             @click="onConfirmGive"
           >
-            Confirmer la remise
+            Confirmer (donné)
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -814,7 +814,7 @@ async function openGiveDialog(transponder) {
   giveLoading.value = true
   try {
     const api = useApi()
-    const teams = await api.get<{ id: number; name?: string; runners?: { id: number; firstName?: string; lastName?: string }[]; respRunnerId?: number | null }[]>('/teams')
+    const teams = await api.get('/teams')
     const team = Array.isArray(teams) ? teams.find((t) => t.id === giveTeamId.value) : null
     const runners = team?.runners ?? []
     giveHolderSelectItems.value = runners.map((m) => ({

@@ -90,7 +90,8 @@ export class TransponderService {
       if (team.runners.length === 0) return false;
       const teamActiveTransponders = team.transponders.filter(
         (t) =>
-          t.editionId === editionId && (t.status === "ATTRIBUE" || t.status === "RECUPERE"),
+          t.editionId === editionId &&
+          (t.status === TransponderStatus.EN_ATTENTE || t.status === TransponderStatus.DONNE),
       );
       if (teamActiveTransponders.length > 0) return false;
       return true;
@@ -126,6 +127,28 @@ export class TransponderService {
     }
   }
 
+  /** Une équipe ne peut avoir qu'une puce EN_ATTENTE ou DONNE pour l'édition (hors transpondeur courant). */
+  async assertTeamHasNoLinkedTransponder(
+    teamId: number,
+    editionId: number,
+    excludeTransponderId?: number,
+  ): Promise<void> {
+    const linked = await this.prisma.transponder.findMany({
+      where: {
+        teamId,
+        editionId,
+        status: { in: [TransponderStatus.EN_ATTENTE, TransponderStatus.DONNE] },
+        ...(excludeTransponderId != null ? { id: { not: excludeTransponderId } } : {}),
+      },
+      select: { id: true },
+    });
+    if (linked.length > 0) {
+      throw new BadRequestException(
+        "Cette équipe a déjà un transpondeur lié ou donné. Détachez-le ou récupérez-le d'abord.",
+      );
+    }
+  }
+
   /** L'équipe doit appartenir au même parcours / édition que le transpondeur. */
   async assertTeamMatchesTransponderEdition(transponderEditionId: number, teamId: number): Promise<void> {
     const team = await this.prisma.team.findUnique({
@@ -149,7 +172,7 @@ export class TransponderService {
     });
   }
 
-  /** Crée plusieurs transpondeurs « en attente » pour l’édition active. Vérifie l’unicité (editionId, numero). */
+  /** Crée plusieurs transpondeurs « initialisés » pour l’édition active. Vérifie l’unicité (editionId, numero). */
   async createTranspondersBatch(editionId: number, numeros: number[]): Promise<Transponder[]> {
     const unique = new Set(numeros);
     if (unique.size !== numeros.length) {
@@ -170,7 +193,7 @@ export class TransponderService {
         this.prisma.transponder.create({
           data: {
             numero,
-            status: TransponderStatus.EN_ATTENTE,
+            status: TransponderStatus.INITIALISE,
             edition: { connect: { id: editionId } },
           },
           include: { team: true, edition: true },
@@ -334,7 +357,7 @@ export class TransponderService {
     });
   }
 
-  /** Suppression en masse (édition active uniquement). Impossible si une puce est encore ATTRIBUE. */
+  /** Suppression en masse (édition active uniquement). Impossible si lié (EN_ATTENTE) ou donné (DONNE). */
   async deleteTranspondersBatch(editionId: number, ids: number[]): Promise<{ deleted: number }> {
     const unique = [...new Set(ids)];
     if (unique.length === 0) {
@@ -349,9 +372,14 @@ export class TransponderService {
         "Un ou plusieurs transpondeurs n'appartiennent pas à l'édition active.",
       );
     }
-    if (rows.some((t) => t.status === TransponderStatus.ATTRIBUE)) {
+    if (
+      rows.some(
+        (t) =>
+          t.status === TransponderStatus.DONNE || t.status === TransponderStatus.EN_ATTENTE,
+      )
+    ) {
       throw new BadRequestException(
-        "Impossible de supprimer une puce encore attribuée à une équipe. Détachez-la d'abord.",
+        "Impossible de supprimer une puce liée à une équipe ou déjà donnée. Déliez-la ou récupérez-la d'abord.",
       );
     }
     await this.prisma.$transaction(async (tx) => {

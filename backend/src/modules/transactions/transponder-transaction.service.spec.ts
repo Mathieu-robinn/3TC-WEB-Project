@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma.service.js";
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { TransponderStatus, Role } from "@prisma/client";
 import { NotificationDispatchService } from "../notification/notification-dispatch.service.js";
+import { LogService } from "../log/log.service.js";
 
 describe("TransponderTransactionService", () => {
   let service: TransponderTransactionService;
@@ -20,12 +21,17 @@ describe("TransponderTransactionService", () => {
     notifyAutomaticTransponderEvent: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockLogService = {
+    createLog: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TransponderTransactionService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: NotificationDispatchService, useValue: mockNotificationDispatch },
+        { provide: LogService, useValue: mockLogService },
       ],
     }).compile();
 
@@ -39,7 +45,7 @@ describe("TransponderTransactionService", () => {
 
   describe("createTransaction", () => {
     const mockUser = { id: 1, role: Role.BENEVOLE };
-    const mockTransponder = { id: 10, status: TransponderStatus.EN_ATTENTE, editionId: 1 };
+    const mockTransponder = { id: 10, status: TransponderStatus.INITIALISE, editionId: 1 };
     const mockData = {
       transponder: { connect: { id: 10 } },
       user: { connect: { id: 1 } },
@@ -79,7 +85,7 @@ describe("TransponderTransactionService", () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.transponder.findUnique as jest.Mock).mockResolvedValue({
         id: 10,
-        status: "ATTRIBUE" as any,
+        status: TransponderStatus.DONNE,
       });
 
       await expect(service.createTransaction(mockData as any, 1)).rejects.toThrow(BadRequestException);
@@ -95,7 +101,7 @@ describe("TransponderTransactionService", () => {
       await expect(service.createTransaction(mockData as any, 1)).rejects.toThrow(BadRequestException);
     });
 
-    it("should throw BadRequestException for ATTRIBUE without team", async () => {
+    it("should throw BadRequestException for DONNE without team", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.transponder.findUnique as jest.Mock).mockResolvedValue({
         ...mockTransponder,
@@ -103,14 +109,14 @@ describe("TransponderTransactionService", () => {
         editionId: 1,
       });
 
-      const attribueNoTeam = {
+      const donneNoTeam = {
         transponder: { connect: { id: 10 } },
         user: { connect: { id: 1 } },
-        type: TransponderStatus.ATTRIBUE,
+        type: TransponderStatus.DONNE,
       };
 
-      await expect(service.createTransaction(attribueNoTeam as any, 1)).rejects.toThrow(
-        "Une équipe est requise pour une transaction de type ATTRIBUE",
+      await expect(service.createTransaction(donneNoTeam as any, 1)).rejects.toThrow(
+        "Une équipe est requise pour une transaction de type DONNE",
       );
     });
   });

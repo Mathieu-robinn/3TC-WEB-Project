@@ -138,11 +138,11 @@
                   </div>
                   <div class="flex-grow-1 pt-sm-0" style="min-width: 0">
                     <div class="text-subtitle-1 font-weight-bold text-blue">{{ transponderNumeroLabel(activeTransponder) }}</div>
-                    <div class="text-caption text-medium-emphasis mt-2">Actif · En cours d'utilisation</div>
+                    <div class="text-caption text-medium-emphasis mt-2">Donné · En cours d'utilisation</div>
                   </div>
                 </div>
                 <v-chip color="green" size="x-small" variant="flat" class="transponder-actif-chip align-self-start align-self-sm-center flex-shrink-0">
-                  Actif
+                  Donné
                 </v-chip>
               </div>
             </v-card>
@@ -151,14 +151,18 @@
                 {{ equipeCourseTerminee ? 'mdi-flag-checkered' : 'mdi-timer-off-outline' }}
               </v-icon>
               <p class="text-body-2 text-medium-emphasis">
-                {{ equipeCourseTerminee ? 'Course terminée — aucune attribution possible.' : 'Aucun transpondeur assigné' }}
+                {{
+                  equipeCourseTerminee
+                    ? 'Course terminée — aucune opération possible.'
+                    : 'Aucune puce liée à cette équipe.'
+                }}
               </p>
             </div>
 
             <div
               class="d-flex flex-column flex-sm-row flex-wrap ga-4 mb-4 transponder-action-btns"
             >
-              <template v-if="activeTransponder?.id != null">
+              <template v-if="activeTransponder?.id != null && canOperateTransponders">
                 <v-btn
                   color="warning"
                   variant="tonal"
@@ -196,17 +200,43 @@
                   Déclarer perdu
                 </v-btn>
               </template>
+              <template v-else-if="pendingTransponder && !equipeCourseTerminee">
+                <v-btn
+                  v-if="canOperateTransponders"
+                  color="primary"
+                  variant="flat"
+                  rounded="lg"
+                  size="small"
+                  prepend-icon="mdi-hand-extended"
+                  :loading="transpondersStore.saving"
+                  @click="openGiveDialog"
+                >
+                  Marquer comme donné
+                </v-btn>
+                <v-btn
+                  v-if="canUnlinkTransponderFromTeam"
+                  color="grey"
+                  variant="tonal"
+                  rounded="lg"
+                  size="small"
+                  prepend-icon="mdi-link-off"
+                  :loading="transpondersStore.saving"
+                  @click="onUnlink"
+                >
+                  Délier la puce
+                </v-btn>
+              </template>
               <v-btn
-                v-else-if="pendingTransponder && !equipeCourseTerminee"
+                v-else-if="showLinkTransponderButton"
                 color="primary"
                 variant="flat"
                 rounded="lg"
                 size="small"
-                prepend-icon="mdi-hand-extended"
+                prepend-icon="mdi-link-variant"
                 :loading="transpondersStore.saving"
-                @click="openGiveDialog"
+                @click="openLinkDialog"
               >
-                Donner le transpondeur
+                Lier à une équipe
               </v-btn>
             </div>
 
@@ -272,12 +302,71 @@
     </v-card>
   </v-dialog>
 
-  <!-- Dialog séparé : évite l’imbrication v-dialog dans v-dialog -->
-  <v-dialog v-model="assignDialog" v-bind="assignTransponderDialogAttrs">
+  <!-- Liaison admin : puce initialisée → équipe -->
+  <v-dialog v-model="linkDialog" v-bind="linkDialogAttrs">
+    <v-card rounded="xl" elevation="8">
+      <v-card-title class="d-flex align-center gap-2 pt-5 px-6">
+        <v-icon color="primary">mdi-link-variant</v-icon>
+        <span>Lier à une équipe</span>
+      </v-card-title>
+      <v-card-subtitle class="px-6 pb-2">
+        Équipe <strong>{{ equipe?.name || equipe?.nom || '—' }}</strong>
+      </v-card-subtitle>
+      <v-divider />
+      <v-card-text class="px-6 pt-4">
+        <p class="text-body-2 text-medium-emphasis mb-4">
+          Choisissez une puce <strong>initialisée</strong> à associer à cette équipe (préparation prestataire).
+        </p>
+        <div v-if="transpondersStore.loading" class="d-flex justify-center py-6">
+          <v-progress-circular indeterminate color="primary" size="36" />
+        </div>
+        <v-alert
+          v-else-if="initialisedForLink.length === 0"
+          type="info"
+          variant="tonal"
+          rounded="lg"
+          density="compact"
+        >
+          Aucune puce initialisée disponible. Créez-en depuis la page Transpondeurs.
+        </v-alert>
+        <v-select
+          v-else
+          v-model="selectedLinkTransponderId"
+          :items="linkSelectItems"
+          item-title="title"
+          item-value="value"
+          label="Puce à lier"
+          variant="outlined"
+          density="comfortable"
+          rounded="lg"
+          hide-details="auto"
+        />
+      </v-card-text>
+      <v-divider />
+      <v-card-actions class="px-6 py-4 gap-2">
+        <v-spacer />
+        <v-btn variant="text" rounded="lg" @click="linkDialog = false">Annuler</v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          rounded="lg"
+          :disabled="selectedLinkTransponderId == null"
+          :loading="transpondersStore.saving"
+          prepend-icon="mdi-check"
+          @click="onConfirmLink"
+        >
+          Confirmer la liaison
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Remise au coureur (bénévole / admin) -->
+  <v-dialog v-model="giveDialog" v-bind="giveDialogAttrs">
       <v-card rounded="xl" elevation="8">
         <v-card-title class="d-flex align-center gap-2 pt-5 px-6">
-          <v-icon color="primary">mdi-timer-plus-outline</v-icon>
-          <span>Donner le transpondeur</span>
+          <v-icon color="primary">mdi-hand-extended</v-icon>
+          <span>Marquer comme donné</span>
         </v-card-title>
         <v-card-subtitle class="px-6 pb-2">
           Équipe <strong>{{ equipe?.name || equipe?.nom || '—' }}</strong>
@@ -304,7 +393,7 @@
         <v-divider />
         <v-card-actions class="px-6 py-4 gap-2">
           <v-spacer />
-          <v-btn variant="text" rounded="lg" @click="assignDialog = false">Annuler</v-btn>
+          <v-btn variant="text" rounded="lg" @click="giveDialog = false">Annuler</v-btn>
           <v-btn
             color="primary"
             variant="flat"
@@ -332,11 +421,16 @@ import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { transponderNumeroLabel } from '~/utils/transponder'
 import { useEquipesStore } from '~/features/equipes/stores/equipes'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
+import { usePermissions } from '~/composables/usePermissions'
 import { actorLabelFromTransaction, transponderLabelFromTransaction } from '~/utils/transponderTransactionDisplay'
 import type { ApiRunner, ApiTransponderRef, TransponderStatusApi, TransponderTransaction } from '~/types/api'
 
 const equipeDetailDialogAttrs = useMobileDialogAttrs(760)
-const assignTransponderDialogAttrs = useMobileDialogAttrs(520)
+const linkDialogAttrs = useMobileDialogAttrs(520)
+const giveDialogAttrs = useMobileDialogAttrs(520)
+
+const { canOperateTransponders, canLinkTransponderToTeam, canUnlinkTransponderFromTeam } =
+  usePermissions()
 
 const props = defineProps({
   modelValue: Boolean,
@@ -350,8 +444,9 @@ const emit = defineEmits(['update:modelValue', 'edit', 'equipe-updated', 'change
 const store = useEquipesStore()
 const transpondersStore = useTranspondersStore()
 
-const assignDialog = ref(false)
-const selectedTransponderId = ref<number | null>(null)
+const linkDialog = ref(false)
+const giveDialog = ref(false)
+const selectedLinkTransponderId = ref<number | null>(null)
 const selectedHolderRunnerId = ref<number | null>(null)
 const selectedCaptainId = ref<number | null>(null)
 
@@ -371,6 +466,26 @@ const pendingTransponder = computed(() => {
   const list = (props.equipe?.transponders || []) as ApiTransponderRef[]
   return list.find((t) => t.status === 'EN_ATTENTE') ?? null
 })
+
+const showLinkTransponderButton = computed(
+  () =>
+    canLinkTransponderToTeam.value &&
+    !equipeCourseTerminee.value &&
+    membres.value.length > 0 &&
+    !activeTransponder.value &&
+    !pendingTransponder.value,
+)
+
+const initialisedForLink = computed(() =>
+  transpondersStore.transponders.filter((t) => t.status === 'INITIALISE'),
+)
+
+const linkSelectItems = computed(() =>
+  initialisedForLink.value.map((t) => ({
+    title: transponderNumeroLabel(t),
+    value: t.id,
+  })),
+)
 
 const holderSelectItems = computed(() => {
   const list = (props.equipe?.membres || []) as ApiRunner[]
@@ -413,22 +528,59 @@ function onCaptainChange(runnerId: number | null) {
   emit('change-captain', { teamId, runnerId })
 }
 
-async function openGiveDialog() {
-  selectedTransponderId.value = pendingTransponder.value?.id ?? null
+async function openLinkDialog() {
+  if (!canLinkTransponderToTeam.value) return
+  selectedLinkTransponderId.value = null
+  linkDialog.value = true
+  await transpondersStore.fetchAll()
+  if (linkSelectItems.value.length === 1) {
+    selectedLinkTransponderId.value = linkSelectItems.value[0].value
+  }
+}
+
+async function onConfirmLink() {
+  const tid = teamId.value
+  if (selectedLinkTransponderId.value == null || tid == null) return
+  try {
+    await transpondersStore.linkTransponderToTeam(selectedLinkTransponderId.value, tid)
+    linkDialog.value = false
+    showSnackbar('Puce liée à l\'équipe.', 'success', 'mdi-link-variant')
+    await refreshAfterTransponderAction()
+  } catch {
+    showSnackbar('Erreur lors de la liaison.', 'error', 'mdi-alert-circle')
+  }
+}
+
+async function onUnlink() {
+  const id = pendingTransponder.value?.id
+  if (id == null || !canUnlinkTransponderFromTeam.value) return
+  if (!confirm('Délier cette puce de l\'équipe ?')) return
+  try {
+    await transpondersStore.unlinkTransponderFromTeam(id)
+    showSnackbar('Puce déliée.', 'info', 'mdi-link-off')
+    await refreshAfterTransponderAction()
+  } catch {
+    showSnackbar('Erreur lors du déliage.', 'error', 'mdi-alert-circle')
+  }
+}
+
+function openGiveDialog() {
+  if (!canOperateTransponders.value) return
   selectedHolderRunnerId.value = defaultHolderRunnerId()
-  assignDialog.value = true
+  giveDialog.value = true
 }
 
 async function refreshAfterTransponderAction() {
   const id = props.equipe?.id
   if (id == null) return
+  await transpondersStore.fetchAll()
   emit('equipe-updated', id)
   await store.fetchHistoriqueTranspondeurs(id)
 }
 
 async function onConfirmGive() {
   const tid = teamId.value
-  const transponderId = pendingTransponder.value?.id ?? selectedTransponderId.value
+  const transponderId = pendingTransponder.value?.id
   if (transponderId == null || tid == null || selectedHolderRunnerId.value == null) return
   try {
     await transpondersStore.assignTransponder(
@@ -436,8 +588,8 @@ async function onConfirmGive() {
       tid,
       selectedHolderRunnerId.value,
     )
-    assignDialog.value = false
-    showSnackbar('Transpondeur donné au coureur.', 'success', 'mdi-check-circle')
+    giveDialog.value = false
+    showSnackbar('Transpondeur marqué comme donné.', 'success', 'mdi-check-circle')
     await refreshAfterTransponderAction()
   } catch {
     showSnackbar('Erreur lors de la remise.', 'error', 'mdi-alert-circle')
@@ -530,10 +682,6 @@ watch(
   { immediate: true },
 )
 
-const equipeCourseTerminee = computed(
-  () => props.equipe?.statut === 'terminé' || props.equipe?.courseFinished === true,
-)
-
 const statutColor = computed(() => {
   const s = props.equipe?.statut
   if (s === 'en_piste') return 'green'
@@ -552,6 +700,10 @@ const statutLabel = computed(() => {
 
 // runners come from equipe.membres (already computed in store as array of Runner objects)
 const membres = computed(() => (props.equipe?.membres || []) as ApiRunner[])
+
+const equipeCourseTerminee = computed(
+  () => props.equipe?.statut === 'terminé' || props.equipe?.courseFinished === true,
+)
 
 const getFullName = (m: ApiRunner | string) =>
   typeof m === 'string' ? m : `${m.firstName || ''} ${m.lastName || ''}`.trim()

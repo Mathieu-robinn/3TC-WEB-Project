@@ -16,8 +16,12 @@ enum Role {
 }
 
 enum TransponderStatus {
+  /** Créée via plage / batch, pas encore liée à une équipe. */
+  INITIALISE
+  /** Liée à une équipe par un admin (préparation prestataire), pas encore remise au coureur. */
   EN_ATTENTE
-  ATTRIBUE
+  /** Remise au coureur (ex-ATTRIBUE). */
+  DONNE
   PERDU
   RECUPERE
   /** Puce hors service (panne / défectueuse), retirée de l’équipe comme pour une perte. */
@@ -144,7 +148,7 @@ model Transponder {
   id        Int               @id @default(autoincrement())
   /** Numéro métier de la puce, unique par édition (ex. même n° en 2025 et 2026 possible). */
   numero    Int
-  status    TransponderStatus @default(EN_ATTENTE)
+  status    TransponderStatus @default(INITIALISE)
   teamId    Int?
   editionId Int
 

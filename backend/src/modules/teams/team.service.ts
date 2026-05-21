@@ -91,8 +91,11 @@ export class TeamService {
         data: { respRunnerId: null, transponderHolderRunnerId: null },
       });
       await tx.transponder.updateMany({
-        where: { teamId: id, status: TransponderStatus.ATTRIBUE },
-        data: { teamId: null, status: TransponderStatus.EN_ATTENTE },
+        where: {
+          teamId: id,
+          status: { in: [TransponderStatus.DONNE, TransponderStatus.EN_ATTENTE] },
+        },
+        data: { teamId: null, status: TransponderStatus.INITIALISE },
       });
       await tx.transponder.updateMany({
         where: { teamId: id },

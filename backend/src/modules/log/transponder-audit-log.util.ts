@@ -2,7 +2,7 @@ import { LogType, TransponderStatus } from "@prisma/client";
 
 export function logTypeForTransponderAudit(status: TransponderStatus): LogType | null {
   switch (status) {
-    case TransponderStatus.ATTRIBUE:
+    case TransponderStatus.DONNE:
       return LogType.GIVE_TRANSPONDER;
     case TransponderStatus.RECUPERE:
       return LogType.RETURN_TRANSPONDER;
@@ -21,8 +21,8 @@ export function transponderAuditMessage(
 ): string {
   const teamPart = teamName ? ` — équipe « ${teamName} »` : "";
   switch (status) {
-    case TransponderStatus.ATTRIBUE:
-      return `Attribution du transpondeur n°${numero} (id ${id})${teamPart}.`;
+    case TransponderStatus.DONNE:
+      return `Remise du transpondeur n°${numero} (id ${id})${teamPart}.`;
     case TransponderStatus.RECUPERE:
       return `Récupération du transpondeur n°${numero} (id ${id})${teamPart}.`;
     case TransponderStatus.PERDU:

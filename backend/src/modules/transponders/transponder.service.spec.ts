@@ -3,6 +3,7 @@ import { TransponderService } from "./transponder.service.js";
 import { PrismaService } from "../../prisma.service.js";
 import { TransponderStatus } from "@prisma/client";
 import { NotificationDispatchService } from "../notification/notification-dispatch.service.js";
+import { LogService } from "../log/log.service.js";
 
 describe("TransponderService", () => {
   let service: TransponderService;
@@ -10,7 +11,7 @@ describe("TransponderService", () => {
   const mockUpdatedTransponder = {
     id: 7,
     editionId: 1,
-    status: TransponderStatus.ATTRIBUE,
+    status: TransponderStatus.DONNE,
     teamId: 3,
     team: null,
     edition: null,
@@ -38,6 +39,10 @@ describe("TransponderService", () => {
     notifyAutomaticTransponderEvent: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockLogService = {
+    createLog: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
@@ -45,6 +50,7 @@ describe("TransponderService", () => {
         TransponderService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: NotificationDispatchService, useValue: mockNotificationDispatch },
+        { provide: LogService, useValue: mockLogService },
       ],
     }).compile();
 
@@ -55,14 +61,14 @@ describe("TransponderService", () => {
     it("met à jour la puce et crée une ligne TransponderTransaction dans la même transaction", async () => {
       const result = await service.updateTransponderFieldsWithAudit(
         7,
-        { status: "ATTRIBUE", teamId: 3 },
+        { status: "DONNE", teamId: 3 },
         42,
       );
 
       expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
       expect(mockTx.transponder.update).toHaveBeenCalledWith({
         where: { id: 7 },
-        data: { status: TransponderStatus.ATTRIBUE, teamId: 3 },
+        data: { status: TransponderStatus.DONNE, teamId: 3 },
         include: { team: true, edition: true },
       });
       expect(mockTx.transponderTransaction.create).toHaveBeenCalledWith({
@@ -105,7 +111,7 @@ describe("TransponderService", () => {
     it("met à jour le responsable transpondeur sur l'équipe lorsque setTransponderHolderOnTeam est fourni", async () => {
       await service.updateTransponderFieldsWithAudit(
         7,
-        { status: "ATTRIBUE", teamId: 3 },
+        { status: "DONNE", teamId: 3 },
         42,
         { setTransponderHolderOnTeam: { teamId: 3, runnerId: 12 } },
       );
