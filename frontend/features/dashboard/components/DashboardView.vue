@@ -23,7 +23,7 @@
       <v-row class="dashboard-grid" align="stretch">
         <v-col cols="12" lg="8">
           <v-row class="mb-1">
-            <v-col cols="12" sm="6" xl="3" v-for="kpi in kpis" :key="kpi.label">
+            <v-col cols="6" sm="6" xl="3" v-for="kpi in kpis" :key="kpi.label">
               <v-card
                 v-if="isMobileKpi"
                 class="kpi-card kpi-card--compact pa-3"
@@ -42,7 +42,7 @@
                   </div>
                   <div class="text-h5 font-weight-black dashboard-kpi-value">{{ kpi.value }}</div>
                 </div>
-                <div class="text-caption text-medium-emphasis mt-2">{{ kpi.shortLabel }}</div>
+                <div class="text-caption text-medium-emphasis mt-2 kpi-card__mobile-label">{{ kpi.label }}</div>
               </v-card>
               <v-card v-else class="kpi-card pa-4" rounded="xl" elevation="0" height="100%">
                 <div class="d-flex align-start justify-space-between ga-3 mb-4">
@@ -403,7 +403,17 @@ const kpis = computed((): DashboardKpi[] => {
       color: 'green',
       bgColor: 'rgba(76,175,80,0.12)',
       detail:
-        "Nombre d'équipes actuellement en course sur la piste. Ce chiffre est dérivé du statut des équipes dans l'édition active.",
+        "Équipes avec transpondeur donné au coureur (puce en statut donné). Ne compte pas les équipes dont la puce est seulement liée en attente de remise.",
+    },
+    {
+      label: 'Équipes en attente de remise',
+      shortLabel: 'Remise',
+      value: equipeStore.stats.enAttenteRemise,
+      icon: 'mdi-link-variant',
+      color: 'blue',
+      bgColor: 'rgba(33,150,243,0.12)',
+      detail:
+        "Équipes avec une puce liée (en attente) mais pas encore remise au coureur. À traiter avant le départ sur piste.",
     },
     {
       label: 'Coureurs inscrits',
@@ -618,6 +628,10 @@ function formatDateLong(d?: string) {
 .kpi-card--compact:focus-visible {
   outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: 2px;
+}
+
+.kpi-card__mobile-label {
+  line-height: 1.25;
 }
 
 .status-row + .status-row {

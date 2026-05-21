@@ -68,7 +68,7 @@
       </v-row>
     </div>
 
-    <div class="pa-4 pa-md-6 pt-4">
+    <div class="transponders-content pa-3 pa-md-6 pt-3 pt-md-4">
       <v-alert v-if="store.error" type="warning" variant="tonal" rounded="lg" class="mb-4" density="compact">
         {{ store.error }}
       </v-alert>
@@ -190,162 +190,120 @@
         </v-toolbar>
         <v-divider />
 
-        <div class="table-scroll-x">
-        <v-data-table
-          v-model="selectedIds"
-          :headers="tableHeaders"
-          :items="tableItems"
-          :loading="store.loading"
-          item-value="id"
-          :show-select="isAdmin"
-          select-strategy="all"
-          class="elevation-0 transponders-data-table"
-          density="comfortable"
-          hide-default-footer
-          :items-per-page="-1"
-        >
-          <template #item.numero="{ item }">
-            <span class="text-body-2 font-weight-medium">{{ labelFor(item) }}</span>
-          </template>
-          <template #item.status="{ item }">
-            <v-chip
-              :color="store.statusColor(item.status)"
-              variant="tonal"
-              size="small"
-              class="font-weight-medium"
-            >
-              {{ store.statusLabel(item.status) }}
-            </v-chip>
-          </template>
-          <template #item.teamName="{ item }">
-            <div v-if="item.team" class="d-flex align-center gap-2 text-medium-emphasis">
-              <v-icon size="16">mdi-account-group</v-icon>
-              <span>{{ item.team.name || `Équipe #${item.team.id}` }}</span>
+        <div v-if="isMobileTable" class="tp-mobile-list pa-2">
+          <div v-if="store.loading" class="d-flex justify-center py-8">
+            <v-progress-circular indeterminate color="primary" size="32" />
+          </div>
+          <div
+            v-else-if="!tableItems.length"
+            class="text-center text-medium-emphasis py-12"
+          >
+            Aucun transpondeur ne correspond aux filtres.
+          </div>
+          <div
+            v-for="item in tableItems"
+            v-else
+            :key="item.id"
+            class="tp-mobile-card pa-2"
+          >
+            <div class="d-flex align-start ga-2">
+              <v-checkbox
+                v-if="isAdmin"
+                v-model="selectedIds"
+                :value="item.id"
+                density="compact"
+                hide-details
+                class="tp-mobile-card__check flex-shrink-0 mt-0"
+              />
+              <div class="flex-grow-1 min-w-0">
+                <div class="d-flex align-center justify-space-between flex-wrap ga-2 mb-1">
+                  <span class="text-body-2 font-weight-medium">{{ labelFor(item) }}</span>
+                  <v-chip
+                    :color="store.statusColor(item.status)"
+                    variant="tonal"
+                    size="small"
+                    class="font-weight-medium flex-shrink-0"
+                  >
+                    {{ store.statusLabel(item.status) }}
+                  </v-chip>
+                </div>
+                <div v-if="item.team" class="d-flex align-center ga-1 text-caption text-medium-emphasis mb-2">
+                  <v-icon size="14">mdi-account-group</v-icon>
+                  <span class="text-truncate">{{ item.team.name || `Équipe #${item.team.id}` }}</span>
+                </div>
+                <div v-else class="text-caption text-medium-emphasis mb-2">—</div>
+                <TransponderRowActions
+                  :item="item"
+                  :saving="store.saving"
+                  compact
+                  @link="openLinkDialog"
+                  @unlink="onUnlink"
+                  @give="openGiveDialog"
+                  @unassign="onUnassign"
+                  @defective="onMarkAsDefective"
+                  @lost="onMarkAsLost"
+                  @initialise="onMarkAsInitialise"
+                  @history="openHistoryDialog"
+                />
+              </div>
             </div>
-            <span v-else class="text-medium-emphasis">—</span>
-          </template>
-          <template #item.actions="{ item }">
-            <div class="d-flex justify-end gap-1">
-              <template v-if="canLinkTransponderToTeam">
-                <v-btn
-                  v-if="item.status === 'INITIALISE'"
-                  icon
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  title="Lier à une équipe"
-                  @click="openLinkDialog(item)"
-                >
-                  <v-icon size="18">mdi-link-variant</v-icon>
-                </v-btn>
-              </template>
-              <template v-if="canUnlinkTransponderFromTeam">
-                <v-btn
-                  v-if="item.status === 'EN_ATTENTE' && item.team"
-                  icon
-                  variant="text"
-                  size="small"
-                  color="grey"
-                  title="Délier de l'équipe"
-                  :loading="store.saving"
-                  @click="onUnlink(item)"
-                >
-                  <v-icon size="18">mdi-link-off</v-icon>
-                </v-btn>
-              </template>
-              <template v-if="canOperateTransponders">
-                <v-btn
-                  v-if="item.status === 'EN_ATTENTE' && item.team"
-                  icon
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  title="Marquer comme donné"
-                  @click="openGiveDialog(item)"
-                >
-                  <v-icon size="18">mdi-hand-extended</v-icon>
-                </v-btn>
-                <v-btn
-                  v-if="item.status === 'DONNE'"
-                  icon
-                  variant="text"
-                  size="small"
-                  color="warning"
-                  title="Récupérer le transpondeur (fin de course)"
-                  :loading="store.saving"
-                  @click="onUnassign(item)"
-                >
-                  <v-icon size="18">mdi-arrow-u-left-bottom</v-icon>
-                </v-btn>
-                <v-btn
-                  v-if="item.status === 'DONNE'"
-                  icon
-                  variant="text"
-                  size="small"
-                  color="deep-orange"
-                  title="Déclarer défaillant (retire la puce de l'équipe)"
-                  :loading="store.saving"
-                  @click="onMarkAsDefective(item)"
-                >
-                  <v-icon size="18">mdi-flash-alert</v-icon>
-                </v-btn>
-                <v-btn
-                  v-if="item.status === 'DONNE'"
-                  icon
-                  variant="text"
-                  size="small"
-                  color="red"
-                  title="Déclarer perdu"
-                  :loading="store.saving"
-                  @click="onMarkAsLost(item)"
-                >
-                  <v-icon size="18">mdi-alert-circle</v-icon>
-                </v-btn>
-              </template>
-              <template v-if="canRestockTransponder">
-                <v-btn
-                  v-if="item.status === 'DEFAILLANT'"
-                  icon
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  title="Remettre en initialisé"
-                  :loading="store.saving"
-                  @click="onMarkAsInitialise(item)"
-                >
-                  <v-icon size="18">mdi-package-variant</v-icon>
-                </v-btn>
-                <v-btn
-                  v-if="item.status === 'PERDU'"
-                  icon
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  title="Remettre en initialisé (puce retrouvée)"
-                  :loading="store.saving"
-                  @click="onMarkAsInitialise(item)"
-                >
-                  <v-icon size="18">mdi-package-variant</v-icon>
-                </v-btn>
-              </template>
-              <v-btn
-                icon
-                variant="text"
+          </div>
+        </div>
+
+        <div v-else class="table-scroll-x">
+          <v-data-table
+            v-model="selectedIds"
+            :headers="tableHeaders"
+            :items="tableItems"
+            :loading="store.loading"
+            item-value="id"
+            :show-select="isAdmin"
+            select-strategy="all"
+            class="elevation-0 transponders-data-table"
+            density="comfortable"
+            hide-default-footer
+            :items-per-page="-1"
+          >
+            <template #item.numero="{ item }">
+              <span class="text-body-2 font-weight-medium">{{ labelFor(item) }}</span>
+            </template>
+            <template #item.status="{ item }">
+              <v-chip
+                :color="store.statusColor(item.status)"
+                variant="tonal"
                 size="small"
-                color="primary"
-                title="Historique des opérations sur cette puce"
-                @click="openHistoryDialog(item)"
+                class="font-weight-medium"
               >
-                <v-icon size="18">mdi-history</v-icon>
-              </v-btn>
-            </div>
-          </template>
-          <template #no-data>
-            <div class="text-center text-medium-emphasis py-12">
-              Aucun transpondeur ne correspond aux filtres.
-            </div>
-          </template>
-        </v-data-table>
+                {{ store.statusLabel(item.status) }}
+              </v-chip>
+            </template>
+            <template #item.teamName="{ item }">
+              <div v-if="item.team" class="d-flex align-center gap-2 text-medium-emphasis">
+                <v-icon size="16">mdi-account-group</v-icon>
+                <span>{{ item.team.name || `Équipe #${item.team.id}` }}</span>
+              </div>
+              <span v-else class="text-medium-emphasis">—</span>
+            </template>
+            <template #item.actions="{ item }">
+              <TransponderRowActions
+                :item="item"
+                :saving="store.saving"
+                @link="openLinkDialog"
+                @unlink="onUnlink"
+                @give="openGiveDialog"
+                @unassign="onUnassign"
+                @defective="onMarkAsDefective"
+                @lost="onMarkAsLost"
+                @initialise="onMarkAsInitialise"
+                @history="openHistoryDialog"
+              />
+            </template>
+            <template #no-data>
+              <div class="text-center text-medium-emphasis py-12">
+                Aucun transpondeur ne correspond aux filtres.
+              </div>
+            </template>
+          </v-data-table>
         </div>
       </v-card>
     </div>
@@ -605,6 +563,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify/framework'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
+import TransponderRowActions from '~/features/transpondeurs/components/TransponderRowActions.vue'
 import { useTranspondersStore } from '~/features/transpondeurs/stores/transpondeurs'
 import { usePermissions } from '~/composables/usePermissions'
 import { transponderNumeroLabel } from '~/utils/transponder'
@@ -626,6 +585,7 @@ const {
   canUnlinkTransponderFromTeam,
 } = usePermissions()
 const display = useDisplay()
+const isMobileTable = computed(() => display.smAndDown.value)
 const { isPhoneFilters, phoneFiltersExpanded, togglePhoneFilters } = usePhoneFilterExpand()
 
 const selectedIds = ref([])
@@ -637,10 +597,7 @@ const transponderHeadersBase = [
   { title: '', key: 'actions', sortable: false, align: 'end', width: '200px' },
 ]
 
-const tableHeaders = computed(() => {
-  if (display.smAndDown.value) return transponderHeadersBase.filter((h) => h.key !== 'teamName')
-  return transponderHeadersBase
-})
+const tableHeaders = transponderHeadersBase
 
 const linkDialogAttrs = useMobileDialogAttrs(540)
 const giveDialogAttrs = useMobileDialogAttrs(480)
@@ -980,5 +937,22 @@ onMounted(() => {
 
 .transponders-data-table :deep(th.sortable) {
   cursor: pointer;
+}
+
+.tp-mobile-list {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.tp-mobile-card {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.tp-mobile-card:last-child {
+  border-bottom: none;
+}
+
+.tp-mobile-card__check :deep(.v-selection-control) {
+  min-height: 32px;
 }
 </style>
