@@ -92,7 +92,10 @@ export function useVisualViewportInsets(
     keyboardInset.value = v.keyboardInset
     shellTop.value = v.shellTop
     shellHeight.value = v.shellHeight
-    if (boundEl) applyVars(boundEl, v)
+    if (boundEl) {
+      applyVars(boundEl, v)
+      applyVars(document.documentElement, v)
+    }
   }
 
   const onVvScroll = () => {
@@ -124,12 +127,15 @@ export function useVisualViewportInsets(
     if (boundEl) clearVars(boundEl)
     boundEl = el
     if (boundEl && enabled.value) {
-      applyVars(boundEl, readInsets(unref(layoutTopPx)))
+      const v = readInsets(unref(layoutTopPx))
+      applyVars(boundEl, v)
+      applyVars(document.documentElement, v)
     }
   }
 
   const unbindRoot = () => {
     if (boundEl) clearVars(boundEl)
+    clearVars(document.documentElement)
     boundEl = null
   }
 

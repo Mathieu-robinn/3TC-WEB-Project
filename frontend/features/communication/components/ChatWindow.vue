@@ -53,8 +53,12 @@
       />
     </div>
 
-    <!-- Input Area -->
-    <div class="chat-composer bg-surface input-glass">
+    <!-- Input Area (mobile : fixé au-dessus du clavier via --keyboard-inset) -->
+    <div
+      ref="composerEl"
+      class="chat-composer bg-surface input-glass"
+      :class="{ 'chat-composer--pinned': isMobileChat }"
+    >
       <v-divider />
       <div class="chat-input-row pa-3">
         <v-textarea
@@ -97,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, computed } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import type { Conversation, Message } from '../types/communication'
 import MessageBubble from './MessageBubble.vue'
 import ConversationInfoModal from './ConversationInfoModal.vue'
@@ -123,7 +127,20 @@ const emit = defineEmits<{
 
 const newMessage = ref('')
 const messagesScrollEl = ref<HTMLElement | null>(null)
+const composerEl = ref<HTMLElement | null>(null)
 const showInfo = ref(false)
+
+const COMPOSER_HEIGHT_VAR = '--comm-composer-height'
+
+const updateComposerHeightVar = () => {
+  if (!props.isMobileChat || typeof document === 'undefined') return
+  const h = composerEl.value?.offsetHeight ?? 72
+  document.documentElement.style.setProperty(COMPOSER_HEIGHT_VAR, `${h}px`)
+}
+
+const clearComposerHeightVar = () => {
+  document.documentElement.style.removeProperty(COMPOSER_HEIGHT_VAR)
+}
 
 const convTitle = computed(() => {
   const conv = props.conversation
@@ -150,13 +167,44 @@ watch(
   { deep: true },
 )
 
+let composerResizeObserver: ResizeObserver | null = null
+
 onMounted(() => {
   scrollToBottom()
+  nextTick(() => {
+    updateComposerHeightVar()
+    if (props.isMobileChat && composerEl.value) {
+      composerResizeObserver = new ResizeObserver(() => updateComposerHeightVar())
+      composerResizeObserver.observe(composerEl.value)
+    }
+  })
 })
+
+onUnmounted(() => {
+  composerResizeObserver?.disconnect()
+  composerResizeObserver = null
+  if (props.isMobileChat) clearComposerHeightVar()
+})
+
+watch(
+  () => props.isMobileChat,
+  (mobile) => {
+    if (mobile) nextTick(() => updateComposerHeightVar())
+    else clearComposerHeightVar()
+  },
+)
 
 const onInputFocus = () => {
   scrollToBottom()
   emit('viewportSync')
+  nextTick(() => {
+    updateComposerHeightVar()
+    requestAnimationFrame(() => {
+      emit('viewportSync')
+      updateComposerHeightVar()
+      scrollToBottom()
+    })
+  })
 }
 
 const onEnterKey = (e: KeyboardEvent) => {
@@ -228,15 +276,8 @@ const send = () => {
   z-index: 10;
 }
 
-.chat-window--mobile .chat-composer {
-  grid-row: 3;
-  position: sticky;
-  bottom: 0;
-  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-}
-
 .chat-window--mobile .messages-container {
-  padding-bottom: 12px;
+  grid-row: 2;
 }
 
 .lh-normal {
