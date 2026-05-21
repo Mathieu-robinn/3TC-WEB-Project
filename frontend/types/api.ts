@@ -36,6 +36,7 @@ export interface ApiRunner {
   teamId: number
   team?: { id: number }
   email?: string
+  phone?: string
   teamName?: string
   transponders?: ApiRunnerTransponderRef[]
 }

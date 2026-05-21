@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { removeAccents } from '~/utils/string'
+import { computeTeamStatus } from '~/utils/teamStatus'
 import { transponderNumeroLabel } from '~/utils/transponder'
 import type { ApiCourse, ApiTeam, TransponderTransaction } from '~/types/api'
 
@@ -142,15 +143,7 @@ export const useEquipesStore = defineStore('equipes', () => {
         transpondeur = `${transponderNumeroLabel(pendingTp)} · en attente`
       }
 
-      const statut = e.courseFinished
-        ? 'terminé'
-        : runners.length === 0
-          ? 'aucun membre'
-          : givenTp
-            ? 'en_piste'
-            : pendingTp
-              ? 'en_attente_remise'
-              : 'en_attente'
+      const statut = computeTeamStatus(e)
 
       const captainRunner =
         e.respRunnerId != null ? runners.find((r) => r.id === e.respRunnerId) : undefined

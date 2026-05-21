@@ -26,6 +26,18 @@
             Actualiser
           </v-btn>
           <v-btn
+            v-if="isAdmin"
+            variant="tonal"
+            color="white"
+            rounded="lg"
+            prepend-icon="mdi-download"
+            class="flex-grow-1 flex-sm-grow-0"
+            :disabled="store.loading || !store.equipesWithStatus.length"
+            @click="exportEquipesCsv()"
+          >
+            Exporter
+          </v-btn>
+          <v-btn
             v-if="canManageTeams"
             variant="flat"
             color="white"
@@ -573,6 +585,8 @@ import { useEquipesStore } from '~/features/equipes/stores/equipes'
 import { usePermissions } from '~/composables/usePermissions'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
+import { csvFilename, downloadCsv } from '~/utils/csvExport'
+import { EQUIPES_CSV_HEADERS, equipesToCsvRows } from '~/utils/exportRows'
 
 const equipeFormDialogAttrs = useMobileDialogAttrs(520)
 const equipeDeleteDialogAttrs = useMobileDialogAttrs(420)
@@ -580,7 +594,7 @@ const equipeDeleteDialogAttrs = useMobileDialogAttrs(420)
 const { isPhoneFilters, phoneFiltersExpanded, togglePhoneFilters } = usePhoneFilterExpand()
 
 const store = useEquipesStore()
-const { canManageTeams } = usePermissions()
+const { canManageTeams, isAdmin } = usePermissions()
 
 const viewMode = ref('grid')
 const isModalOpen = ref(false)
@@ -628,6 +642,13 @@ async function onCaptainChange({ teamId, runnerId }) {
 onMounted(() => {
   store.fetchEquipes()
 })
+
+function exportEquipesCsv() {
+  if (!isAdmin.value) return
+  const rows = equipesToCsvRows(store.equipesWithStatus)
+  if (!rows.length) return
+  downloadCsv(csvFilename('equipes'), [...EQUIPES_CSV_HEADERS], rows)
+}
 
 // ── KPIs ──────────────────────────────────────────────────────────────────
 const kpis = computed(() => [

@@ -27,6 +27,18 @@
           </v-btn>
           <v-btn
             v-if="isAdmin"
+            variant="tonal"
+            color="white"
+            prepend-icon="mdi-download"
+            rounded="lg"
+            class="flex-grow-1 flex-sm-grow-0"
+            :disabled="store.loading || !store.transponders.length"
+            @click="exportTranspondersCsv()"
+          >
+            Exporter
+          </v-btn>
+          <v-btn
+            v-if="isAdmin"
             color="error"
             variant="flat"
             rounded="lg"
@@ -574,6 +586,8 @@ import {
   transponderLabelFromTransaction,
   actorLabelFromTransaction,
 } from '~/utils/transponderTransactionDisplay'
+import { csvFilename, downloadCsv } from '~/utils/csvExport'
+import { TRANSPONDEURS_CSV_HEADERS, transpondersToCsvRows } from '~/utils/exportRows'
 
 const store = useTranspondersStore()
 const {
@@ -905,6 +919,13 @@ async function onMarkAsInitialise(transponder) {
 const snackbar = ref({ show: false, message: '', color: 'success', icon: 'mdi-check-circle' })
 function showSnackbar(message, color = 'success', icon = 'mdi-check-circle') {
   snackbar.value = { show: true, message, color, icon }
+}
+
+function exportTranspondersCsv() {
+  if (!isAdmin.value) return
+  const rows = transpondersToCsvRows(store.transponders)
+  if (!rows.length) return
+  downloadCsv(csvFilename('transpondeurs'), [...TRANSPONDEURS_CSV_HEADERS], rows)
 }
 
 onMounted(() => {

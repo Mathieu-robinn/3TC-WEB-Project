@@ -28,6 +28,18 @@
             Actualiser
           </v-btn>
           <v-btn
+            v-if="isAdmin"
+            variant="tonal"
+            color="white"
+            rounded="lg"
+            prepend-icon="mdi-download"
+            class="flex-grow-1 flex-sm-grow-0"
+            :disabled="store.loading || !store.runnersNormalized.length"
+            @click="exportParticipantsCsv()"
+          >
+            Exporter
+          </v-btn>
+          <v-btn
             v-if="canManageRunners"
             variant="flat"
             color="white"
@@ -395,6 +407,8 @@ import { useParticipantsStore } from '~/features/participants/stores/participant
 import { usePermissions } from '~/composables/usePermissions'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
+import { csvFilename, downloadCsv } from '~/utils/csvExport'
+import { PARTICIPANTS_CSV_HEADERS, participantsToCsvRows } from '~/utils/exportRows'
 
 const participantFormDialogAttrs = useMobileDialogAttrs(520)
 const participantDeleteDialogAttrs = useMobileDialogAttrs(420)
@@ -402,7 +416,7 @@ const participantDeleteDialogAttrs = useMobileDialogAttrs(420)
 const { isPhoneFilters, phoneFiltersExpanded, togglePhoneFilters } = usePhoneFilterExpand()
 
 const store = useParticipantsStore()
-const { canManageRunners } = usePermissions()
+const { canManageRunners, isAdmin } = usePermissions()
 const viewMode = ref('list')
 
 // Form state
@@ -421,6 +435,13 @@ const showDetails = ref(false)
 const selectedParticipant = ref(null)
 
 onMounted(() => store.fetchAll())
+
+function exportParticipantsCsv() {
+  if (!isAdmin.value) return
+  const rows = participantsToCsvRows(store.runnersNormalized, store.teams)
+  if (!rows.length) return
+  downloadCsv(csvFilename('participants'), [...PARTICIPANTS_CSV_HEADERS], rows)
+}
 
 const kpis = computed(() => [
   { label: 'Total', value: store.stats.total, icon: 'mdi-account', color: 'blue' },
