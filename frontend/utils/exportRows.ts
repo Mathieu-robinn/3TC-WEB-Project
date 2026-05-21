@@ -25,6 +25,20 @@ function activeTransponderNumero(
   return transponderDisplay(given ?? pending) ?? ''
 }
 
+function teamTransponderHolderName(
+  team: {
+    transponderHolderRunnerId?: number | null
+    membres?: ApiRunner[]
+    runners?: ApiRunner[]
+  },
+): string {
+  const holderId = team.transponderHolderRunnerId
+  if (holderId == null) return ''
+  const membres = team.membres ?? team.runners ?? []
+  const holder = membres.find((r) => r.id === holderId)
+  return holder ? runnerFullName(holder) : ''
+}
+
 const TRANSPONDER_STATUS_LABELS: Record<TransponderStatusApi, string> = {
   INITIALISE: 'Initialisé',
   EN_ATTENTE: 'En attente',
@@ -79,6 +93,7 @@ export const EQUIPES_CSV_HEADERS = [
   'Nombre de coureurs',
   'Coureurs',
   'Capitaine',
+  'Resp. transpondeur',
   'Numéro transpondeur',
   'Statut',
   'Nombre de tours',
@@ -103,6 +118,7 @@ export function equipesToCsvRows(
       membres.length,
       membres.map(runnerFullName).join(RUNNER_LIST_SEP),
       e.capitaine ?? '',
+      teamTransponderHolderName({ ...e, membres }),
       activeTransponderNumero(e.transponders),
       statutLabel,
       e.nbTour ?? 0,

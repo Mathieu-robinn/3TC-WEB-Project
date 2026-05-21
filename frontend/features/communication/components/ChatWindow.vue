@@ -153,16 +153,46 @@ const convTitle = computed(() => {
   return `Conversation #${conv.id}`
 })
 
-const scrollToBottom = async () => {
+function prefersReducedMotion(): boolean {
+  return (
+    typeof matchMedia !== 'undefined' &&
+    matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+}
+
+/** @param smooth défilement fluide (focus utilisateur) ; instant pour nouveaux messages */
+const scrollToBottom = async (smooth = false) => {
   await nextTick()
   const el = messagesScrollEl.value
-  if (el) el.scrollTop = el.scrollHeight
+  if (!el) return
+  const behavior: ScrollBehavior =
+    smooth && !prefersReducedMotion() ? 'smooth' : 'instant'
+  el.scrollTo({ top: el.scrollHeight, behavior })
+}
+
+let focusScrollTimer: ReturnType<typeof setTimeout> | null = null
+
+/** Scroll fluide vers le dernier message après focus (recale après ouverture clavier mobile). */
+const scrollToBottomOnFocus = async () => {
+  emit('viewportSync')
+  await scrollToBottom(true)
+  requestAnimationFrame(() => {
+    scrollToBottom(true)
+  })
+  if (focusScrollTimer) clearTimeout(focusScrollTimer)
+  const delay = props.isMobileChat ? 320 : 80
+  focusScrollTimer = setTimeout(async () => {
+    updateComposerHeightVar()
+    emit('viewportSync')
+    await scrollToBottom(true)
+    focusScrollTimer = null
+  }, delay)
 }
 
 watch(
   () => props.messages,
   () => {
-    scrollToBottom()
+    scrollToBottom(false)
   },
   { deep: true },
 )
@@ -181,6 +211,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (focusScrollTimer) clearTimeout(focusScrollTimer)
   composerResizeObserver?.disconnect()
   composerResizeObserver = null
   if (props.isMobileChat) clearComposerHeightVar()
@@ -195,16 +226,7 @@ watch(
 )
 
 const onInputFocus = () => {
-  scrollToBottom()
-  emit('viewportSync')
-  nextTick(() => {
-    updateComposerHeightVar()
-    requestAnimationFrame(() => {
-      emit('viewportSync')
-      updateComposerHeightVar()
-      scrollToBottom()
-    })
-  })
+  void scrollToBottomOnFocus()
 }
 
 const onEnterKey = (e: KeyboardEvent) => {
@@ -217,7 +239,7 @@ const send = () => {
   if (!newMessage.value.trim()) return
   emit('send', newMessage.value, 'TEXT')
   newMessage.value = ''
-  scrollToBottom()
+  scrollToBottom(false)
 }
 </script>
 
@@ -253,6 +275,7 @@ const send = () => {
   min-height: 0;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto;
 
   &::-webkit-scrollbar {
     width: 6px;
