@@ -212,6 +212,7 @@ const avatarColor = computed(() => {
   const s = props.participant?.status
   if (s === 'en_piste') return 'blue'
   if (s === 'course_terminee') return 'teal'
+  if (s === 'en_attente_remise') return 'blue'
   if (s === 'au_repos') return 'error'
   return 'grey-lighten-2'
 })
@@ -220,6 +221,7 @@ const statusLabel = computed(() => {
   const s = props.participant?.status
   if (s === 'course_terminee') return 'Course terminée'
   if (s === 'en_piste') return 'En piste'
+  if (s === 'en_attente_remise') return 'En attente de remise'
   return 'Sans puce'
 })
 
@@ -227,6 +229,7 @@ const statusChipColor = computed(() => {
   const s = props.participant?.status
   if (s === 'course_terminee') return 'teal-lighten-2'
   if (s === 'en_piste') return 'green-lighten-2'
+  if (s === 'en_attente_remise') return 'blue-lighten-2'
   return 'error'
 })
 

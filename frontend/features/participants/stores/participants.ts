@@ -22,7 +22,7 @@ type RunnerNormalized = ApiRunner & {
   fullName: string
   teamName: string
   activeTransponder: string | null
-  status: 'en_piste' | 'au_repos' | 'course_terminee'
+  status: 'en_piste' | 'en_attente_remise' | 'au_repos' | 'course_terminee'
   isCaptain: boolean
   isTransponderHolder: boolean
 }
@@ -33,7 +33,9 @@ export const useParticipantsStore = defineStore('participants', () => {
   const filterCourseId = ref<number | null>(null)
   /** Tous les coureurs, uniquement capitaines d’équipe, ou responsable transpondeur */
   const filterRole = ref<'tous' | 'capitaine' | 'resp_transpondeur'>('tous')
-  const filterStatus = ref<'tous' | 'en_piste' | 'au_repos' | 'course_terminee'>('tous')
+  const filterStatus = ref<
+    'tous' | 'en_piste' | 'en_attente_remise' | 'au_repos' | 'course_terminee'
+  >('tous')
   const loading = ref(false)
   const saving = ref(false)
   const error = ref<string | null>(null)
@@ -121,8 +123,9 @@ export const useParticipantsStore = defineStore('participants', () => {
   const runnersNormalized = computed<RunnerNormalized[]>(() =>
     runners.value.map((r) => {
       const team = teams.value.find((t) => t.id === (r.teamId ?? r.team?.id))
-      const givenTp = r.transponders?.find((t) => t.status === 'DONNE')
-      const pendingTp = r.transponders?.find((t) => t.status === 'EN_ATTENTE')
+      const teamTps = team?.transponders ?? r.transponders ?? []
+      const givenTp = teamTps.find((t) => t.status === 'DONNE')
+      const pendingTp = teamTps.find((t) => t.status === 'EN_ATTENTE')
       const activeTransponder = givenTp
         ? transponderNumeroLabel(givenTp)
         : pendingTp
@@ -132,6 +135,7 @@ export const useParticipantsStore = defineStore('participants', () => {
       let status: RunnerNormalized['status']
       if (courseFinished) status = 'course_terminee'
       else if (givenTp) status = 'en_piste'
+      else if (pendingTp) status = 'en_attente_remise'
       else status = 'au_repos'
       const isCaptain = team?.respRunnerId != null && r.id === team.respRunnerId
       const isTransponderHolder =
@@ -172,6 +176,8 @@ export const useParticipantsStore = defineStore('participants', () => {
     if (filterRole.value === 'resp_transpondeur')
       list = list.filter((p) => p.isTransponderHolder)
     if (filterStatus.value === 'en_piste') list = list.filter((p) => p.status === 'en_piste')
+    if (filterStatus.value === 'en_attente_remise')
+      list = list.filter((p) => p.status === 'en_attente_remise')
     if (filterStatus.value === 'au_repos') list = list.filter((p) => p.status === 'au_repos')
     if (filterStatus.value === 'course_terminee')
       list = list.filter((p) => p.status === 'course_terminee')
@@ -181,6 +187,8 @@ export const useParticipantsStore = defineStore('participants', () => {
   const stats = computed(() => ({
     total: runners.value.length,
     enPiste: runnersNormalized.value.filter((r) => r.status === 'en_piste').length,
+    enAttenteRemise: runnersNormalized.value.filter((r) => r.status === 'en_attente_remise')
+      .length,
     auRepos: runnersNormalized.value.filter((r) => r.status === 'au_repos').length,
     courseTerminee: runnersNormalized.value.filter((r) => r.status === 'course_terminee').length,
     equipes: teams.value.length,
@@ -191,7 +199,13 @@ export const useParticipantsStore = defineStore('participants', () => {
     { id: 2, firstName: 'Thomas', lastName: 'Bernard', teamId: 1, transponders: [] },
     { id: 3, firstName: 'Sophie', lastName: 'Martin', teamId: 2, transponders: [] },
     { id: 4, firstName: 'Lucas', lastName: 'Petit', teamId: 3, transponders: [{ reference: 'TR-045', status: 'DONNE' }] },
-    { id: 5, firstName: 'Emma', lastName: 'Rousseau', teamId: 4, transponders: [] },
+    {
+      id: 5,
+      firstName: 'Emma',
+      lastName: 'Rousseau',
+      teamId: 4,
+      transponders: [{ reference: 'TR-088', status: 'EN_ATTENTE' }],
+    },
     { id: 6, firstName: 'Hugo', lastName: 'Dubois', teamId: 5, transponders: [] },
     { id: 7, firstName: 'Claire', lastName: 'Moreau', teamId: 6, transponders: [{ reference: 'TR-067', status: 'DONNE' }] },
   ]
@@ -219,7 +233,14 @@ export const useParticipantsStore = defineStore('participants', () => {
     },
     { id: 2, name: 'Team INSA', courseId: 1, respRunnerId: 3, courseFinished: true },
     { id: 3, name: 'Les Rapides', courseId: 1, respRunnerId: 4, transponderHolderRunnerId: 4, courseFinished: false },
-    { id: 4, name: 'Sprint Masters', courseId: 1, respRunnerId: 5, courseFinished: false },
+    {
+      id: 4,
+      name: 'Sprint Masters',
+      courseId: 1,
+      respRunnerId: 5,
+      courseFinished: false,
+      transponders: [{ reference: 'TR-088', status: 'EN_ATTENTE' }],
+    },
     { id: 5, name: 'Les Coureurs', courseId: 1, respRunnerId: 6, courseFinished: false },
     { id: 6, name: 'Team Endurance', courseId: 2, respRunnerId: 7, transponderHolderRunnerId: 7, courseFinished: false },
   ]

@@ -188,7 +188,7 @@
             <v-list-item class="participant-item px-5 py-3" @click="openDetails(p)">
               <template v-if="!isPhoneFilters" #prepend>
                 <v-avatar
-                  :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : p.status === 'au_repos' ? 'error' : 'grey-lighten-2'"
+                  :color="participantAvatarColor(p)"
                   size="44"
                   class="mr-2"
                 >
@@ -250,18 +250,7 @@
       <v-row v-if="!store.loading && viewMode === 'grid'">
         <v-col v-for="p in store.filteredParticipants" :key="p.id" cols="12" sm="6" md="4" lg="3">
           <v-card class="participant-card" rounded="xl" elevation="0" role="button" tabindex="0" @click="openDetails(p)">
-            <div
-              class="participant-card-accent"
-              :class="
-                p.status === 'en_piste'
-                  ? 'accent-blue'
-                  : p.status === 'course_terminee'
-                    ? 'accent-teal'
-                    : p.status === 'au_repos'
-                      ? 'accent-error'
-                      : 'accent-grey'
-              "
-            ></div>
+            <div class="participant-card-accent" :class="participantAccentClass(p)"></div>
             <div v-if="canManageRunners && isPhoneFilters" class="participant-card__xs-menu" @click.stop>
               <v-menu location="bottom end">
                 <template #activator="{ props: menuProps }">
@@ -277,7 +266,7 @@
             <v-card-text class="pa-4 text-center" :class="{ 'participant-card__text--compact': isPhoneFilters }">
               <v-avatar
                 v-if="!isPhoneFilters"
-                :color="p.status === 'en_piste' ? 'blue' : p.status === 'course_terminee' ? 'teal' : p.status === 'au_repos' ? 'error' : 'grey-lighten-2'"
+                :color="participantAvatarColor(p)"
                 size="60"
                 class="mb-3 participant-card__avatar"
               >
@@ -436,6 +425,12 @@ onMounted(() => store.fetchAll())
 const kpis = computed(() => [
   { label: 'Total', value: store.stats.total, icon: 'mdi-account', color: 'blue' },
   { label: 'En piste', value: store.stats.enPiste, icon: 'mdi-run', color: 'green' },
+  {
+    label: 'En attente de remise',
+    value: store.stats.enAttenteRemise,
+    icon: 'mdi-link-variant',
+    color: 'blue',
+  },
   { label: 'Sans puce', value: store.stats.auRepos, icon: 'mdi-timer-off', color: 'error' },
   { label: 'Course terminée', value: store.stats.courseTerminee, icon: 'mdi-flag-checkered', color: 'teal' },
   { label: 'Équipes', value: store.stats.equipes, icon: 'mdi-account-group', color: 'purple' },
@@ -444,6 +439,7 @@ const kpis = computed(() => [
 const statusOptions = [
   { title: 'Tous les statuts', value: 'tous' },
   { title: 'En piste', value: 'en_piste' },
+  { title: 'En attente de remise', value: 'en_attente_remise' },
   { title: 'Sans puce', value: 'au_repos' },
   { title: 'Course terminée', value: 'course_terminee' },
 ]
@@ -461,13 +457,31 @@ function onRoleFilterChange(v) {
 function participantStatusLabel(p) {
   if (p.status === 'course_terminee') return 'Course terminée'
   if (p.status === 'en_piste') return 'En piste'
+  if (p.status === 'en_attente_remise') return 'En attente de remise'
   return 'Sans puce'
 }
 
 function participantStatusColor(p) {
   if (p.status === 'course_terminee') return 'teal'
   if (p.status === 'en_piste') return 'green'
+  if (p.status === 'en_attente_remise') return 'blue'
   return 'error'
+}
+
+function participantAvatarColor(p) {
+  if (p.status === 'en_piste') return 'blue'
+  if (p.status === 'course_terminee') return 'teal'
+  if (p.status === 'en_attente_remise') return 'blue'
+  if (p.status === 'au_repos') return 'error'
+  return 'grey-lighten-2'
+}
+
+function participantAccentClass(p) {
+  if (p.status === 'en_piste') return 'accent-blue'
+  if (p.status === 'course_terminee') return 'accent-teal'
+  if (p.status === 'en_attente_remise') return 'accent-blue'
+  if (p.status === 'au_repos') return 'accent-error'
+  return 'accent-grey'
 }
 
 const courseFilterItems = computed(() => [
