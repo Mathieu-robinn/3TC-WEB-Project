@@ -4,8 +4,9 @@ import { transponderNumeroLabel } from '~/utils/transponder'
 /** Libellé et couleur de pastille Vuetify pour un statut de transaction. */
 export function transactionTypeMeta(type: TransponderStatusApi) {
   const map: Record<TransponderStatusApi, { label: string; color: string }> = {
-    EN_ATTENTE: { label: 'En attente', color: 'grey' },
-    ATTRIBUE: { label: 'Attribué', color: 'primary' },
+    INITIALISE: { label: 'Initialisé', color: 'blue-grey' },
+    EN_ATTENTE: { label: 'En attente (lié)', color: 'blue' },
+    DONNE: { label: 'Donné', color: 'primary' },
     PERDU: { label: 'Perdu', color: 'error' },
     RECUPERE: { label: 'Récupéré', color: 'success' },
     DEFAILLANT: { label: 'Défaillant', color: 'deep-orange' },

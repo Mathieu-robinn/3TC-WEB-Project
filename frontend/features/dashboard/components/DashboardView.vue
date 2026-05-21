@@ -451,8 +451,9 @@ const kpis = computed((): DashboardKpi[] => {
 })
 
 const transponderStatusList = computed(() => [
-  { key: 'ATTRIBUE', label: 'Distribué', color: 'orange', value: transpStore.totalStats.ATTRIBUE || 0 },
+  { key: 'INITIALISE', label: 'Initialisé', color: 'purple', value: transpStore.totalStats.INITIALISE || 0 },
   { key: 'EN_ATTENTE', label: 'En attente', color: 'blue', value: transpStore.totalStats.EN_ATTENTE || 0 },
+  { key: 'DONNE', label: 'Donné', color: 'orange', value: transpStore.totalStats.DONNE || 0 },
   { key: 'RECUPERE', label: 'Récupéré', color: 'green', value: transpStore.totalStats.RECUPERE || 0 },
   { key: 'PERDU', label: 'Perdu', color: 'red', value: transpStore.totalStats.PERDU || 0 },
   { key: 'DEFAILLANT', label: 'Défaillant', color: 'deep-orange', value: transpStore.totalStats.DEFAILLANT || 0 },
@@ -480,7 +481,7 @@ const quickActions = computed(() => {
       icon: 'mdi-timer-outline',
       color: 'orange',
       bgColor: 'rgba(255,152,0,0.1)',
-      count: `${transpStore.totalStats.ATTRIBUE || 0} puces distribuées`,
+      count: `${transpStore.totalStats.DONNE || 0} puces données`,
       to: '/transpondeurs',
     },
     {
@@ -508,7 +509,7 @@ const quickActions = computed(() => {
 })
 
 function txTypeLabel(type: TransponderStatusApi) {
-  if (type === 'ATTRIBUE') return 'Distribution'
+  if (type === 'DONNE') return 'Remise'
   if (type === 'RECUPERE') return 'Retour'
   if (type === 'PERDU') return 'Perdu'
   if (type === 'DEFAILLANT') return 'Défaillant'
@@ -516,7 +517,7 @@ function txTypeLabel(type: TransponderStatusApi) {
 }
 
 function txTypeColor(type: TransponderStatusApi) {
-  if (type === 'ATTRIBUE') return 'orange'
+  if (type === 'DONNE') return 'orange'
   if (type === 'RECUPERE') return 'green'
   if (type === 'PERDU') return 'red'
   if (type === 'DEFAILLANT') return 'deep-orange'
@@ -524,7 +525,7 @@ function txTypeColor(type: TransponderStatusApi) {
 }
 
 function txTypeIcon(type: TransponderStatusApi) {
-  if (type === 'ATTRIBUE') return 'mdi-arrow-up'
+  if (type === 'DONNE') return 'mdi-arrow-up'
   if (type === 'RECUPERE') return 'mdi-arrow-down'
   if (type === 'PERDU') return 'mdi-alert'
   if (type === 'DEFAILLANT') return 'mdi-alert-decagram'

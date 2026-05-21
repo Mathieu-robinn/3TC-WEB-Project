@@ -121,7 +121,7 @@ export const useParticipantsStore = defineStore('participants', () => {
   const runnersNormalized = computed<RunnerNormalized[]>(() =>
     runners.value.map((r) => {
       const team = teams.value.find((t) => t.id === (r.teamId ?? r.team?.id))
-      const out = r.transponders?.find((t) => t.status === 'OUT' || t.status === 'ATTRIBUE')
+      const out = r.transponders?.find((t) => t.status === 'DONNE' || t.status === 'EN_ATTENTE')
       const activeTransponder = out ? transponderNumeroLabel(out) : null
       const courseFinished = team?.courseFinished === true
       let status: RunnerNormalized['status']
@@ -182,13 +182,13 @@ export const useParticipantsStore = defineStore('participants', () => {
   }))
 
   const getMockRunners = (): ApiRunner[] => [
-    { id: 1, firstName: 'Marie', lastName: 'Dupont', teamId: 1, transponders: [{ reference: 'TR-002', status: 'ATTRIBUE' }] },
+    { id: 1, firstName: 'Marie', lastName: 'Dupont', teamId: 1, transponders: [{ reference: 'TR-002', status: 'DONNE' }] },
     { id: 2, firstName: 'Thomas', lastName: 'Bernard', teamId: 1, transponders: [] },
     { id: 3, firstName: 'Sophie', lastName: 'Martin', teamId: 2, transponders: [] },
-    { id: 4, firstName: 'Lucas', lastName: 'Petit', teamId: 3, transponders: [{ reference: 'TR-045', status: 'ATTRIBUE' }] },
+    { id: 4, firstName: 'Lucas', lastName: 'Petit', teamId: 3, transponders: [{ reference: 'TR-045', status: 'DONNE' }] },
     { id: 5, firstName: 'Emma', lastName: 'Rousseau', teamId: 4, transponders: [] },
     { id: 6, firstName: 'Hugo', lastName: 'Dubois', teamId: 5, transponders: [] },
-    { id: 7, firstName: 'Claire', lastName: 'Moreau', teamId: 6, transponders: [{ reference: 'TR-067', status: 'ATTRIBUE' }] },
+    { id: 7, firstName: 'Claire', lastName: 'Moreau', teamId: 6, transponders: [{ reference: 'TR-067', status: 'DONNE' }] },
   ]
 
   const resetFilters = () => {

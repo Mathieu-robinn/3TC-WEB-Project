@@ -226,20 +226,47 @@
           </template>
           <template #item.actions="{ item }">
             <div class="d-flex justify-end gap-1">
-              <template v-if="canOperateTransponders">
+              <template v-if="canLinkTransponderToTeam">
                 <v-btn
-                  v-if="item.status === 'EN_ATTENTE'"
+                  v-if="item.status === 'INITIALISE'"
                   icon
                   variant="text"
                   size="small"
                   color="primary"
-                  title="Assigner à une équipe"
-                  @click="openAssignDialog(item)"
+                  title="Lier à une équipe"
+                  @click="openLinkDialog(item)"
                 >
-                  <v-icon size="18">mdi-account-group-outline</v-icon>
+                  <v-icon size="18">mdi-link-variant</v-icon>
+                </v-btn>
+              </template>
+              <template v-if="canUnlinkTransponderFromTeam">
+                <v-btn
+                  v-if="item.status === 'EN_ATTENTE' && item.team"
+                  icon
+                  variant="text"
+                  size="small"
+                  color="grey"
+                  title="Délier de l'équipe"
+                  :loading="store.saving"
+                  @click="onUnlink(item)"
+                >
+                  <v-icon size="18">mdi-link-off</v-icon>
+                </v-btn>
+              </template>
+              <template v-if="canOperateTransponders">
+                <v-btn
+                  v-if="item.status === 'EN_ATTENTE' && item.team"
+                  icon
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  title="Donner au coureur"
+                  @click="openGiveDialog(item)"
+                >
+                  <v-icon size="18">mdi-hand-extended</v-icon>
                 </v-btn>
                 <v-btn
-                  v-if="item.status === 'ATTRIBUE'"
+                  v-if="item.status === 'DONNE'"
                   icon
                   variant="text"
                   size="small"
@@ -251,7 +278,7 @@
                   <v-icon size="18">mdi-arrow-u-left-bottom</v-icon>
                 </v-btn>
                 <v-btn
-                  v-if="item.status === 'ATTRIBUE'"
+                  v-if="item.status === 'DONNE'"
                   icon
                   variant="text"
                   size="small"
@@ -263,7 +290,7 @@
                   <v-icon size="18">mdi-flash-alert</v-icon>
                 </v-btn>
                 <v-btn
-                  v-if="item.status === 'ATTRIBUE'"
+                  v-if="item.status === 'DONNE'"
                   icon
                   variant="text"
                   size="small"
@@ -282,9 +309,9 @@
                   variant="text"
                   size="small"
                   color="primary"
-                  title="Remettre en stock (en attente)"
+                  title="Remettre en initialisé"
                   :loading="store.saving"
-                  @click="onMarkAsEnAttente(item)"
+                  @click="onMarkAsInitialise(item)"
                 >
                   <v-icon size="18">mdi-package-variant</v-icon>
                 </v-btn>
@@ -294,9 +321,9 @@
                   variant="text"
                   size="small"
                   color="primary"
-                  title="Remettre en stock (puce retrouvée)"
+                  title="Remettre en initialisé (puce retrouvée)"
                   :loading="store.saving"
-                  @click="onMarkAsEnAttente(item)"
+                  @click="onMarkAsInitialise(item)"
                 >
                   <v-icon size="18">mdi-package-variant</v-icon>
                 </v-btn>
@@ -323,12 +350,12 @@
       </v-card>
     </div>
 
-    <!-- Dialog d'assignation -->
-    <v-dialog v-model="assignDialog" v-bind="assignDialogAttrs">
+    <!-- Dialog liaison admin -->
+    <v-dialog v-model="linkDialog" v-bind="linkDialogAttrs">
       <v-card rounded="xl" elevation="8">
         <div class="form-header pa-4 d-flex align-center flex-wrap gap-2">
-          <v-icon color="white">mdi-account-group-outline</v-icon>
-          <span class="text-h6 text-white font-weight-bold">Assigner le transpondeur</span>
+          <v-icon color="white">mdi-link-variant</v-icon>
+          <span class="text-h6 text-white font-weight-bold">Lier à une équipe</span>
           <v-spacer />
           <span class="text-body-2 text-white-70">
             #{{ selectedTransponder?.id }}
@@ -338,7 +365,7 @@
 
         <v-card-text class="px-6 pt-4">
           <p class="text-body-2 text-medium-emphasis mb-4">
-            Sélectionnez une équipe <strong>sans transpondeur actif</strong> ou dont le transpondeur a été perdu :
+            Préparation prestataire : associez la puce à une équipe <strong>sans transpondeur lié ou donné</strong>.
           </p>
 
           <div v-if="store.loadingTeams" class="d-flex justify-center py-6">
@@ -386,11 +413,51 @@
             </v-list-item>
           </v-list>
 
+        </v-card-text>
+
+        <v-divider />
+
+        <v-card-actions class="px-6 py-4 gap-2">
+          <v-spacer />
+          <v-btn variant="text" rounded="lg" @click="closeLinkDialog">Annuler</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            rounded="lg"
+            :disabled="!selectedTeamId"
+            :loading="store.saving"
+            prepend-icon="mdi-check"
+            @click="onConfirmLink"
+          >
+            Confirmer la liaison
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog remise au coureur -->
+    <v-dialog v-model="giveDialog" v-bind="giveDialogAttrs">
+      <v-card rounded="xl" elevation="8">
+        <div class="form-header pa-4 d-flex align-center flex-wrap gap-2">
+          <v-icon color="white">mdi-hand-extended</v-icon>
+          <span class="text-h6 text-white font-weight-bold">Donner le transpondeur</span>
+          <v-spacer />
+          <span class="text-body-2 text-white-70">
+            <span v-if="selectedTransponder"> · {{ labelFor(selectedTransponder) }}</span>
+            <span v-if="giveTeamName"> · {{ giveTeamName }}</span>
+          </span>
+        </div>
+        <v-card-text class="px-6 pt-4">
+          <p class="text-body-2 text-medium-emphasis mb-4">
+            Indiquez à quel coureur la puce est remise.
+          </p>
+          <div v-if="giveLoading" class="d-flex justify-center py-6">
+            <v-progress-circular indeterminate color="primary" size="36" />
+          </div>
           <v-select
-            v-if="selectedTeamId && holderSelectItems.length > 0"
+            v-else-if="giveHolderSelectItems.length > 0"
             v-model="selectedHolderRunnerId"
-            class="mt-4"
-            :items="holderSelectItems"
+            :items="giveHolderSelectItems"
             item-title="title"
             item-value="value"
             label="Remis à (coureur)"
@@ -399,23 +466,24 @@
             rounded="lg"
             hide-details="auto"
           />
+          <v-alert v-else type="warning" variant="tonal" rounded="lg" density="compact">
+            Aucun coureur trouvé pour cette équipe.
+          </v-alert>
         </v-card-text>
-
         <v-divider />
-
         <v-card-actions class="px-6 py-4 gap-2">
           <v-spacer />
-          <v-btn variant="text" rounded="lg" @click="closeAssignDialog">Annuler</v-btn>
+          <v-btn variant="text" rounded="lg" @click="closeGiveDialog">Annuler</v-btn>
           <v-btn
             color="primary"
             variant="flat"
             rounded="lg"
-            :disabled="!selectedTeamId || !selectedHolderRunnerId"
+            :disabled="!selectedHolderRunnerId || giveTeamId == null"
             :loading="store.saving"
             prepend-icon="mdi-check"
-            @click="onConfirmAssign"
+            @click="onConfirmGive"
           >
-            Confirmer l'assignation
+            Confirmer la remise
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -549,7 +617,14 @@ import {
 } from '~/utils/transponderTransactionDisplay'
 
 const store = useTranspondersStore()
-const { isAdmin, canOperateTransponders, canCreateTransponder, canRestockTransponder } = usePermissions()
+const {
+  isAdmin,
+  canOperateTransponders,
+  canCreateTransponder,
+  canRestockTransponder,
+  canLinkTransponderToTeam,
+  canUnlinkTransponderFromTeam,
+} = usePermissions()
 const display = useDisplay()
 const { isPhoneFilters, phoneFiltersExpanded, togglePhoneFilters } = usePhoneFilterExpand()
 
@@ -567,7 +642,8 @@ const tableHeaders = computed(() => {
   return transponderHeadersBase
 })
 
-const assignDialogAttrs = useMobileDialogAttrs(540)
+const linkDialogAttrs = useMobileDialogAttrs(540)
+const giveDialogAttrs = useMobileDialogAttrs(480)
 const historyDialogAttrs = useMobileDialogAttrs(560)
 const batchDialogAttrs = useMobileDialogAttrs(520)
 
@@ -626,14 +702,20 @@ const statusFilterItems = computed(() => [
 
 const kpis = computed(() => [
   {
+    label: 'Initialisés',
+    value: String(store.totalStats.INITIALISE || 0),
+    icon: 'mdi-nfc-variant',
+    iconBg: 'bg-purple-alpha',
+  },
+  {
     label: 'En attente',
     value: String(store.totalStats.EN_ATTENTE || 0),
-    icon: 'mdi-new-box',
+    icon: 'mdi-link-variant',
     iconBg: 'bg-blue-alpha',
   },
   {
-    label: 'Attribués',
-    value: String(store.totalStats.ATTRIBUE || 0),
+    label: 'Donnés',
+    value: String(store.totalStats.DONNE || 0),
     icon: 'mdi-run',
     iconBg: 'bg-green-alpha',
   },
@@ -696,54 +778,69 @@ async function onConfirmBatch() {
   }
 }
 
-// --- Dialog assignation ---
-const assignDialog = ref(false)
+// --- Dialog liaison ---
+const linkDialog = ref(false)
+const giveDialog = ref(false)
 const selectedTransponder = ref(null)
 const selectedTeamId = ref(null)
 const selectedHolderRunnerId = ref(null)
+const giveTeamId = ref(null)
+const giveTeamName = ref('')
+const giveLoading = ref(false)
+const giveHolderSelectItems = ref([])
 
-const selectedUnassignedTeam = computed(() =>
-  store.unassignedTeams.find((t) => t.id === selectedTeamId.value),
-)
-
-const holderSelectItems = computed(() => {
-  const runners = selectedUnassignedTeam.value?.runners ?? []
-  return runners.map((m) => ({
-    title: `${m.firstName || ''} ${m.lastName || ''}`.trim() || `Coureur #${m.id}`,
-    value: m.id,
-  }))
-})
-
-watch(selectedTeamId, (id) => {
-  const team = store.unassignedTeams.find((t) => t.id === id)
-  const runners = team?.runners ?? []
-  if (!runners.length) {
-    selectedHolderRunnerId.value = null
-    return
-  }
-  const cap = team?.respRunnerId
-  selectedHolderRunnerId.value =
-    cap != null && runners.some((r) => r.id === cap) ? cap : runners[0].id
-})
-
-function canAssign(transponder) {
-  return transponder.status === 'EN_ATTENTE'
-}
-
-async function openAssignDialog(transponder) {
-  if (!canOperateTransponders.value) return
+async function openLinkDialog(transponder) {
+  if (!canLinkTransponderToTeam.value) return
   selectedTransponder.value = transponder
   selectedTeamId.value = null
-  selectedHolderRunnerId.value = null
-  assignDialog.value = true
+  linkDialog.value = true
   await store.fetchUnassignedTeams()
 }
 
-function closeAssignDialog() {
-  assignDialog.value = false
+function closeLinkDialog() {
+  linkDialog.value = false
   selectedTransponder.value = null
   selectedTeamId.value = null
+}
+
+async function openGiveDialog(transponder) {
+  if (!canOperateTransponders.value) return
+  selectedTransponder.value = transponder
+  giveTeamId.value = transponder.team?.id ?? transponder.teamId ?? null
+  giveTeamName.value = transponder.team?.name || ''
   selectedHolderRunnerId.value = null
+  giveHolderSelectItems.value = []
+  giveDialog.value = true
+  giveLoading.value = true
+  try {
+    const api = useApi()
+    const teams = await api.get<{ id: number; name?: string; runners?: { id: number; firstName?: string; lastName?: string }[]; respRunnerId?: number | null }[]>('/teams')
+    const team = Array.isArray(teams) ? teams.find((t) => t.id === giveTeamId.value) : null
+    const runners = team?.runners ?? []
+    giveHolderSelectItems.value = runners.map((m) => ({
+      title: `${m.firstName || ''} ${m.lastName || ''}`.trim() || `Coureur #${m.id}`,
+      value: m.id,
+    }))
+    if (runners.length) {
+      const cap = team?.respRunnerId
+      selectedHolderRunnerId.value =
+        cap != null && runners.some((r) => r.id === cap) ? cap : runners[0].id
+    }
+    if (team?.name) giveTeamName.value = team.name
+  } catch {
+    giveHolderSelectItems.value = []
+  } finally {
+    giveLoading.value = false
+  }
+}
+
+function closeGiveDialog() {
+  giveDialog.value = false
+  selectedTransponder.value = null
+  giveTeamId.value = null
+  giveTeamName.value = ''
+  selectedHolderRunnerId.value = null
+  giveHolderSelectItems.value = []
 }
 
 function teamHasLostTransponder(team) {
@@ -754,25 +851,48 @@ function teamHasLostTransponder(team) {
   )
 }
 
-async function onConfirmAssign() {
+async function onConfirmLink() {
+  if (!canLinkTransponderToTeam.value) return
+  if (!selectedTransponder.value || !selectedTeamId.value) return
+  try {
+    await store.linkTransponderToTeam(selectedTransponder.value.id, selectedTeamId.value)
+    closeLinkDialog()
+    showSnackbar('Transpondeur lié à l\'équipe.', 'success', 'mdi-check-circle')
+  } catch {
+    showSnackbar('Erreur lors de la liaison', 'error', 'mdi-alert-circle')
+  }
+}
+
+async function onConfirmGive() {
   if (!canOperateTransponders.value) return
-  if (!selectedTransponder.value || !selectedTeamId.value || !selectedHolderRunnerId.value) return
+  if (!selectedTransponder.value || giveTeamId.value == null || !selectedHolderRunnerId.value) return
   try {
     await store.assignTransponder(
       selectedTransponder.value.id,
-      selectedTeamId.value,
+      giveTeamId.value,
       selectedHolderRunnerId.value,
     )
-    closeAssignDialog()
-    showSnackbar('Transpondeur assigné à l\'équipe avec succès !', 'success', 'mdi-check-circle')
+    closeGiveDialog()
+    showSnackbar('Transpondeur donné au coureur.', 'success', 'mdi-check-circle')
   } catch {
-    showSnackbar("Erreur lors de l'assignation", 'error', 'mdi-alert-circle')
+    showSnackbar('Erreur lors de la remise', 'error', 'mdi-alert-circle')
+  }
+}
+
+async function onUnlink(transponder) {
+  if (!canUnlinkTransponderFromTeam.value) return
+  if (!confirm(`Délier le transpondeur #${transponder.id} de l'équipe ?`)) return
+  try {
+    await store.unlinkTransponderFromTeam(transponder.id)
+    showSnackbar('Transpondeur délié.', 'info', 'mdi-link-off')
+  } catch {
+    showSnackbar('Erreur lors du déliage', 'error', 'mdi-alert-circle')
   }
 }
 
 async function onUnassign(transponder) {
   if (!canOperateTransponders.value) return
-  if (transponder.status !== 'ATTRIBUE') return
+  if (transponder.status !== 'DONNE') return
   if (!confirm(`Confirmer la récupération du transpondeur #${transponder.id} ? Cet état est final.`)) return
   try {
     await store.unassignTransponder(transponder.id)
@@ -809,16 +929,16 @@ async function onMarkAsDefective(transponder) {
   }
 }
 
-async function onMarkAsEnAttente(transponder) {
+async function onMarkAsInitialise(transponder) {
   if (!canRestockTransponder.value) return
   const msg =
     transponder.status === 'PERDU'
-      ? `La puce #${transponder.id} a été retrouvée. Remettre en stock (en attente) ?`
-      : `Remettre le transpondeur #${transponder.id} en stock (en attente) ?`
+      ? `La puce #${transponder.id} a été retrouvée. Remettre en initialisé ?`
+      : `Remettre le transpondeur #${transponder.id} en initialisé ?`
   if (!confirm(msg)) return
   try {
-    await store.markAsEnAttente(transponder.id)
-    showSnackbar('Transpondeur remis en attente', 'success', 'mdi-package-variant')
+    await store.markAsInitialise(transponder.id)
+    showSnackbar('Transpondeur remis en initialisé', 'success', 'mdi-package-variant')
   } catch {
     showSnackbar('Erreur lors de la mise à jour', 'error', 'mdi-alert-circle')
   }

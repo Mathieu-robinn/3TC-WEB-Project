@@ -3,8 +3,9 @@ import { ref, computed } from 'vue'
 import type { ApiTeam, ApiTransponder, TransponderStats, TransponderStatusApi, TransponderTransaction } from '~/types/api'
 
 const emptyStats = (): TransponderStats => ({
+  INITIALISE: 0,
   EN_ATTENTE: 0,
-  ATTRIBUE: 0,
+  DONNE: 0,
   PERDU: 0,
   RECUPERE: 0,
   DEFAILLANT: 0,
@@ -43,7 +44,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     } catch {
       error.value = 'Mode démonstration — API non disponible'
       transponders.value = getMockTransponders()
-      stats.value = { EN_ATTENTE: 5, ATTRIBUE: 18, PERDU: 2, RECUPERE: 10, DEFAILLANT: 1 }
+      stats.value = { INITIALISE: 5, EN_ATTENTE: 3, DONNE: 18, PERDU: 2, RECUPERE: 10, DEFAILLANT: 1 }
     } finally {
       loading.value = false
     }
@@ -65,7 +66,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     try {
       const created = await api.post<ApiTransponder>('/transponder', {
         numero: data.numero,
-        status: data.status || 'EN_ATTENTE',
+        status: data.status || 'INITIALISE',
       })
       transponders.value.push(created)
       await fetchAll()
@@ -126,17 +127,46 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     }
   }
 
+  const linkTransponderToTeam = async (transponderId: number, teamId: number) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/link-team`, { teamId })
+      const idx = transponders.value.findIndex((t) => t.id === transponderId)
+      if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
+      await Promise.all([fetchAll(), fetchUnassignedTeams()])
+      return updated
+    } finally {
+      saving.value = false
+    }
+  }
+
+  const unlinkTransponderFromTeam = async (transponderId: number) => {
+    saving.value = true
+    const api = useApi()
+    try {
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/unlink-team`, {})
+      const idx = transponders.value.findIndex((t) => t.id === transponderId)
+      if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
+      await Promise.all([fetchAll(), fetchUnassignedTeams()])
+      return updated
+    } finally {
+      saving.value = false
+    }
+  }
+
   const assignTransponder = async (
     transponderId: number,
-    teamId: number | null,
-    holderRunnerId?: number,
+    teamId: number,
+    holderRunnerId: number,
   ) => {
     saving.value = true
     const api = useApi()
     try {
-      const body: Record<string, unknown> = { teamId }
-      if (teamId != null && holderRunnerId != null) body.holderRunnerId = holderRunnerId
-      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/assign`, body)
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}/assign`, {
+        teamId,
+        holderRunnerId,
+      })
       const idx = transponders.value.findIndex((t) => t.id === transponderId)
       if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
       await Promise.all([fetchAll(), fetchUnassignedTeams()])
@@ -200,12 +230,12 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     }
   }
 
-  /** Remise en circulation (puce réparée / contrôlée). */
-  const markAsEnAttente = async (transponderId: number) => {
+  /** Remise en circulation (puce réparée / retrouvée). */
+  const markAsInitialise = async (transponderId: number) => {
     saving.value = true
     const api = useApi()
     try {
-      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}`, { status: 'EN_ATTENTE' })
+      const updated = await api.put<ApiTransponder>(`/transponder/${transponderId}`, { status: 'INITIALISE' })
       const idx = transponders.value.findIndex((t) => t.id === transponderId)
       if (idx !== -1) transponders.value[idx] = { ...transponders.value[idx], ...updated }
       await Promise.all([fetchAll(), fetchUnassignedTeams()])
@@ -235,12 +265,20 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     transponderHistoryError.value = null
   }
 
-  const statuses: TransponderStatusApi[] = ['EN_ATTENTE', 'ATTRIBUE', 'PERDU', 'RECUPERE', 'DEFAILLANT']
+  const statuses: TransponderStatusApi[] = [
+    'INITIALISE',
+    'EN_ATTENTE',
+    'DONNE',
+    'PERDU',
+    'RECUPERE',
+    'DEFAILLANT',
+  ]
 
   const statusColor = (s: string) =>
     ({
+      INITIALISE: 'blue-grey',
       EN_ATTENTE: 'blue',
-      ATTRIBUE: 'green',
+      DONNE: 'green',
       PERDU: 'red',
       RECUPERE: 'grey',
       DEFAILLANT: 'deep-orange',
@@ -248,8 +286,9 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
 
   const statusLabel = (s: string) =>
     ({
+      INITIALISE: 'Initialisé',
       EN_ATTENTE: 'En attente',
-      ATTRIBUE: 'Attribué',
+      DONNE: 'Donné',
       PERDU: 'Perdu',
       RECUPERE: 'Récupéré',
       DEFAILLANT: 'Défaillant',
@@ -285,7 +324,7 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
       numero: i + 1,
       editionId: 1,
       reference: `TR-${String(i + 1).padStart(3, '0')}`,
-      status: (['EN_ATTENTE', 'RECUPERE', 'ATTRIBUE', 'PERDU', 'DEFAILLANT'] as const)[i % 5],
+      status: (['INITIALISE', 'EN_ATTENTE', 'DONNE', 'PERDU', 'RECUPERE', 'DEFAILLANT'] as const)[i % 6],
     }))
 
   return {
@@ -315,11 +354,13 @@ export const useTranspondersStore = defineStore('transpondeurs', () => {
     deleteTranspondersBatch,
     updateTransponder,
     createTransaction,
+    linkTransponderToTeam,
+    unlinkTransponderFromTeam,
     assignTransponder,
     unassignTransponder,
     markAsLost,
     markAsDefective,
-    markAsEnAttente,
+    markAsInitialise,
     fetchTransponderHistory,
     clearTransponderHistory,
     resetFilters,

@@ -15,8 +15,7 @@ export function usePermissions() {
   const canManageRunners = computed(() => isAdmin.value)
 
   /**
-   * Assignation, récupération (transpondeur attribué), déclarer perdu / défaillant — admin et bénévole.
-   * Ne couvre pas la création de puce ni la remise en stock (EN_ATTENTE).
+   * Donner une puce, récupération, déclarer perdu / défaillant — admin et bénévole.
    */
   const canOperateTransponders = computed(() => {
     const r = roleFromToken.value
@@ -26,7 +25,11 @@ export function usePermissions() {
   /** POST /transponder — admin uniquement. */
   const canCreateTransponder = computed(() => isAdmin.value)
 
-  /** Remise en stock (statut EN_ATTENTE, ex. depuis PERDU ou DEFAILLANT) — admin uniquement. */
+  /** Lier / délier une puce à une équipe (préparation prestataire). */
+  const canLinkTransponderToTeam = computed(() => isAdmin.value)
+  const canUnlinkTransponderFromTeam = computed(() => isAdmin.value)
+
+  /** Remise en initialisé (ex. depuis PERDU ou DEFAILLANT) — admin uniquement. */
   const canRestockTransponder = computed(() => isAdmin.value)
 
   return {
@@ -36,6 +39,8 @@ export function usePermissions() {
     canManageRunners,
     canOperateTransponders,
     canCreateTransponder,
+    canLinkTransponderToTeam,
+    canUnlinkTransponderFromTeam,
     canRestockTransponder,
   }
 }

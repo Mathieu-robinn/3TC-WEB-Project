@@ -111,7 +111,24 @@
               <span>Transpondeur actuel</span>
             </div>
 
-            <v-card v-if="activeTransponder" class="transponder-active-card pa-4 mb-2" rounded="lg" elevation="0">
+            <v-card v-if="pendingTransponder" class="transponder-pending-card pa-4 mb-2" rounded="lg" elevation="0">
+              <div class="d-flex flex-column flex-sm-row align-stretch align-sm-center ga-4">
+                <div class="d-flex align-start align-sm-center ga-5 flex-grow-1" style="min-width: 0">
+                  <div class="transponder-icon-wrap transponder-icon-wrap--spaced flex-shrink-0">
+                    <v-icon color="blue" size="22">mdi-link-variant</v-icon>
+                  </div>
+                  <div class="flex-grow-1 pt-sm-0" style="min-width: 0">
+                    <div class="text-subtitle-1 font-weight-bold text-blue">{{ transponderNumeroLabel(pendingTransponder) }}</div>
+                    <div class="text-caption text-medium-emphasis mt-2">En attente de remise au coureur</div>
+                  </div>
+                </div>
+                <v-chip color="blue" size="x-small" variant="flat" class="align-self-start align-self-sm-center flex-shrink-0">
+                  En attente
+                </v-chip>
+              </div>
+            </v-card>
+
+            <v-card v-else-if="activeTransponder" class="transponder-active-card pa-4 mb-2" rounded="lg" elevation="0">
               <div
                 class="d-flex flex-column flex-sm-row align-stretch align-sm-center ga-4 transponder-active-card__row"
               >
@@ -180,16 +197,16 @@
                 </v-btn>
               </template>
               <v-btn
-                v-else-if="!activeTransponder && !equipeCourseTerminee"
+                v-else-if="pendingTransponder && !equipeCourseTerminee"
                 color="primary"
                 variant="flat"
                 rounded="lg"
                 size="small"
-                prepend-icon="mdi-timer-plus-outline"
+                prepend-icon="mdi-hand-extended"
                 :loading="transpondersStore.saving"
-                @click="openAssignDialog"
+                @click="openGiveDialog"
               >
-                Attribuer un transpondeur
+                Donner le transpondeur
               </v-btn>
             </div>
 
@@ -260,40 +277,16 @@
       <v-card rounded="xl" elevation="8">
         <v-card-title class="d-flex align-center gap-2 pt-5 px-6">
           <v-icon color="primary">mdi-timer-plus-outline</v-icon>
-          <span>Attribuer un transpondeur</span>
+          <span>Donner le transpondeur</span>
         </v-card-title>
         <v-card-subtitle class="px-6 pb-2">
           Équipe <strong>{{ equipe?.name || equipe?.nom || '—' }}</strong>
+          <span v-if="pendingTransponder"> · {{ transponderNumeroLabel(pendingTransponder) }}</span>
         </v-card-subtitle>
         <v-divider />
         <v-card-text class="px-6 pt-4">
-          <div v-if="transpondersStore.loading" class="d-flex justify-center py-6">
-            <v-progress-circular indeterminate color="primary" size="36" />
-          </div>
-          <v-alert
-            v-else-if="availableToAssign.length === 0"
-            type="info"
-            variant="tonal"
-            rounded="lg"
-            density="compact"
-          >
-            Aucun transpondeur en attente disponible.
-          </v-alert>
           <v-select
-            v-else
-            v-model="selectedTransponderId"
-            :items="assignSelectItems"
-            item-title="title"
-            item-value="value"
-            label="Transpondeur"
-            variant="outlined"
-            density="comfortable"
-            rounded="lg"
-            hide-details="auto"
-            class="mb-4"
-          />
-          <v-select
-            v-if="availableToAssign.length > 0 && membres.length > 0"
+            v-if="membres.length > 0"
             v-model="selectedHolderRunnerId"
             :items="holderSelectItems"
             item-title="title"
@@ -304,6 +297,9 @@
             rounded="lg"
             hide-details="auto"
           />
+          <v-alert v-else type="warning" variant="tonal" rounded="lg" density="compact">
+            Aucun coureur dans cette équipe.
+          </v-alert>
         </v-card-text>
         <v-divider />
         <v-card-actions class="px-6 py-4 gap-2">
@@ -313,12 +309,12 @@
             color="primary"
             variant="flat"
             rounded="lg"
-            :disabled="selectedTransponderId == null || availableToAssign.length === 0 || selectedHolderRunnerId == null"
+            :disabled="pendingTransponder?.id == null || selectedHolderRunnerId == null"
             :loading="transpondersStore.saving"
             prepend-icon="mdi-check"
-            @click="onConfirmAssign"
+            @click="onConfirmGive"
           >
-            Confirmer
+            Confirmer la remise
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -364,21 +360,17 @@ function showSnackbar(message: string, color = 'success', icon = 'mdi-check-circ
   snackbar.value = { show: true, message, color, icon }
 }
 
+const teamId = computed(() => props.equipe?.id ?? null)
+
 const activeTransponder = computed(() => {
   const list = (props.equipe?.transponders || []) as ApiTransponderRef[]
-  return list.find((t) => t.status === 'ATTRIBUE') ?? null
+  return list.find((t) => t.status === 'DONNE') ?? null
 })
 
-const availableToAssign = computed(() =>
-  transpondersStore.transponders.filter((t) => t.status === 'EN_ATTENTE'),
-)
-
-const assignSelectItems = computed(() =>
-  availableToAssign.value.map((t) => ({
-    title: transponderNumeroLabel(t),
-    value: t.id,
-  })),
-)
+const pendingTransponder = computed(() => {
+  const list = (props.equipe?.transponders || []) as ApiTransponderRef[]
+  return list.find((t) => t.status === 'EN_ATTENTE') ?? null
+})
 
 const holderSelectItems = computed(() => {
   const list = (props.equipe?.membres || []) as ApiRunner[]
@@ -421,11 +413,10 @@ function onCaptainChange(runnerId: number | null) {
   emit('change-captain', { teamId, runnerId })
 }
 
-async function openAssignDialog() {
-  selectedTransponderId.value = null
+async function openGiveDialog() {
+  selectedTransponderId.value = pendingTransponder.value?.id ?? null
   selectedHolderRunnerId.value = defaultHolderRunnerId()
   assignDialog.value = true
-  await transpondersStore.fetchAll()
 }
 
 async function refreshAfterTransponderAction() {
@@ -435,20 +426,21 @@ async function refreshAfterTransponderAction() {
   await store.fetchHistoriqueTranspondeurs(id)
 }
 
-async function onConfirmAssign() {
-  const teamId = props.equipe?.id
-  if (selectedTransponderId.value == null || teamId == null || selectedHolderRunnerId.value == null) return
+async function onConfirmGive() {
+  const tid = teamId.value
+  const transponderId = pendingTransponder.value?.id ?? selectedTransponderId.value
+  if (transponderId == null || tid == null || selectedHolderRunnerId.value == null) return
   try {
     await transpondersStore.assignTransponder(
-      selectedTransponderId.value,
-      teamId,
+      transponderId,
+      tid,
       selectedHolderRunnerId.value,
     )
     assignDialog.value = false
-    showSnackbar('Transpondeur assigné à l’équipe.', 'success', 'mdi-check-circle')
+    showSnackbar('Transpondeur donné au coureur.', 'success', 'mdi-check-circle')
     await refreshAfterTransponderAction()
   } catch {
-    showSnackbar("Erreur lors de l'assignation.", 'error', 'mdi-alert-circle')
+    showSnackbar('Erreur lors de la remise.', 'error', 'mdi-alert-circle')
   }
 }
 
@@ -498,8 +490,9 @@ async function onMarkAsDefective() {
 
 function transactionTypeMeta(type: TransponderStatusApi) {
   const map: Record<TransponderStatusApi, { label: string; color: string }> = {
-    EN_ATTENTE: { label: 'En attente', color: 'grey' },
-    ATTRIBUE: { label: 'Attribué', color: 'primary' },
+    INITIALISE: { label: 'Initialisé', color: 'blue-grey' },
+    EN_ATTENTE: { label: 'En attente (lié)', color: 'blue' },
+    DONNE: { label: 'Donné', color: 'primary' },
     PERDU: { label: 'Perdu', color: 'error' },
     RECUPERE: { label: 'Récupéré', color: 'success' },
     DEFAILLANT: { label: 'Défaillant', color: 'deep-orange' },

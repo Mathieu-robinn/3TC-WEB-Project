@@ -122,7 +122,7 @@ export const useEquipesStore = defineStore('equipes', () => {
       const runners = e.runners || []
 
       const activeTransponderLabels = (e.transponders || (e as any).transpondeurs || [])
-        .filter((t: any) => t.status === 'ATTRIBUE')
+        .filter((t: any) => t.status === 'DONNE' || t.status === 'EN_ATTENTE')
         .map((t: any) => transponderNumeroLabel(t))
 
       const activeRef =
@@ -224,7 +224,7 @@ export const useEquipesStore = defineStore('equipes', () => {
         },
         { id: 2, firstName: 'Marie', lastName: 'Dupont' },
       ],
-      transponders: [{ reference: 'TR-002', status: 'ATTRIBUE' }],
+      transponders: [{ reference: 'TR-002', status: 'DONNE' }],
     },
     {
       id: 2,
@@ -239,7 +239,7 @@ export const useEquipesStore = defineStore('equipes', () => {
       nbTour: 18,
       courseId: 1,
       runners: [{ id: 4, firstName: 'Lucas', lastName: 'Petit' }],
-      transponders: [{ reference: 'TR-045', status: 'ATTRIBUE' }],
+      transponders: [{ reference: 'TR-045', status: 'DONNE' }],
     },
     {
       id: 4,
@@ -261,7 +261,7 @@ export const useEquipesStore = defineStore('equipes', () => {
       nbTour: 12,
       courseId: 2,
       runners: [{ id: 7, firstName: 'Claire', lastName: 'Moreau' }],
-      transponders: [{ reference: 'TR-067', status: 'ATTRIBUE' }],
+      transponders: [{ reference: 'TR-067', status: 'DONNE' }],
     },
   ]
   const getMockRanking = () =>

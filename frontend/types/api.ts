@@ -8,7 +8,13 @@ export interface ApiEdition {
   endDate: string
 }
 
-export type TransponderStatusApi = 'EN_ATTENTE' | 'ATTRIBUE' | 'PERDU' | 'RECUPERE' | 'DEFAILLANT'
+export type TransponderStatusApi =
+  | 'INITIALISE'
+  | 'EN_ATTENTE'
+  | 'DONNE'
+  | 'PERDU'
+  | 'RECUPERE'
+  | 'DEFAILLANT'
 
 export interface ApiTransponderRef {
   id?: number
@@ -60,8 +66,9 @@ export interface ApiTeam {
 }
 
 export interface TransponderStats {
+  INITIALISE: number
   EN_ATTENTE: number
-  ATTRIBUE: number
+  DONNE: number
   PERDU: number
   RECUPERE: number
   DEFAILLANT: number
