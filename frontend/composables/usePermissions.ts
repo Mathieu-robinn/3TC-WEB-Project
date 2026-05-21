@@ -15,12 +15,11 @@ export function usePermissions() {
   const canManageRunners = computed(() => isAdmin.value)
 
   /**
-   * Donner une puce, récupération, déclarer perdu / défaillant — admin et bénévole.
+   * Donner une puce, récupération, déclarer perdu / défaillant — admin, super admin et bénévole.
    */
-  const canOperateTransponders = computed(() => {
-    const r = roleFromToken.value
-    return r === 'ADMIN' || r === 'BENEVOLE'
-  })
+  const canOperateTransponders = computed(
+    () => isAdmin.value || roleFromToken.value === 'BENEVOLE',
+  )
 
   /** POST /transponder — admin uniquement. */
   const canCreateTransponder = computed(() => isAdmin.value)

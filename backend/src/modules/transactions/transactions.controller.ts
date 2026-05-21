@@ -32,7 +32,7 @@ export class TransactionsController {
   })
   @ApiResponse({ status: 201, description: "Transaction créée, statut de la puce mis à jour." })
   @Post("transaction")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.BENEVOLE)
   async createTransaction(
     @Body() data: CreateTransactionDto,
     @Request() req: { user: { userId: number } },
@@ -49,7 +49,7 @@ export class TransactionsController {
   @ApiOperation({ summary: "Lister toutes les transactions" })
   @ApiResponse({ status: 200, description: "Historique complet des transactions." })
   @Get("transactions")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.BENEVOLE)
   async getTransactions(@Request() req: { user: { role: Role } }): Promise<TransponderTransaction[]> {
     const editionId = await this.editionService.getActiveEditionId();
     const includeActor = req.user.role === Role.ADMIN || req.user.role === Role.SUPER_ADMIN;
@@ -60,7 +60,7 @@ export class TransactionsController {
   @ApiParam({ name: "id", description: "ID de la team" })
   @ApiResponse({ status: 200, description: "Historique complet des transactions d'une team." })
   @Get("transactions/team/:id")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.BENEVOLE)
   async getTeamTransactions(
     @Param("id") id: string,
     @Request() req: { user: { role: Role } },
@@ -78,7 +78,7 @@ export class TransactionsController {
   @ApiParam({ name: "id", description: "ID du transpondeur" })
   @ApiResponse({ status: 200, description: "Historique de la puce (récent en premier)." })
   @Get("transactions/transponder/:id")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.BENEVOLE)
   async getTransponderTransactions(
     @Param("id") id: string,
     @Request() req: { user: { role: Role } },
@@ -89,7 +89,7 @@ export class TransactionsController {
   }
 
   @Get("transactions/user/:id")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.BENEVOLE)
   async getUserTransactions(@Param("id") id: string): Promise<TransponderTransaction[]> {
     return this.transactionService.getUserTransactions(Number(id));
   }

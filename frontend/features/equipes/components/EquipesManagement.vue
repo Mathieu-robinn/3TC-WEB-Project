@@ -633,6 +633,12 @@ onMounted(() => {
 const kpis = computed(() => [
   { label: 'Total', value: store.stats.total, icon: 'mdi-account-group', color: 'blue' },
   { label: 'En piste', value: store.stats.enPiste, icon: 'mdi-run', color: 'green' },
+  {
+    label: 'En attente de remise',
+    value: store.stats.enAttenteRemise,
+    icon: 'mdi-link-variant',
+    color: 'blue',
+  },
   { label: 'Sans puce', value: store.stats.sansPuce, icon: 'mdi-timer-off', color: 'red' },
   { label: 'Terminé', value: store.stats.termine, icon: 'mdi-flag-checkered', color: 'teal' },
 ])
@@ -740,6 +746,7 @@ function teamTransponderChipColor(equipe) {
 const getStatutColor = (s) =>
   ({
     en_piste: 'green',
+    en_attente_remise: 'blue',
     en_attente: 'error',
     sans_transpondeur: 'error',
     terminé: 'teal',
@@ -748,6 +755,7 @@ const getStatutColor = (s) =>
 const getStatutLabel = (s) =>
   ({
     en_piste: 'En piste',
+    en_attente_remise: 'En attente de remise',
     en_attente: 'Sans puce',
     sans_transpondeur: 'Sans puce',
     terminé: 'Terminé',
@@ -756,6 +764,7 @@ const getStatutLabel = (s) =>
 const statutAccentClass = (s) =>
   ({
     en_piste: 'accent-green',
+    en_attente_remise: 'accent-blue',
     en_attente: 'accent-error',
     sans_transpondeur: 'accent-error',
     terminé: 'accent-teal',
@@ -787,6 +796,7 @@ const podiumMedal = (rank) => ['🥇', '🥈', '🥉'][rank - 1] || rank
 
 .team-card-accent { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 12px 12px 0 0; }
 .accent-green { background: #34c759; }
+.accent-blue { background: #1976d2; }
 .accent-error { background: rgb(var(--v-theme-error)); }
 .accent-teal { background: #00897b; }
 .accent-grey { background: #8e8e93; }

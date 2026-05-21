@@ -142,15 +142,15 @@ export const useEquipesStore = defineStore('equipes', () => {
         transpondeur = `${transponderNumeroLabel(pendingTp)} · en attente`
       }
 
-      const hasLinkedTransponder = transponderUiStatus !== 'none'
-
       const statut = e.courseFinished
         ? 'terminé'
         : runners.length === 0
           ? 'aucun membre'
-          : hasLinkedTransponder
+          : givenTp
             ? 'en_piste'
-            : 'en_attente'
+            : pendingTp
+              ? 'en_attente_remise'
+              : 'en_attente'
 
       const captainRunner =
         e.respRunnerId != null ? runners.find((r) => r.id === e.respRunnerId) : undefined
@@ -212,7 +212,9 @@ export const useEquipesStore = defineStore('equipes', () => {
   const stats = computed(() => ({
     total: equipes.value.length,
     enPiste: equipesWithStatus.value.filter((e) => e.statut === 'en_piste').length,
-    /** Équipes sans puce active : pas de coureurs ou coureurs sans transpondeur attribué. */
+    enAttenteRemise: equipesWithStatus.value.filter((e) => e.statut === 'en_attente_remise')
+      .length,
+    /** Équipes sans puce liée ni donnée. */
     sansPuce: equipesWithStatus.value.filter(
       (e) => e.statut === 'en_attente' || e.statut === 'aucun membre',
     ).length,

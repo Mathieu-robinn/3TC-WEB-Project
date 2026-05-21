@@ -685,6 +685,7 @@ watch(
 const statutColor = computed(() => {
   const s = props.equipe?.statut
   if (s === 'en_piste') return 'green'
+  if (s === 'en_attente_remise') return 'blue'
   if (s === 'en_attente' || s === 'sans_transpondeur' || s === 'aucun membre') return 'error'
   if (s === 'terminé') return 'teal'
   return 'grey'
@@ -693,6 +694,7 @@ const statutColor = computed(() => {
 const statutLabel = computed(() => {
   const s = props.equipe?.statut
   if (s === 'en_piste') return 'En piste'
+  if (s === 'en_attente_remise') return 'En attente de remise'
   if (s === 'en_attente' || s === 'sans_transpondeur' || s === 'aucun membre') return 'Sans puce'
   if (s === 'terminé') return 'Terminé'
   return s ?? ''

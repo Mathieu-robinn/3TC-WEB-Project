@@ -158,7 +158,7 @@ export class TranspondersController {
   @ApiParam({ name: "id", description: "ID du transpondeur" })
   @ApiBody({ schema: { example: { teamId: 1, holderRunnerId: 2 } } })
   @Put("transponder/:id/assign")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.BENEVOLE)
   async assignTransponder(
     @Param("id") id: string,
     @Body() data: AssignTransponderDto,
@@ -214,7 +214,7 @@ export class TranspondersController {
   @ApiOperation({ summary: "Récupérer un transpondeur (fin de sa vie)" })
   @ApiParam({ name: "id", description: "ID du transpondeur" })
   @Put("transponder/:id/unassign")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.BENEVOLE)
   async unassignTransponder(
     @Param("id") id: string,
     @Request() req: { user: { userId: number } },
@@ -344,7 +344,7 @@ export class TranspondersController {
   @ApiParam({ name: "id", description: "ID du transpondeur" })
   @ApiBody({ schema: { example: { status: "PERDU" } } })
   @Put("transponder/:id")
-  @Roles(Role.ADMIN, Role.BENEVOLE)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.BENEVOLE)
   async updateTransponder(
     @Param("id") id: string,
     @Body() data: UpdateTransponderDto,

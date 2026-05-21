@@ -121,12 +121,17 @@ export const useParticipantsStore = defineStore('participants', () => {
   const runnersNormalized = computed<RunnerNormalized[]>(() =>
     runners.value.map((r) => {
       const team = teams.value.find((t) => t.id === (r.teamId ?? r.team?.id))
-      const out = r.transponders?.find((t) => t.status === 'DONNE' || t.status === 'EN_ATTENTE')
-      const activeTransponder = out ? transponderNumeroLabel(out) : null
+      const givenTp = r.transponders?.find((t) => t.status === 'DONNE')
+      const pendingTp = r.transponders?.find((t) => t.status === 'EN_ATTENTE')
+      const activeTransponder = givenTp
+        ? transponderNumeroLabel(givenTp)
+        : pendingTp
+          ? transponderNumeroLabel(pendingTp)
+          : null
       const courseFinished = team?.courseFinished === true
       let status: RunnerNormalized['status']
       if (courseFinished) status = 'course_terminee'
-      else if (activeTransponder) status = 'en_piste'
+      else if (givenTp) status = 'en_piste'
       else status = 'au_repos'
       const isCaptain = team?.respRunnerId != null && r.id === team.respRunnerId
       const isTransponderHolder =
