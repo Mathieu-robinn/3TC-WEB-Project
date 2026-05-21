@@ -2,9 +2,21 @@
   <v-container
     fluid
     class="fill-height communication-container"
-    :class="{ 'communication-container--mobile': isMobileComm, 'pa-2 pt-2': isMobileComm, 'pa-4 pt-4 pt-md-8': !isMobileComm }"
+    :class="{
+      'communication-container--mobile': isMobileComm,
+      'communication-container--chat-open': isMobileComm && mobileChatPane,
+      'pa-0': isMobileComm,
+      'pa-4 pt-4 pt-md-8': !isMobileComm,
+    }"
   >
-    <v-row class="fill-height no-gutters glass-panel rounded-xl overflow-hidden elevation-10">
+    <v-row
+      class="fill-height no-gutters glass-panel overflow-hidden"
+      :class="{
+        'rounded-xl elevation-10': !isMobileComm,
+        'glass-panel--mobile-list': isMobileComm && !mobileChatPane,
+        'glass-panel--mobile-chat': isMobileComm && mobileChatPane,
+      }"
+    >
       <!-- Liste des conversations -->
       <v-col
         v-show="showConversationList"
@@ -13,19 +25,22 @@
         lg="3"
         class="fill-height comm-list-col pb-0"
       >
-        <ConversationList
-          :conversations="commStore.conversations"
-          :active-id="commStore.activeConversationId"
-          :current-user-id="authStore.user?.id || 0"
-          :can-create-conversations="authStore.user?.role === 'ADMIN' || authStore.user?.role === 'SUPER_ADMIN'"
-          @select="selectConversation"
-          @refresh="onConversationCreated"
-        />
+        <div class="comm-list-shell">
+          <ConversationList
+            :conversations="commStore.conversations"
+            :active-id="commStore.activeConversationId"
+            :current-user-id="authStore.user?.id || 0"
+            :can-create-conversations="authStore.user?.role === 'ADMIN' || authStore.user?.role === 'SUPER_ADMIN'"
+            :is-mobile="isMobileComm"
+            @select="selectConversation"
+            @refresh="onConversationCreated"
+          />
+        </div>
       </v-col>
 
-      <!-- Fenêtre de chat -->
+      <!-- Desktop : colonne chat -->
       <v-col
-        v-show="showChatColumn"
+        v-if="!isMobileComm"
         cols="12"
         md="8"
         lg="9"
@@ -38,32 +53,41 @@
             :conversation="commStore.activeConversation"
             :messages="commStore.activeMessages"
             :current-user-id="authStore.user?.id || 0"
-            :show-mobile-back="isMobileComm && mobileChatPane"
-            :reserve-fab-space="!isMobileComm"
+            :show-mobile-back="false"
+            :is-mobile-chat="false"
+            :reserve-fab-space="true"
             @send="sendMessage"
             @group-updated="commStore.fetchConversations()"
             @mobile-back="onMobileChatBack"
           />
-          <div
-            v-else
-            class="d-flex fill-height flex-column align-center justify-center text-medium-emphasis px-4"
-          >
-            <v-icon icon="mdi-forum-outline" size="80" class="mb-6 opacity-20 color-primary"></v-icon>
-            <h2 class="text-h5 text-md-h4 font-weight-light mb-2 text-center">Messagerie</h2>
-            <p class="text-body-2 text-md-body-1 text-center">Sélectionnez une conversation pour commencer à discuter.</p>
-            <v-btn
-              v-if="isMobileComm && mobileChatPane"
-              class="mt-6"
-              variant="tonal"
-              prepend-icon="mdi-arrow-left"
-              @click="onMobileChatBack"
-            >
-              Retour aux conversations
-            </v-btn>
-          </div>
+          <EmptyChatState v-else />
         </v-fade-transition>
       </v-col>
     </v-row>
+
+    <!-- Mobile : chat fixe sous la barre layout -->
+    <div
+      v-if="isMobileComm && mobileChatPane"
+      ref="chatShellRef"
+      class="comm-chat-shell"
+    >
+      <v-fade-transition mode="out-in">
+        <ChatWindow
+          v-if="commStore.activeConversation"
+          :key="commStore.activeConversationId"
+          :conversation="commStore.activeConversation"
+          :messages="commStore.activeMessages"
+          :current-user-id="authStore.user?.id || 0"
+          :show-mobile-back="true"
+          :is-mobile-chat="true"
+          :reserve-fab-space="false"
+          @send="sendMessage"
+          @group-updated="commStore.fetchConversations()"
+          @mobile-back="onMobileChatBack"
+        />
+        <EmptyChatState v-else show-back @back="onMobileChatBack" />
+      </v-fade-transition>
+    </div>
   </v-container>
 </template>
 
@@ -72,25 +96,37 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useCommunicationStore } from '../stores/communication.store'
 import { useAuthStore } from '../../auth/stores/auth'
 import { useMobileNav } from '~/composables/useMobileNav'
+import { useVisualViewportInsets } from '~/composables/useVisualViewportInsets'
 
 import ConversationList from './ConversationList.vue'
 import ChatWindow from './ChatWindow.vue'
+import EmptyChatState from './EmptyChatState.vue'
 
 const commStore = useCommunicationStore()
 const authStore = useAuthStore()
 const { isMobileNav: isMobileComm } = useMobileNav()
 
 const mobileChatPane = ref(false)
+const chatShellRef = ref<HTMLElement | null>(null)
+
+const vvEnabled = computed(() => isMobileComm.value && mobileChatPane.value)
+const { bindRoot, unbindRoot } = useVisualViewportInsets(vvEnabled)
 
 const showConversationList = computed(
   () => !isMobileComm.value || !mobileChatPane.value,
 )
-const showChatColumn = computed(() => !isMobileComm.value || mobileChatPane.value)
+
+watch(chatShellRef, (el) => {
+  if (el && vvEnabled.value) bindRoot(el)
+})
+
+watch(vvEnabled, (on) => {
+  if (on && chatShellRef.value) bindRoot(chatShellRef.value)
+  else unbindRoot()
+})
 
 onMounted(async () => {
   authStore.hydrateUserFromToken()
-  // Ne pas conserver une conversation active d'une navigation précédente.
-  // La sélection doit être faite uniquement via clic utilisateur.
   commStore.activeConversationId = null
   commStore.messages = {}
   commStore.initSocket()
@@ -134,7 +170,6 @@ const onConversationCreated = async (newId?: number) => {
 
 <style scoped lang="scss">
 .communication-container {
-  /* Hauteur utile sous la barre mobile (variable héritée du layout default) */
   height: calc(100dvh - var(--layout-mobile-top, 0px));
   max-height: calc(100dvh - var(--layout-mobile-top, 0px));
   box-sizing: border-box;
@@ -144,6 +179,8 @@ const onConversationCreated = async (newId?: number) => {
 
 .communication-container--mobile {
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
 }
 
 .glass-panel {

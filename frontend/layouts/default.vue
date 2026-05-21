@@ -220,7 +220,10 @@
       class="layout-main"
       :class="[
         themeStore.isDark ? 'main-content-dark' : 'main-content',
-        { 'layout-main--mobile-bar': isMobileNav },
+        {
+          'layout-main--mobile-bar': isMobileNav,
+          'layout-main--communication': isMobileNav && isCommunicationRoute,
+        },
       ]"
     >
       <slot />
@@ -260,6 +263,7 @@ const commStore = useCommunicationStore()
 const notifStore = useNotificationsStore()
 const authTokenCookie = useCookie('auth_token')
 const notifMenuOpen = ref(false)
+const isCommunicationRoute = computed(() => route.path.startsWith('/communication'))
 const commUnreadTotal = computed(() => commStore.totalUnreadCount)
 const notifUnseen = computed(() => notifStore.unseenCount)
 const notifSections = computed(() => notifStore.sectionLists)
@@ -637,6 +641,19 @@ watch(
 
 .layout-main--mobile-bar {
   padding-top: calc(var(--layout-mobile-top)) !important;
+}
+
+.layout-main--communication {
+  overflow: hidden;
+  height: calc(100dvh - var(--layout-mobile-top, 0px));
+  max-height: calc(100dvh - var(--layout-mobile-top, 0px));
+  box-sizing: border-box;
+}
+
+.layout-main--communication :deep(.v-main__wrap) {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .main-content {

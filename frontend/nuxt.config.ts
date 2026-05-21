@@ -4,6 +4,13 @@ const config = defineNuxtConfig({
       title: '24h INSA',
       titleTemplate: (titleChunk?: string) =>
         titleChunk && titleChunk.trim() ? `${titleChunk} — 24h INSA` : '24h INSA',
+      meta: [
+        {
+          name: 'viewport',
+          content:
+            'width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content',
+        },
+      ],
       link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
     },
   },
@@ -56,6 +63,7 @@ const config = defineNuxtConfig({
     'vuetify/styles',
     '@mdi/font/css/materialdesignicons.css',
     '~/assets/css/admin-pages.css',
+    '~/assets/css/communication-mobile.css',
   ],
 
   build: {

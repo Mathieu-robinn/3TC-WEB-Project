@@ -1,11 +1,13 @@
 <template>
   <v-card
     class="chat-window d-flex flex-column fill-height elevation-3 rounded-lg overflow-hidden border"
-    :class="{ 'chat-window--fab-safe': reserveFabSpace }"
+    :class="{
+      'chat-window--fab-safe': reserveFabSpace,
+      'chat-window--mobile': isMobileChat,
+    }"
   >
-    
     <!-- Header -->
-    <v-toolbar color="surface" elevation="1" class="px-2 px-sm-4 header-glass">
+    <v-toolbar color="surface" elevation="1" class="px-2 px-sm-4 header-glass chat-header">
       <v-btn
         v-if="showMobileBack"
         icon="mdi-arrow-left"
@@ -15,28 +17,31 @@
         @click="emit('mobileBack')"
       />
       <v-avatar :color="conversation?.type === 'GROUP' ? 'secondary' : 'primary'" size="40" class="mr-3 elevation-2">
-        <v-icon :icon="conversation?.type === 'GROUP' ? 'mdi-account-group' : 'mdi-account'" color="white"></v-icon>
+        <v-icon :icon="conversation?.type === 'GROUP' ? 'mdi-account-group' : 'mdi-account'" color="white" />
       </v-avatar>
-      <div class="d-flex flex-column">
-        <span class="text-subtitle-1 font-weight-bold lh-normal">
+      <div class="d-flex flex-column min-w-0">
+        <span class="text-subtitle-1 font-weight-bold lh-normal text-truncate">
           {{ convTitle }}
         </span>
-        <span class="text-caption text-medium-emphasis lh-normal">
+        <span v-if="!isMobileChat" class="text-caption text-medium-emphasis lh-normal">
           {{ conversation?.type === 'GROUP' ? 'Groupe' : 'Privé' }}
         </span>
       </div>
-      <v-spacer></v-spacer>
-      <v-btn icon="mdi-information-outline" variant="plain" color="primary" @click="showInfo = true"></v-btn>
+      <v-spacer />
+      <v-btn icon="mdi-information-outline" variant="plain" color="primary" @click="showInfo = true" />
     </v-toolbar>
 
     <!-- Messages Area -->
-    <v-card-text class="messages-container flex-grow-1 overflow-y-auto pa-4" ref="messagesContainer">
-      <div v-if="messages.length === 0" class="d-flex fill-height align-center justify-center flex-column text-medium-emphasis">
-        <v-icon icon="mdi-chat-processing-outline" size="64" class="mb-4 opacity-50"></v-icon>
+    <div ref="messagesScrollEl" class="messages-container flex-grow-1 pa-4">
+      <div
+        v-if="messages.length === 0"
+        class="d-flex fill-height align-center justify-center flex-column text-medium-emphasis"
+      >
+        <v-icon icon="mdi-chat-processing-outline" size="64" class="mb-4 opacity-50" />
         <div class="text-h6">Envoyez le premier message</div>
         <p class="text-body-2">Cette conversation est vide.</p>
       </div>
-      
+
       <MessageBubble
         v-for="(msg, index) in messages"
         :key="msg.id"
@@ -46,34 +51,40 @@
         :prev-message="index > 0 ? messages[index - 1] : null"
         :next-message="index < messages.length - 1 ? messages[index + 1] : null"
       />
-    </v-card-text>
+    </div>
 
     <!-- Input Area -->
-    <v-divider></v-divider>
-    <v-card-actions class="pa-3 bg-surface input-glass chat-input-row">
-      <v-text-field
-        v-model="newMessage"
-        placeholder="Écrivez votre message..."
-        variant="solo-filled"
-        density="compact"
-        hide-details
-        rounded="pill"
-        class="flex-grow-1 flex-shrink-1 min-w-0 chat-input"
-        bg-color="background"
-        @keyup.enter="send"
-      />
-      <v-btn
-        icon="mdi-send"
-        size="large"
-        color="primary"
-        variant="flat"
-        class="send-btn flex-shrink-0"
-        rounded="pill"
-        :disabled="!newMessage.trim()"
-        aria-label="Envoyer"
-        @click="send"
-      />
-    </v-card-actions>
+    <div class="chat-composer bg-surface input-glass">
+      <v-divider />
+      <div class="chat-input-row pa-3">
+        <v-textarea
+          v-model="newMessage"
+          placeholder="Écrivez votre message..."
+          variant="solo-filled"
+          density="compact"
+          hide-details
+          rounded="lg"
+          rows="1"
+          auto-grow
+          :max-rows="4"
+          class="flex-grow-1 flex-shrink-1 min-w-0 chat-input"
+          bg-color="background"
+          @focus="onInputFocus"
+          @keydown.enter="onEnterKey"
+        />
+        <v-btn
+          icon="mdi-send"
+          size="large"
+          color="primary"
+          variant="flat"
+          class="send-btn flex-shrink-0"
+          rounded="pill"
+          :disabled="!newMessage.trim()"
+          aria-label="Envoyer"
+          @click="send"
+        />
+      </div>
+    </div>
 
     <ConversationInfoModal
       v-model="showInfo"
@@ -96,9 +107,10 @@ const props = withDefaults(
     messages: Message[]
     currentUserId: number
     showMobileBack?: boolean
+    isMobileChat?: boolean
     reserveFabSpace?: boolean
   }>(),
-  { showMobileBack: false, reserveFabSpace: false },
+  { showMobileBack: false, isMobileChat: false, reserveFabSpace: false },
 )
 
 const emit = defineEmits<{
@@ -108,16 +120,15 @@ const emit = defineEmits<{
 }>()
 
 const newMessage = ref('')
-const messagesContainer = ref<HTMLElement | null>(null)
+const messagesScrollEl = ref<HTMLElement | null>(null)
 const showInfo = ref(false)
 
-// Smart title for private conversations: show the other person's name
 const convTitle = computed(() => {
   const conv = props.conversation
   if (!conv) return ''
   if (conv.name) return conv.name
   if (conv.type === 'PRIVATE' && conv.participants?.length) {
-    const other = conv.participants.find(p => p.userId !== props.currentUserId)
+    const other = conv.participants.find((p) => p.userId !== props.currentUserId)
     if (other?.user) return `${other.user.firstName} ${other.user.lastName}`
   }
   return `Conversation #${conv.id}`
@@ -125,24 +136,37 @@ const convTitle = computed(() => {
 
 const scrollToBottom = async () => {
   await nextTick()
-  if (messagesContainer.value) {
-    const el = messagesContainer.value.$el || messagesContainer.value
-    el.scrollTop = el.scrollHeight
-  }
+  const el = messagesScrollEl.value
+  if (el) el.scrollTop = el.scrollHeight
 }
 
-watch(() => props.messages, () => {
-  scrollToBottom()
-}, { deep: true })
+watch(
+  () => props.messages,
+  () => {
+    scrollToBottom()
+  },
+  { deep: true },
+)
 
 onMounted(() => {
   scrollToBottom()
 })
 
+const onInputFocus = () => {
+  scrollToBottom()
+}
+
+const onEnterKey = (e: KeyboardEvent) => {
+  if (e.shiftKey) return
+  e.preventDefault()
+  send()
+}
+
 const send = () => {
   if (!newMessage.value.trim()) return
   emit('send', newMessage.value, 'TEXT')
   newMessage.value = ''
+  scrollToBottom()
 }
 </script>
 
@@ -152,9 +176,33 @@ const send = () => {
   backdrop-filter: blur(16px);
 }
 
+.chat-window--mobile {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 0;
+  height: 100%;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.chat-header {
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.chat-window--mobile .chat-header {
+  position: sticky;
+  top: 0;
+}
+
 .messages-container {
   background-color: rgba(var(--v-theme-background), 0.4);
-  /* Custom scrollbar for webkit */
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+
   &::-webkit-scrollbar {
     width: 6px;
   }
@@ -167,6 +215,20 @@ const send = () => {
   }
 }
 
+.chat-window--mobile .messages-container {
+  grid-row: 2;
+  flex-grow: unset;
+}
+
+.chat-composer {
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.chat-window--mobile .chat-composer {
+  grid-row: 3;
+}
+
 .lh-normal {
   line-height: 1.2;
 }
@@ -174,20 +236,18 @@ const send = () => {
 .header-glass {
   background: rgba(var(--v-theme-surface), 0.85) !important;
   backdrop-filter: blur(8px);
-  z-index: 10;
 }
 
 .input-glass {
   background: rgba(var(--v-theme-surface), 0.85) !important;
   backdrop-filter: blur(8px);
-  z-index: 10;
 }
 
 .chat-input-row {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  align-items: center;
+  align-items: flex-end;
   gap: 10px;
   width: 100%;
   box-sizing: border-box;
@@ -199,8 +259,13 @@ const send = () => {
 
 .chat-input {
   :deep(.v-field) {
-    border-radius: 24px !important;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+    border-radius: 16px !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  :deep(textarea) {
+    font-size: 16px;
+    line-height: 1.4;
   }
 }
 
