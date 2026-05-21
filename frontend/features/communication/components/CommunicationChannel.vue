@@ -96,7 +96,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useCommunicationStore } from '../stores/communication.store'
 import { useAuthStore } from '../../auth/stores/auth'
-import { useMobileNav } from '~/composables/useMobileNav'
+import { useMobileNav, MOBILE_TOP_BAR_PX } from '~/composables/useMobileNav'
 import {
   useVisualViewportInsets,
   getLayoutTopPx,
@@ -112,7 +112,7 @@ const { isMobileNav: isMobileComm } = useMobileNav()
 
 const mobileChatPane = ref(false)
 const chatShellRef = ref<HTMLElement | null>(null)
-const layoutTopPx = ref(getLayoutTopPx())
+const layoutTopPx = ref(MOBILE_TOP_BAR_PX)
 
 const vvEnabled = computed(() => isMobileComm.value && mobileChatPane.value)
 const { bindRoot, unbindRoot, sync } = useVisualViewportInsets(vvEnabled, layoutTopPx)
@@ -121,7 +121,7 @@ let savedHtmlOverflow = ''
 let savedBodyOverflow = ''
 
 const setBodyScrollLock = (lock: boolean) => {
-  if (typeof document === 'undefined') return
+  if (!import.meta.client || typeof document === 'undefined') return
   if (lock) {
     savedHtmlOverflow = document.documentElement.style.overflow
     savedBodyOverflow = document.body.style.overflow

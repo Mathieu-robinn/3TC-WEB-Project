@@ -53,12 +53,8 @@
       />
     </div>
 
-    <!-- Input Area (mobile : fixé au-dessus du clavier via --keyboard-inset) -->
-    <div
-      ref="composerEl"
-      class="chat-composer bg-surface input-glass"
-      :class="{ 'chat-composer--pinned': isMobileChat }"
-    >
+    <!-- Input Area -->
+    <div ref="composerEl" class="chat-composer bg-surface input-glass">
       <v-divider />
       <div class="chat-input-row pa-3">
         <v-textarea
@@ -75,7 +71,6 @@
           bg-color="background"
           @focus="onInputFocus"
           @keydown.enter="onEnterKey"
-          @click="emit('viewportSync')"
         />
         <v-btn
           icon="mdi-send"
@@ -133,13 +128,16 @@ const showInfo = ref(false)
 const COMPOSER_HEIGHT_VAR = '--comm-composer-height'
 
 const updateComposerHeightVar = () => {
-  if (!props.isMobileChat || typeof document === 'undefined') return
+  if (!import.meta.client || !props.isMobileChat) return
+  const html = document.documentElement
+  if (!html) return
   const h = composerEl.value?.offsetHeight ?? 72
-  document.documentElement.style.setProperty(COMPOSER_HEIGHT_VAR, `${h}px`)
+  html.style.setProperty(COMPOSER_HEIGHT_VAR, `${h}px`)
 }
 
 const clearComposerHeightVar = () => {
-  document.documentElement.style.removeProperty(COMPOSER_HEIGHT_VAR)
+  if (!import.meta.client) return
+  document.documentElement?.style.removeProperty(COMPOSER_HEIGHT_VAR)
 }
 
 const convTitle = computed(() => {
@@ -172,18 +170,14 @@ const scrollToBottom = async (smooth = false) => {
 
 let focusScrollTimer: ReturnType<typeof setTimeout> | null = null
 
-/** Scroll fluide vers le dernier message après focus (recale après ouverture clavier mobile). */
+/** Scroll fluide vers le dernier message ; un seul recalage viewport après ouverture clavier. */
 const scrollToBottomOnFocus = async () => {
-  emit('viewportSync')
   await scrollToBottom(true)
-  requestAnimationFrame(() => {
-    scrollToBottom(true)
-  })
   if (focusScrollTimer) clearTimeout(focusScrollTimer)
-  const delay = props.isMobileChat ? 320 : 80
+  const delay = props.isMobileChat ? 360 : 80
   focusScrollTimer = setTimeout(async () => {
-    updateComposerHeightVar()
     emit('viewportSync')
+    updateComposerHeightVar()
     await scrollToBottom(true)
     focusScrollTimer = null
   }, delay)
@@ -297,10 +291,6 @@ const send = () => {
 .chat-composer {
   flex-shrink: 0;
   z-index: 10;
-}
-
-.chat-window--mobile .messages-container {
-  grid-row: 2;
 }
 
 .lh-normal {

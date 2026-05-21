@@ -86,6 +86,7 @@ export const useCommunicationStore = defineStore('communication', {
   },
   actions: {
     initSocket() {
+      if (import.meta.server) return;
       const token = useCookie('auth_token').value;
       if (!token) return;
       if (this.socket?.connected) return;

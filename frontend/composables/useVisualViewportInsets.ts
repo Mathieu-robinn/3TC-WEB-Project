@@ -17,9 +17,18 @@ export type VisualViewportInsets = {
   shellHeight: number
 }
 
+function isClient(): boolean {
+  return import.meta.client && typeof document !== 'undefined'
+}
+
+function getHtmlElement(): HTMLElement | null {
+  if (!isClient()) return null
+  return document.documentElement
+}
+
 /** Hauteur utile sous la barre mobile (56px + encoche). */
 export function getLayoutTopPx(): number {
-  if (typeof document === 'undefined') return MOBILE_TOP_BAR_PX
+  if (!isClient()) return MOBILE_TOP_BAR_PX
   const probe = document.createElement('div')
   probe.style.cssText =
     'position:fixed;top:0;left:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px)'
@@ -30,6 +39,15 @@ export function getLayoutTopPx(): number {
 }
 
 function readInsets(layoutTopPx: number): VisualViewportInsets {
+  if (!isClient() || typeof window === 'undefined') {
+    return {
+      height: 0,
+      offsetTop: 0,
+      keyboardInset: 0,
+      shellTop: layoutTopPx,
+      shellHeight: 0,
+    }
+  }
   const vv = window.visualViewport
   if (!vv) {
     const shellTop = layoutTopPx
@@ -43,8 +61,9 @@ function readInsets(layoutTopPx: number): VisualViewportInsets {
     }
   }
   const keyboardInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-  const shellTop = vv.offsetTop + layoutTopPx
-  const shellHeight = Math.max(0, vv.height - layoutTopPx)
+  /** Barre app toujours en haut du layout ; hauteur jusqu’au bas du visual viewport */
+  const shellTop = layoutTopPx
+  const shellHeight = Math.max(0, vv.offsetTop + vv.height - layoutTopPx)
   return {
     height: vv.height,
     offsetTop: vv.offsetTop,
@@ -68,8 +87,19 @@ function clearVars(target: HTMLElement) {
   }
 }
 
+function applyVarsToHtml(values: VisualViewportInsets) {
+  const html = getHtmlElement()
+  if (html) applyVars(html, values)
+}
+
+function clearVarsFromHtml() {
+  const html = getHtmlElement()
+  if (html) clearVars(html)
+}
+
 /**
  * Suit le visual viewport (clavier mobile) et expose des variables CSS sur le shell chat.
+ * Ne touche au DOM que côté client (évite erreur SSR au refresh).
  */
 export function useVisualViewportInsets(
   enabled: Ref<boolean>,
@@ -85,6 +115,7 @@ export function useVisualViewportInsets(
   let listening = false
 
   const sync = () => {
+    if (!isClient()) return
     const topPx = unref(layoutTopPx)
     const v = readInsets(topPx)
     viewportHeight.value = v.height
@@ -94,20 +125,19 @@ export function useVisualViewportInsets(
     shellHeight.value = v.shellHeight
     if (boundEl) {
       applyVars(boundEl, v)
-      applyVars(document.documentElement, v)
+      applyVarsToHtml(v)
     }
   }
 
   const onVvScroll = () => {
     if (!enabled.value) return
-    window.scrollTo(0, 0)
     sync()
   }
 
   const onVvResize = () => sync()
 
   const startListening = () => {
-    if (listening || typeof window === 'undefined') return
+    if (listening || !isClient()) return
     listening = true
     sync()
     window.visualViewport?.addEventListener('resize', onVvResize)
@@ -116,7 +146,7 @@ export function useVisualViewportInsets(
   }
 
   const stopListening = () => {
-    if (!listening || typeof window === 'undefined') return
+    if (!listening || !isClient()) return
     listening = false
     window.visualViewport?.removeEventListener('resize', onVvResize)
     window.visualViewport?.removeEventListener('scroll', onVvScroll)
@@ -126,16 +156,16 @@ export function useVisualViewportInsets(
   const bindRoot = (el: HTMLElement | null) => {
     if (boundEl) clearVars(boundEl)
     boundEl = el
-    if (boundEl && enabled.value) {
+    if (boundEl && enabled.value && isClient()) {
       const v = readInsets(unref(layoutTopPx))
       applyVars(boundEl, v)
-      applyVars(document.documentElement, v)
+      applyVarsToHtml(v)
     }
   }
 
   const unbindRoot = () => {
     if (boundEl) clearVars(boundEl)
-    clearVars(document.documentElement)
+    clearVarsFromHtml()
     boundEl = null
   }
 
@@ -149,6 +179,7 @@ export function useVisualViewportInsets(
   watch(
     enabled,
     (on) => {
+      if (!isClient()) return
       if (on) {
         startListening()
         sync()

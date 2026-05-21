@@ -32,7 +32,6 @@
   min-height: 0;
   overflow: hidden;
   background: rgb(var(--v-theme-surface));
-  pointer-events: none;
 }
 
 .comm-chat-shell__inner {
@@ -43,7 +42,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  pointer-events: auto;
 }
 
 .communication-container--mobile.communication-container--chat-open {
@@ -69,27 +67,19 @@
   backdrop-filter: none !important;
 }
 
-/* Grille 2 lignes : header + messages (composer hors flux, fixé au viewport) */
+/* Grille 3 zones : header, messages scrollables, composer en bas du shell */
 .comm-chat-shell .chat-window--mobile {
-  grid-template-rows: auto 1fr !important;
+  grid-template-rows: auto 1fr auto !important;
 }
 
-/* Composer collé au bas du visual viewport (= juste au-dessus clavier / barre Safari) */
-.comm-chat-shell .chat-window--mobile .chat-composer--pinned {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: max(
-    var(--keyboard-inset, 0px),
-    env(keyboard-inset-height, 0px)
-  );
-  z-index: 1006;
-  grid-row: unset;
-  margin: 0;
-  padding-bottom: 8px;
-  pointer-events: auto;
+.comm-chat-shell .chat-window--mobile .chat-composer {
+  grid-row: 3;
+  flex-shrink: 0;
+  z-index: 2;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 
 .comm-chat-shell .chat-window--mobile .messages-container {
-  padding-bottom: calc(var(--comm-composer-height, 72px) + 12px);
+  grid-row: 2;
+  padding-bottom: 8px;
 }
