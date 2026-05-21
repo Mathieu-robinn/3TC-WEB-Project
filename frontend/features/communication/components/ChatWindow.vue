@@ -71,6 +71,7 @@
           bg-color="background"
           @focus="onInputFocus"
           @keydown.enter="onEnterKey"
+          @click="emit('viewportSync')"
         />
         <v-btn
           icon="mdi-send"
@@ -117,6 +118,7 @@ const emit = defineEmits<{
   (e: 'send', content: string, type: 'TEXT' | 'IMAGE'): void
   (e: 'groupUpdated'): void
   (e: 'mobileBack'): void
+  (e: 'viewportSync'): void
 }>()
 
 const newMessage = ref('')
@@ -154,6 +156,7 @@ onMounted(() => {
 
 const onInputFocus = () => {
   scrollToBottom()
+  emit('viewportSync')
 }
 
 const onEnterKey = (e: KeyboardEvent) => {
@@ -227,6 +230,13 @@ const send = () => {
 
 .chat-window--mobile .chat-composer {
   grid-row: 3;
+  position: sticky;
+  bottom: 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+
+.chat-window--mobile .messages-container {
+  padding-bottom: 12px;
 }
 
 .lh-normal {

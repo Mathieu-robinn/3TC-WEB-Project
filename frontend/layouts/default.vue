@@ -651,6 +651,7 @@ watch(
 }
 
 .layout-main--communication :deep(.v-main__wrap) {
+  position: relative;
   height: 100%;
   max-height: 100%;
   overflow: hidden;

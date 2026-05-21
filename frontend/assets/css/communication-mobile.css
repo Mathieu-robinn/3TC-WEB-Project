@@ -18,13 +18,13 @@
   left: 0;
   right: 0;
   z-index: 1004;
-  top: var(--layout-mobile-top, 0px);
+  top: var(--comm-shell-top, var(--layout-mobile-top, 0px));
   height: var(
-    --vv-height,
+    --comm-shell-height,
     calc(100dvh - var(--layout-mobile-top, 0px))
   );
   max-height: var(
-    --vv-height,
+    --comm-shell-height,
     calc(100dvh - var(--layout-mobile-top, 0px))
   );
   display: flex;
@@ -32,6 +32,16 @@
   min-height: 0;
   overflow: hidden;
   background: rgb(var(--v-theme-surface));
+}
+
+.comm-chat-shell__inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .communication-container--mobile.communication-container--chat-open {
@@ -57,13 +67,12 @@
   backdrop-filter: none !important;
 }
 
-.comm-chat-shell > * {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
-  width: 100%;
+.comm-chat-shell .chat-window--mobile .chat-composer {
+  position: sticky;
+  bottom: 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 
-.comm-chat-shell .chat-window--mobile .chat-composer {
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+.comm-chat-shell .chat-window--mobile .messages-container {
+  padding-bottom: 8px;
 }

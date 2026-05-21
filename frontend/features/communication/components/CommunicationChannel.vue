@@ -65,13 +65,13 @@
       </v-col>
     </v-row>
 
-    <!-- Mobile : chat fixe sous la barre layout -->
+    <!-- Mobile : chat fixe aligné sur le visual viewport -->
     <div
       v-if="isMobileComm && mobileChatPane"
       ref="chatShellRef"
       class="comm-chat-shell"
     >
-      <v-fade-transition mode="out-in">
+      <div class="comm-chat-shell__inner">
         <ChatWindow
           v-if="commStore.activeConversation"
           :key="commStore.activeConversationId"
@@ -84,19 +84,23 @@
           @send="sendMessage"
           @group-updated="commStore.fetchConversations()"
           @mobile-back="onMobileChatBack"
+          @viewport-sync="syncViewport"
         />
         <EmptyChatState v-else show-back @back="onMobileChatBack" />
-      </v-fade-transition>
+      </div>
     </div>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useCommunicationStore } from '../stores/communication.store'
 import { useAuthStore } from '../../auth/stores/auth'
 import { useMobileNav } from '~/composables/useMobileNav'
-import { useVisualViewportInsets } from '~/composables/useVisualViewportInsets'
+import {
+  useVisualViewportInsets,
+  getLayoutTopPx,
+} from '~/composables/useVisualViewportInsets'
 
 import ConversationList from './ConversationList.vue'
 import ChatWindow from './ChatWindow.vue'
@@ -108,9 +112,32 @@ const { isMobileNav: isMobileComm } = useMobileNav()
 
 const mobileChatPane = ref(false)
 const chatShellRef = ref<HTMLElement | null>(null)
+const layoutTopPx = ref(getLayoutTopPx())
 
 const vvEnabled = computed(() => isMobileComm.value && mobileChatPane.value)
-const { bindRoot, unbindRoot } = useVisualViewportInsets(vvEnabled)
+const { bindRoot, unbindRoot, sync } = useVisualViewportInsets(vvEnabled, layoutTopPx)
+
+let savedHtmlOverflow = ''
+let savedBodyOverflow = ''
+
+const setBodyScrollLock = (lock: boolean) => {
+  if (typeof document === 'undefined') return
+  if (lock) {
+    savedHtmlOverflow = document.documentElement.style.overflow
+    savedBodyOverflow = document.body.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+  } else {
+    document.documentElement.style.overflow = savedHtmlOverflow
+    document.body.style.overflow = savedBodyOverflow
+  }
+}
+
+const syncViewport = () => {
+  layoutTopPx.value = getLayoutTopPx()
+  sync()
+  requestAnimationFrame(() => sync())
+}
 
 const showConversationList = computed(
   () => !isMobileComm.value || !mobileChatPane.value,
@@ -121,11 +148,24 @@ watch(chatShellRef, (el) => {
 })
 
 watch(vvEnabled, (on) => {
-  if (on && chatShellRef.value) bindRoot(chatShellRef.value)
-  else unbindRoot()
+  if (on) {
+    setBodyScrollLock(true)
+    if (chatShellRef.value) bindRoot(chatShellRef.value)
+    nextTick(() => syncViewport())
+  } else {
+    setBodyScrollLock(false)
+    unbindRoot()
+  }
+})
+
+watch(mobileChatPane, (open) => {
+  if (isMobileComm.value && open) {
+    nextTick(() => syncViewport())
+  }
 })
 
 onMounted(async () => {
+  layoutTopPx.value = getLayoutTopPx()
   authStore.hydrateUserFromToken()
   commStore.activeConversationId = null
   commStore.messages = {}
@@ -133,8 +173,16 @@ onMounted(async () => {
   await commStore.fetchConversations()
 })
 
+onUnmounted(() => {
+  setBodyScrollLock(false)
+  unbindRoot()
+})
+
 watch(isMobileComm, (mobile) => {
-  if (!mobile) mobileChatPane.value = false
+  if (!mobile) {
+    mobileChatPane.value = false
+    setBodyScrollLock(false)
+  }
 })
 
 watch(
@@ -146,7 +194,10 @@ watch(
 
 const selectConversation = (id: number) => {
   commStore.selectConversation(id)
-  if (isMobileComm.value) mobileChatPane.value = true
+  if (isMobileComm.value) {
+    mobileChatPane.value = true
+    nextTick(() => syncViewport())
+  }
 }
 
 const onMobileChatBack = () => {
@@ -163,7 +214,10 @@ const onConversationCreated = async (newId?: number) => {
   await commStore.fetchConversations()
   if (newId) {
     commStore.selectConversation(newId)
-    if (isMobileComm.value) mobileChatPane.value = true
+    if (isMobileComm.value) {
+      mobileChatPane.value = true
+      nextTick(() => syncViewport())
+    }
   }
 }
 </script>
