@@ -83,8 +83,11 @@ pnpm run db:seed
 # reset complet (sans seed)
 pnpm run db:reset
 
-# reset complet + seed
+# reset complet + seed de demo
 pnpm run db:reset:seed
+
+# reset complet + seed production (2 super-admins)
+pnpm run db:reset:prod
 ```
 
 Le seed cree un jeu de donnees realiste (utilisateurs, editions, courses, equipes, puces, transactions, logs, notifications et messagerie).
@@ -144,7 +147,8 @@ Gateway Socket.IO active via `EventsGateway`.
 | `pnpm run test:cov` | Couverture de tests |
 | `pnpm run db:seed` | Seed Prisma |
 | `pnpm run db:reset` | Reset Prisma sans seed |
-| `pnpm run db:reset:seed` | Reset Prisma avec seed |
+| `pnpm run db:reset:seed` | Reset Prisma avec seed de demo |
+| `pnpm run db:reset:prod` | Reset Prisma avec prod_seed (2 super-admins) |
 
 ## Structure fonctionnelle
 
