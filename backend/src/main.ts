@@ -1,11 +1,17 @@
 import { NestFactory } from "@nestjs/core";
+import { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module.js";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
 
+/** Import CSV : plusieurs centaines de lignes en JSON dépassent la limite Express par défaut (100 ko). */
+const BODY_PARSER_LIMIT = process.env.BODY_PARSER_LIMIT ?? "10mb";
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.useBodyParser("json", { limit: BODY_PARSER_LIMIT });
+  app.useBodyParser("urlencoded", { limit: BODY_PARSER_LIMIT, extended: true });
 
   // ─── Configuration CORS ────────────────────────────────────────────────────
   // Permet au frontend Nuxt (port 3001 / autre) de communiquer avec l'API
