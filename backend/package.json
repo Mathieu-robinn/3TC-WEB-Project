@@ -11,6 +11,7 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force --skip-seed",
     "db:reset:seed": "prisma migrate reset --force && prisma db seed",
+    "db:reset:prod": "prisma migrate reset --force --skip-seed && tsx prisma/prod_seed.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
