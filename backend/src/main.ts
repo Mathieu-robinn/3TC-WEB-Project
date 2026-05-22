@@ -1,6 +1,5 @@
 import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
-import { json, urlencoded } from "express";
 import { AppModule } from "./app.module.js";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ValidationPipe } from "@nestjs/common";
@@ -13,8 +12,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
   });
-  app.use(json({ limit: BODY_PARSER_LIMIT }));
-  app.use(urlencoded({ limit: BODY_PARSER_LIMIT, extended: true }));
+  app.useBodyParser("json", { limit: BODY_PARSER_LIMIT });
+  app.useBodyParser("urlencoded", { limit: BODY_PARSER_LIMIT, extended: true });
 
   // ─── Configuration CORS ────────────────────────────────────────────────────
   // Permet au frontend Nuxt (port 3001 / autre) de communiquer avec l'API
