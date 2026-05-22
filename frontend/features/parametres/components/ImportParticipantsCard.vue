@@ -17,9 +17,8 @@
     <v-divider />
     <v-card-text class="pa-4">
       <p class="text-body-2 text-medium-emphasis mb-4">
-        Importe des participants, équipes et courses dans l'édition sélectionnée. La première ligne du fichier doit
-        contenir les en-têtes (ordre libre). Colonnes reconnues par alias : Course, Équipe, Nom, Prénom, Mail, Tel,
-        Capitaine. Unicité par édition uniquement.
+        Importe des participants, équipes et courses dans l'édition sélectionnée. En-têtes reconnus par alias (ordre
+        libre). Colonnes obligatoires : Course, Catégorie, Nom, Prénom. Équipe vide → équipe « Solo prénom nom ».
       </p>
 
       <v-alert v-if="editionId == null" type="info" variant="tonal" density="compact" rounded="lg" class="mb-4">
@@ -70,6 +69,7 @@
               <tr>
                 <th>Ligne</th>
                 <th>Course</th>
+                <th>Catégorie</th>
                 <th>Équipe</th>
                 <th>Nom</th>
                 <th>Prénom</th>
@@ -81,7 +81,8 @@
               <tr v-for="r in previewRows" :key="r.lineNumber">
                 <td>{{ r.lineNumber }}</td>
                 <td>{{ r.courseName }}</td>
-                <td>{{ r.teamName }}</td>
+                <td>{{ categoryPreview(r.category) }}</td>
+                <td>{{ previewTeamName(r) }}</td>
                 <td>{{ r.lastName }}</td>
                 <td>{{ r.firstName }}</td>
                 <td>{{ r.email ?? '—' }}</td>
@@ -151,11 +152,13 @@ import {
   type ImportRow,
 } from '~/utils/csvParse'
 import { downloadCsv, csvFilename } from '~/utils/csvExport'
-import type { ImportParticipantsResult } from '~/types/api'
+import { courseCategoryLabel } from '~/utils/courseDisplay'
+import type { CourseCategoryApi, ImportParticipantsResult } from '~/types/api'
 import ImportResultPanel from '~/features/parametres/components/ImportResultPanel.vue'
 
 const FIELD_LABELS: Record<ImportCanonicalField, string> = {
   course: 'Course',
+  category: 'Catégorie',
   team: 'Équipe',
   lastName: 'Nom',
   firstName: 'Prénom',
@@ -193,6 +196,16 @@ function fieldLabel(field: ImportCanonicalField): string {
   return FIELD_LABELS[field]
 }
 
+function categoryPreview(cat: CourseCategoryApi): string {
+  return courseCategoryLabel(cat)
+}
+
+function previewTeamName(r: ImportRow): string {
+  const t = r.teamName?.trim()
+  if (t) return t
+  return `Solo ${r.firstName} ${r.lastName}`.trim()
+}
+
 function downloadTemplate() {
   downloadCsv(csvFilename('modele_import_participants'), [...IMPORT_CSV_TEMPLATE_HEADERS], [])
 }
@@ -209,9 +222,13 @@ async function onFileSelected(files: File | File[] | null) {
   try {
     const text = await file.text()
     const matrix = parseCsv(text)
-    const { rows, missingRequired, mappingLabels: labels } = csvRowsToImportPayload(matrix)
+    const { rows, missingRequired, mappingLabels: labels, categoryErrors } = csvRowsToImportPayload(matrix)
     if (missingRequired.length > 0) {
       parseError.value = `Colonnes manquantes : ${missingRequiredLabels(missingRequired)}.`
+      return
+    }
+    if (categoryErrors.length > 0) {
+      parseError.value = categoryErrors.map((e) => `Ligne ${e.line} : ${e.message}`).join(' ')
       return
     }
     if (rows.length === 0) {

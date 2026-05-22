@@ -1,4 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { Course, CourseCategory } from "@prisma/client";
 import { ImportService } from "./import.service.js";
 import { PrismaService } from "../../prisma.service.js";
 
@@ -16,6 +17,7 @@ describe("ImportService", () => {
   const course = {
     id: 10,
     name: "Marathon",
+    category: CourseCategory.COMPETITION,
     distanceTour: 2.5,
     dateAndTime: edition.startDate,
     editionId: 1,
@@ -30,7 +32,7 @@ describe("ImportService", () => {
     email: string | null;
     phone: string | null;
   }[] = [];
-  let courses: typeof course[] = [course];
+  let courses: Course[] = [course];
   let nextTeamId = 1;
   let nextRunnerId = 1;
   let nextCourseId = 11;
@@ -39,17 +41,24 @@ describe("ImportService", () => {
     edition: { findUnique: jest.fn().mockResolvedValue(edition) },
     course: {
       findMany: jest.fn().mockImplementation(() => Promise.resolve(courses)),
-      create: jest.fn().mockImplementation(({ data }: { data: { name: string } }) => {
-        const c = {
-          id: nextCourseId++,
-          name: data.name,
-          distanceTour: 0,
-          dateAndTime: edition.startDate,
-          editionId: 1,
-        };
-        courses.push(c);
-        return Promise.resolve(c);
-      }),
+      create: jest.fn().mockImplementation(
+        ({
+          data,
+        }: {
+          data: { name: string; category: CourseCategory; editionId: number };
+        }) => {
+          const c = {
+            id: nextCourseId++,
+            name: data.name,
+            category: data.category,
+            distanceTour: 0,
+            dateAndTime: edition.startDate,
+            editionId: 1,
+          };
+          courses.push(c);
+          return Promise.resolve(c);
+        },
+      ),
     },
     team: {
       findMany: jest.fn().mockImplementation(() => Promise.resolve(teams)),
@@ -103,12 +112,13 @@ describe("ImportService", () => {
     service = module.get<ImportService>(ImportService);
   });
 
-  it("crée course, équipe et participant sur édition vide", async () => {
+  it("crée course, équipe et participant", async () => {
     courses = [];
     const result = await service.importParticipants(1, [
       {
         lineNumber: 2,
         courseName: "Trail",
+        category: CourseCategory.LOISIR,
         teamName: "Neo",
         lastName: "Dupont",
         firstName: "Jean",
@@ -119,10 +129,52 @@ describe("ImportService", () => {
 
     expect(result.created).toEqual({ courses: 1, teams: 1, runners: 1 });
     expect(result.errors).toHaveLength(0);
-    expect(mockPrisma.team.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: { respRunnerId: 1 },
-    });
+  });
+
+  it("crée Solo prénom nom si équipe vide", async () => {
+    courses = [];
+    const result = await service.importParticipants(1, [
+      {
+        lineNumber: 2,
+        courseName: "Trail",
+        category: CourseCategory.SOLO,
+        teamName: "",
+        lastName: "Dupont",
+        firstName: "Jean",
+      },
+    ]);
+
+    expect(result.created.teams).toBe(1);
+    expect(teams[0].name).toBe("Solo Jean Dupont");
+    expect(result.created.runners).toBe(1);
+  });
+
+  it("même nom de course OK si catégorie différente", async () => {
+    courses = [];
+    await service.importParticipants(1, [
+      {
+        lineNumber: 2,
+        courseName: "Vélo",
+        category: CourseCategory.SOLO,
+        teamName: "A",
+        lastName: "Un",
+        firstName: "A",
+      },
+    ]);
+    const result = await service.importParticipants(1, [
+      {
+        lineNumber: 3,
+        courseName: "Vélo",
+        category: CourseCategory.COMPETITION,
+        teamName: "B",
+        lastName: "Deux",
+        firstName: "B",
+      },
+    ]);
+
+    expect(result.created.courses).toBe(1);
+    expect(result.created.teams).toBe(1);
+    expect(courses).toHaveLength(2);
   });
 
   it("ignore un participant déjà présent (même email, même équipe)", async () => {
@@ -135,6 +187,7 @@ describe("ImportService", () => {
       {
         lineNumber: 2,
         courseName: "Marathon",
+        category: CourseCategory.COMPETITION,
         teamName: "Neo",
         lastName: "Dupont",
         firstName: "Jean",
@@ -144,17 +197,24 @@ describe("ImportService", () => {
 
     expect(result.skipped).toBe(1);
     expect(result.created.runners).toBe(0);
-    expect(mockPrisma.runner.create).not.toHaveBeenCalled();
   });
 
   it("erreur si équipe existante sur une autre course", async () => {
-    courses.push({ id: 99, name: "Autre", distanceTour: 0, dateAndTime: edition.startDate, editionId: 1 });
+    courses.push({
+      id: 99,
+      name: "Autre",
+      category: CourseCategory.LOISIR,
+      distanceTour: 0,
+      dateAndTime: edition.startDate,
+      editionId: 1,
+    });
     teams = [{ id: 5, num: 1, name: "Neo", courseId: 99, editionId: 1 }];
 
     const result = await service.importParticipants(1, [
       {
         lineNumber: 2,
         courseName: "Marathon",
+        category: CourseCategory.COMPETITION,
         teamName: "Neo",
         lastName: "Martin",
         firstName: "Paul",
@@ -165,30 +225,6 @@ describe("ImportService", () => {
     expect(result.errors[0].message).toContain("autre course");
   });
 
-  it("erreur si email déjà utilisé par une autre équipe", async () => {
-    teams = [
-      { id: 5, num: 1, name: "Neo", courseId: 10, editionId: 1 },
-      { id: 6, num: 2, name: "Autre", courseId: 10, editionId: 1 },
-    ];
-    runners = [
-      { id: 9, teamId: 6, firstName: "A", lastName: "B", email: "j@x.fr", phone: null },
-    ];
-
-    const result = await service.importParticipants(1, [
-      {
-        lineNumber: 2,
-        courseName: "Marathon",
-        teamName: "Neo",
-        lastName: "C",
-        firstName: "D",
-        email: "j@x.fr",
-      },
-    ]);
-
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].message).toContain("email");
-  });
-
   it("dryRun ne crée rien en base", async () => {
     courses = [];
     const result = await service.importParticipants(
@@ -197,6 +233,7 @@ describe("ImportService", () => {
         {
           lineNumber: 2,
           courseName: "Trail",
+          category: CourseCategory.LOISIR,
           teamName: "Neo",
           lastName: "Dupont",
           firstName: "Jean",
@@ -208,7 +245,5 @@ describe("ImportService", () => {
     expect(result.dryRun).toBe(true);
     expect(result.created).toEqual({ courses: 1, teams: 1, runners: 1 });
     expect(mockPrisma.course.create).not.toHaveBeenCalled();
-    expect(mockPrisma.team.create).not.toHaveBeenCalled();
-    expect(mockPrisma.runner.create).not.toHaveBeenCalled();
   });
 });

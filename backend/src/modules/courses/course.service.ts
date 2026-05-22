@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
-import { Course, Prisma } from "@prisma/client";
+import { Course, CourseCategory, Prisma } from "@prisma/client";
 import { TeamService } from "../teams/team.service.js";
 
 @Injectable()
@@ -37,22 +37,32 @@ export class CourseService {
     const editionConnect = (data.edition as { connect?: { id: number } } | undefined)?.connect;
     const editionId = editionConnect?.id ?? (data as { editionId?: number }).editionId;
     const name = (data.name as string | undefined)?.trim();
+    const category = (data as { category?: CourseCategory }).category;
     if (!name) {
       throw new BadRequestException("Le nom du parcours est requis.");
     }
     if (editionId == null) {
       throw new BadRequestException("editionId requis pour créer un parcours.");
     }
+    if (category == null) {
+      throw new BadRequestException("La catégorie du parcours est requise.");
+    }
 
     const existing = await this.prisma.course.findFirst({
-      where: { editionId, name: { equals: name, mode: "insensitive" } },
+      where: {
+        editionId,
+        category,
+        name: { equals: name, mode: "insensitive" },
+      },
     });
     if (existing) {
-      throw new ConflictException(`Un parcours « ${name} » existe déjà pour cette édition.`);
+      throw new ConflictException(
+        `Un parcours « ${name} » (${category}) existe déjà pour cette édition.`,
+      );
     }
 
     return this.prisma.course.create({
-      data: { ...data, name },
+      data: { ...data, name, category },
     });
   }
 
@@ -90,10 +100,17 @@ export class CourseService {
 
   async updateCourseSafe(
     id: number,
-    data: { name?: string; distanceTour?: number; dateAndTime?: Date; editionId?: number },
+    data: {
+      name?: string;
+      category?: CourseCategory;
+      distanceTour?: number;
+      dateAndTime?: Date;
+      editionId?: number;
+    },
   ): Promise<Course> {
     const hasField =
       data.name !== undefined ||
+      data.category !== undefined ||
       data.distanceTour !== undefined ||
       data.dateAndTime !== undefined ||
       data.editionId !== undefined;
@@ -110,10 +127,31 @@ export class CourseService {
         throw new BadRequestException(`Édition #${data.editionId} introuvable.`);
       }
     }
+    const targetEditionId = data.editionId ?? existing.editionId;
+    const targetName = data.name ?? existing.name;
+    const targetCategory = data.category ?? existing.category;
+
+    if (data.name !== undefined || data.category !== undefined || data.editionId !== undefined) {
+      const dup = await this.prisma.course.findFirst({
+        where: {
+          editionId: targetEditionId,
+          category: targetCategory,
+          name: { equals: targetName, mode: "insensitive" },
+          NOT: { id },
+        },
+      });
+      if (dup) {
+        throw new ConflictException(
+          `Un parcours « ${targetName} » (${targetCategory}) existe déjà pour cette édition.`,
+        );
+      }
+    }
+
     return this.prisma.course.update({
       where: { id },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.category !== undefined ? { category: data.category } : {}),
         ...(data.distanceTour !== undefined ? { distanceTour: data.distanceTour } : {}),
         ...(data.dateAndTime !== undefined ? { dateAndTime: data.dateAndTime } : {}),
         ...(data.editionId != null && data.editionId !== existing.editionId

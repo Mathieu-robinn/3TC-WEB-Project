@@ -52,6 +52,7 @@ export class CoursesController {
   async createCourse(@Body() data: CreateCourseDto): Promise<Course> {
     const prismaData: Prisma.CourseCreateInput = {
       name: data.name,
+      category: data.category,
       distanceTour: data.distanceTour,
       dateAndTime: data.dateAndTime,
       edition: { connect: { id: data.editionId } },
@@ -67,6 +68,7 @@ export class CoursesController {
   async updateCourse(@Param("id") id: string, @Body() data: UpdateCourseDto): Promise<Course> {
     return this.courseService.updateCourseSafe(Number(id), {
       ...(data.name !== undefined ? { name: data.name } : {}),
+      ...(data.category !== undefined ? { category: data.category } : {}),
       ...(data.distanceTour !== undefined ? { distanceTour: data.distanceTour } : {}),
       ...(data.dateAndTime !== undefined ? { dateAndTime: data.dateAndTime } : {}),
       ...(data.editionId !== undefined ? { editionId: data.editionId } : {}),

@@ -1,4 +1,12 @@
-import { PrismaClient, Role, TransponderStatus, ConversationType, MessageType, ParticipantRole } from "@prisma/client";
+import {
+  CourseCategory,
+  PrismaClient,
+  Role,
+  TransponderStatus,
+  ConversationType,
+  MessageType,
+  ParticipantRole,
+} from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import "dotenv/config.js";
@@ -107,19 +115,43 @@ async function main() {
   // ───────────────────────────────────────────────────────────────────────────
 
   const course2025_24h = await prisma.course.create({
-    data: { name: "24 Heures 2025", distanceTour: 2.5, dateAndTime: new Date("2025-05-17T14:00:00Z"), editionId: edition2025.id },
+    data: {
+      name: "24 Heures 2025",
+      category: CourseCategory.COMPETITION,
+      distanceTour: 2.5,
+      dateAndTime: new Date("2025-05-17T14:00:00Z"),
+      editionId: edition2025.id,
+    },
   });
 
   const course2026_24h = await prisma.course.create({
-    data: { name: "24 Heures", distanceTour: 2.5, dateAndTime: new Date("2026-05-16T14:00:00Z"), editionId: edition2026.id },
+    data: {
+      name: "24 Heures",
+      category: CourseCategory.COMPETITION,
+      distanceTour: 2.5,
+      dateAndTime: new Date("2026-05-16T14:00:00Z"),
+      editionId: edition2026.id,
+    },
   });
 
   const course2026_12h = await prisma.course.create({
-    data: { name: "12 Heures", distanceTour: 2.5, dateAndTime: new Date("2026-05-16T20:00:00Z"), editionId: edition2026.id },
+    data: {
+      name: "12 Heures",
+      category: CourseCategory.LOISIR,
+      distanceTour: 2.5,
+      dateAndTime: new Date("2026-05-16T20:00:00Z"),
+      editionId: edition2026.id,
+    },
   });
 
   const course2026_6h = await prisma.course.create({
-    data: { name: "6 Heures Handisport", distanceTour: 1.8, dateAndTime: new Date("2026-05-17T08:00:00Z"), editionId: edition2026.id },
+    data: {
+      name: "6 Heures Handisport",
+      category: CourseCategory.SOLO,
+      distanceTour: 1.8,
+      dateAndTime: new Date("2026-05-17T08:00:00Z"),
+      editionId: edition2026.id,
+    },
   });
 
   console.log("✅ Parcours créés.");

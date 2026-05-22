@@ -587,6 +587,7 @@ import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
 import { csvFilename, downloadCsv } from '~/utils/csvExport'
 import { EQUIPES_CSV_HEADERS, equipesToCsvRows } from '~/utils/exportRows'
+import { courseDisplayLabel } from '~/utils/courseDisplay'
 
 const equipeFormDialogAttrs = useMobileDialogAttrs(520)
 const equipeDeleteDialogAttrs = useMobileDialogAttrs(420)
@@ -605,16 +606,18 @@ const editingTeam = ref(null)
 const deletingTeam = ref(null)
 
 const coursesOptions = computed(() =>
-  store.courses.map((c) => ({ id: c.id, label: `${c.name} (id:${c.id})` })),
+  store.courses.map((c) => ({ id: c.id, label: courseDisplayLabel(c) })),
 )
 
 const courseFilterItems = computed(() => [
   { title: 'Toutes les disciplines', value: null },
-  ...store.courses.map((c) => ({ title: c.name, value: c.id })),
+  ...store.courses.map((c) => ({ title: courseDisplayLabel(c), value: c.id })),
 ])
 
-const courseLabel = (courseId) =>
-  courseId != null ? store.courses.find((c) => c.id === courseId)?.name : undefined
+const courseLabel = (courseId) => {
+  const c = courseId != null ? store.courses.find((x) => x.id === courseId) : undefined
+  return c ? courseDisplayLabel(c) : undefined
+}
 
 const form = reactive({ name: '', num: null, courseId: null, nbTour: 0 })
 const formError = ref('')

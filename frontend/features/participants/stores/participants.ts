@@ -218,8 +218,8 @@ export const useParticipantsStore = defineStore('participants', () => {
   }
 
   const getMockCourses = (): ApiCourse[] => [
-    { id: 1, name: '24 Heures' },
-    { id: 2, name: '12 Heures' },
+    { id: 1, name: '24 Heures', category: 'COMPETITION' },
+    { id: 2, name: '12 Heures', category: 'LOISIR' },
   ]
 
   const getMockTeams = (): ApiTeam[] => [

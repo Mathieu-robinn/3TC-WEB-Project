@@ -49,8 +49,8 @@
 
         <div class="ranking-hero__meta">
           <div class="ranking-hero__stat">
-            <span class="ranking-hero__stat-value">{{ ranking.length }}</span>
-            <span class="ranking-hero__stat-label">équipes</span>
+            <span class="ranking-hero__stat-value">{{ teamsForSelectedCourse.length }}</span>
+            <span class="ranking-hero__stat-label">équipes (course)</span>
           </div>
           <div class="ranking-hero__stat-sep" />
           <div class="ranking-hero__stat">
@@ -90,6 +90,20 @@
 
     <section v-else class="ranking-table-section">
       <div class="ranking-controls">
+        <v-select
+          v-if="courseSelectItems.length"
+          v-model="selectedCourseId"
+          :items="courseSelectItems"
+          item-title="title"
+          item-value="value"
+          label="Course"
+          variant="solo-filled"
+          density="compact"
+          flat
+          rounded="lg"
+          hide-details
+          class="course-select"
+        />
         <div class="search-wrap">
           <v-icon class="search-icon" size="18" color="rgba(255,255,255,0.4)">mdi-magnify</v-icon>
           <input
@@ -105,44 +119,50 @@
         </div>
       </div>
 
-      <div v-if="search && filteredSections.every((section) => section.teams.length === 0)" class="ranking-empty search-empty">
+      <div v-if="!selectedSection" class="ranking-empty">
+        <v-icon size="40" color="rgba(255,255,255,0.25)">mdi-run-fast</v-icon>
+        <p>Aucune course disponible pour cette édition.</p>
+      </div>
+
+      <div v-else-if="search && selectedSection.teams.length === 0" class="ranking-empty search-empty">
         <v-icon size="40" color="rgba(255,255,255,0.25)">mdi-magnify-remove-outline</v-icon>
         <p>Aucune équipe ne correspond à « {{ search }} »</p>
         <button class="clear-search-btn" @click="search = ''">Effacer la recherche</button>
       </div>
 
       <div v-else class="discipline-sections">
-        <section v-for="section in filteredSections" :key="section.course.id" class="discipline-card">
+        <section class="discipline-card">
           <div class="discipline-card__header">
             <div>
-              <div class="discipline-card__eyebrow">Discipline</div>
-              <h2 class="discipline-card__title">{{ section.course.name }}</h2>
+              <div class="discipline-card__eyebrow">Course</div>
+              <h2 class="discipline-card__title">{{ courseDisplayLabel(selectedSection.course) }}</h2>
             </div>
             <div class="discipline-card__stats">
               <div>
-                <strong>{{ section.teams.length }}</strong>
+                <strong>{{ selectedSection.teams.length }}</strong>
                 équipes
               </div>
               <div>
-                <strong>{{ totalLapsFor(section.teams) }}</strong>
+                <strong>{{ totalLapsFor(selectedSection.teams) }}</strong>
                 tours
               </div>
             </div>
           </div>
 
-          <div v-if="section.leader" class="discipline-leader">
+          <div v-if="selectedSection.leader" class="discipline-leader">
             <div class="discipline-leader__badge">Leader</div>
             <div class="discipline-leader__info">
-              <div class="discipline-leader__name">{{ section.leader.name }}</div>
+              <div class="discipline-leader__name">{{ selectedSection.leader.name }}</div>
               <div class="discipline-leader__meta">
-                {{ section.leader.nbTour || 0 }} tours · {{ formatDist(section.leader.nbTour, section.course) }}
+                {{ selectedSection.leader.nbTour || 0 }} tours ·
+                {{ formatDist(selectedSection.leader.nbTour, selectedSection.course) }}
               </div>
             </div>
           </div>
 
           <div class="ranking-list">
             <div
-              v-for="entry in section.teams"
+              v-for="entry in selectedSection.teams"
               :key="entry.team.id"
               class="ranking-row"
               :class="{
@@ -189,7 +209,7 @@
                 <div class="ranking-row__progress-bar">
                   <div
                     class="ranking-row__progress-fill"
-                    :style="{ width: progressWidth(entry.team.nbTour, section.fullTeams) }"
+                    :style="{ width: progressWidth(entry.team.nbTour, selectedSection.fullTeams) }"
                     :class="{ 'progress-fill--gold': entry.rank === 1, 'progress-fill--gradient': entry.rank > 1 }"
                   />
                 </div>
@@ -201,12 +221,12 @@
               </div>
 
               <div class="ranking-row__distance">
-                {{ formatDist(entry.team.nbTour, section.course) }}
+                {{ formatDist(entry.team.nbTour, selectedSection.course) }}
               </div>
             </div>
 
-            <div v-if="!section.teams.length" class="ranking-row ranking-row--empty">
-              Aucun résultat pour cette discipline.
+            <div v-if="!selectedSection.teams.length" class="ranking-row ranking-row--empty">
+              Aucun résultat pour cette course.
             </div>
           </div>
         </section>
@@ -229,11 +249,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useEditionCountdown } from '~/composables/useEditionCountdown'
 import { useActiveEditionStore } from '~/features/editions/stores/activeEdition'
 import { useThemeStore } from '~/features/theme/stores/theme'
 import type { ApiCourse, ApiRunner, ApiTeam } from '~/types/api'
+import { courseDisplayLabel } from '~/utils/courseDisplay'
+
+const RANKING_COURSE_STORAGE_KEY = 'ranking-selected-course-id'
 
 definePageMeta({ layout: 'public' as any })
 
@@ -250,6 +273,7 @@ const { countdown, statusLabel, targetLabel, referenceDateLabel } = useEditionCo
 
 const ranking = ref<ApiTeam[]>([])
 const courses = ref<ApiCourse[]>([])
+const selectedCourseId = ref<number | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const lastRefreshed = ref<string | null>(null)
@@ -257,24 +281,60 @@ const search = ref('')
 
 let timer: ReturnType<typeof setInterval> | null = null
 
-const totalLaps = computed(() => ranking.value.reduce((sum, team) => sum + (team.nbTour || 0), 0))
+const courseSelectItems = computed(() =>
+  courses.value.map((c) => ({ title: courseDisplayLabel(c), value: c.id })),
+)
 
-const filteredSections = computed(() => {
+const teamsForSelectedCourse = computed(() => {
+  if (selectedCourseId.value == null) return []
+  return [...ranking.value]
+    .filter((team) => team.courseId === selectedCourseId.value)
+    .sort((a, b) => (b.nbTour || 0) - (a.nbTour || 0))
+})
+
+const totalLaps = computed(() =>
+  teamsForSelectedCourse.value.reduce((sum, team) => sum + (team.nbTour || 0), 0),
+)
+
+const selectedSection = computed(() => {
+  const course = courses.value.find((c) => c.id === selectedCourseId.value)
+  if (!course) return null
+  const fullTeams = teamsForSelectedCourse.value
+  const rankedTeams = fullTeams.map((team, index) => ({ team, rank: index + 1 }))
   const q = normalize(search.value)
-  return courses.value.map((course) => {
-    const fullTeams = ranking.value.filter((team) => team.courseId === course.id)
-    const rankedTeams = fullTeams.map((team, index) => ({ team, rank: index + 1 }))
-    let teams = rankedTeams
-    if (q) {
-      teams = teams.filter(({ team }) => {
-        if (normalize(team.name ?? '').includes(q)) return true
-        return (team.runners ?? []).some((runner) =>
-          normalize(`${runner.firstName ?? ''} ${runner.lastName ?? ''}`).includes(q),
-        )
-      })
-    }
-    return { course, fullTeams, teams, leader: fullTeams[0] }
-  })
+  let teams = rankedTeams
+  if (q) {
+    teams = teams.filter(({ team }) => {
+      if (normalize(team.name ?? '').includes(q)) return true
+      return (team.runners ?? []).some((runner) =>
+        normalize(`${runner.firstName ?? ''} ${runner.lastName ?? ''}`).includes(q),
+      )
+    })
+  }
+  return { course, fullTeams, teams, leader: fullTeams[0] }
+})
+
+function syncSelectedCourseId() {
+  if (courses.value.length === 0) {
+    selectedCourseId.value = null
+    return
+  }
+  const stored = typeof sessionStorage !== 'undefined'
+    ? Number(sessionStorage.getItem(RANKING_COURSE_STORAGE_KEY))
+    : NaN
+  if (Number.isFinite(stored) && courses.value.some((c) => c.id === stored)) {
+    selectedCourseId.value = stored
+    return
+  }
+  if (selectedCourseId.value == null || !courses.value.some((c) => c.id === selectedCourseId.value)) {
+    selectedCourseId.value = courses.value[0].id
+  }
+}
+
+watch(selectedCourseId, (id) => {
+  if (id != null && typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(RANKING_COURSE_STORAGE_KEY, String(id))
+  }
 })
 
 function normalize(s: string): string {
@@ -341,6 +401,7 @@ async function fetchData() {
     ])
     ranking.value = Array.isArray(rankingData) ? rankingData : []
     courses.value = Array.isArray(coursesData) ? coursesData : []
+    syncSelectedCourseId()
     lastRefreshed.value = stampNow()
   } catch {
     error.value = 'API non disponible'
@@ -352,9 +413,10 @@ async function fetchData() {
       { id: 5, name: 'Les Marathoniens', nbTour: 22, courseId: 2, runners: [] },
     ]
     courses.value = [
-      { id: 1, name: '24 Heures', distanceTour: 1.6 },
-      { id: 2, name: '12 Heures', distanceTour: 1.6 },
+      { id: 1, name: '24 Heures', category: 'COMPETITION', distanceTour: 1.6 },
+      { id: 2, name: '12 Heures', category: 'LOISIR', distanceTour: 1.6 },
     ]
+    syncSelectedCourseId()
     lastRefreshed.value = stampNow()
   } finally {
     loading.value = false
@@ -604,6 +666,13 @@ onUnmounted(() => {
 
 .ranking-controls {
   margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.course-select {
+  max-width: 420px;
 }
 
 .search-wrap {

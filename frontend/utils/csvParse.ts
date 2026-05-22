@@ -1,8 +1,10 @@
+import type { CourseCategoryApi } from '~/types/api'
+
 const CSV_SEP_PRIMARY = ';'
-const UTF8_BOM = '\uFEFF'
 
 export type ImportCanonicalField =
   | 'course'
+  | 'category'
   | 'team'
   | 'lastName'
   | 'firstName'
@@ -15,6 +17,7 @@ export type ImportColumnMap = Partial<Record<ImportCanonicalField, number>>
 export type ImportRow = {
   lineNumber: number
   courseName: string
+  category: CourseCategoryApi
   teamName: string
   lastName: string
   firstName: string
@@ -25,6 +28,7 @@ export type ImportRow = {
 
 export const IMPORT_HEADER_ALIASES: Record<ImportCanonicalField, readonly string[]> = {
   course: ['course', 'parcours', 'epreuve', 'épreuve', 'discipline'],
+  category: ['catégorie', 'categorie', 'category', 'type'],
   team: ['équipe', 'equipe', 'team'],
   lastName: ['nom', 'lastname', 'nom de famille'],
   firstName: ['prénom', 'prenom', 'firstname'],
@@ -33,10 +37,11 @@ export const IMPORT_HEADER_ALIASES: Record<ImportCanonicalField, readonly string
   captain: ['capitaine', 'captain', "chef d'équipe", 'chef d equipe'],
 }
 
-const REQUIRED_FIELDS: ImportCanonicalField[] = ['course', 'team', 'lastName', 'firstName']
+const REQUIRED_FIELDS: ImportCanonicalField[] = ['course', 'category', 'lastName', 'firstName']
 
 const CANONICAL_LABELS: Record<ImportCanonicalField, string> = {
   course: 'Course',
+  category: 'Catégorie',
   team: 'Équipe',
   lastName: 'Nom',
   firstName: 'Prénom',
@@ -47,6 +52,7 @@ const CANONICAL_LABELS: Record<ImportCanonicalField, string> = {
 
 export const IMPORT_CSV_TEMPLATE_HEADERS = [
   'Course',
+  'Catégorie',
   'Équipe',
   'Nom',
   'Prénom',
@@ -55,12 +61,23 @@ export const IMPORT_CSV_TEMPLATE_HEADERS = [
   'Capitaine',
 ] as const
 
+const CATEGORY_MAP: Record<string, CourseCategoryApi> = {
+  solo: 'SOLO',
+  loisir: 'LOISIR',
+  competition: 'COMPETITION',
+}
+
 export function normalizeHeader(label: string): string {
   return label
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
+}
+
+export function parseCourseCategoryInput(input: string): CourseCategoryApi | null {
+  const key = normalizeHeader(input)
+  return CATEGORY_MAP[key] ?? null
 }
 
 function parseCsvLine(line: string, sep: string): string[] {
@@ -145,6 +162,7 @@ export function csvRowsToImportPayload(matrix: string[][]): {
   columnMap: ImportColumnMap
   missingRequired: ImportCanonicalField[]
   mappingLabels: { header: string; field: ImportCanonicalField }[]
+  categoryErrors: { line: number; message: string }[]
 } {
   if (matrix.length < 2) {
     return {
@@ -152,6 +170,7 @@ export function csvRowsToImportPayload(matrix: string[][]): {
       columnMap: {},
       missingRequired: [...REQUIRED_FIELDS],
       mappingLabels: [],
+      categoryErrors: [],
     }
   }
 
@@ -167,14 +186,28 @@ export function csvRowsToImportPayload(matrix: string[][]): {
   }
 
   const rows: ImportRow[] = []
+  const categoryErrors: { line: number; message: string }[] = []
+
   for (let i = 1; i < matrix.length; i++) {
     const line = matrix[i]
     const allEmpty = line.every((c) => !c?.trim())
     if (allEmpty) continue
 
+    const lineNumber = i + 1
+    const categoryRaw = cellAt(line, columnMap.category)
+    const category = parseCourseCategoryInput(categoryRaw)
+    if (!category) {
+      categoryErrors.push({
+        line: lineNumber,
+        message: `Catégorie invalide « ${categoryRaw} » (Solo, Loisir, Compétition).`,
+      })
+      continue
+    }
+
     rows.push({
-      lineNumber: i + 1,
+      lineNumber,
       courseName: cellAt(line, columnMap.course),
+      category,
       teamName: cellAt(line, columnMap.team),
       lastName: cellAt(line, columnMap.lastName),
       firstName: cellAt(line, columnMap.firstName),
@@ -184,7 +217,7 @@ export function csvRowsToImportPayload(matrix: string[][]): {
     })
   }
 
-  return { rows, columnMap, missingRequired, mappingLabels }
+  return { rows, columnMap, missingRequired, mappingLabels, categoryErrors }
 }
 
 export function missingRequiredLabels(missing: ImportCanonicalField[]): string {

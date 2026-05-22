@@ -1,8 +1,10 @@
+import { CourseCategory } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -16,6 +18,9 @@ export class ImportParticipantRowDto {
 
   @IsString()
   courseName: string;
+
+  @IsEnum(CourseCategory)
+  category: CourseCategory;
 
   @IsString()
   teamName: string;

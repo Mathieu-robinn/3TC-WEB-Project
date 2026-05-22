@@ -54,9 +54,12 @@ export interface ApiRunner {
   transponders?: ApiRunnerTransponderRef[]
 }
 
+export type CourseCategoryApi = 'SOLO' | 'LOISIR' | 'COMPETITION'
+
 export interface ApiCourse {
   id: number
   name: string
+  category: CourseCategoryApi
   distanceTour?: number
   dateAndTime?: string
   editionId?: number

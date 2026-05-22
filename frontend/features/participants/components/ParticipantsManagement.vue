@@ -409,6 +409,7 @@ import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { usePhoneFilterExpand } from '~/composables/usePhoneFilterExpand'
 import { csvFilename, downloadCsv } from '~/utils/csvExport'
 import { PARTICIPANTS_CSV_HEADERS, participantsToCsvRows } from '~/utils/exportRows'
+import { courseDisplayLabel } from '~/utils/courseDisplay'
 
 const participantFormDialogAttrs = useMobileDialogAttrs(520)
 const participantDeleteDialogAttrs = useMobileDialogAttrs(420)
@@ -507,7 +508,7 @@ function participantAccentClass(p) {
 
 const courseFilterItems = computed(() => [
   { title: 'Toutes les disciplines', value: null },
-  ...store.courses.map((c) => ({ title: c.name, value: c.id })),
+  ...store.courses.map((c) => ({ title: courseDisplayLabel(c), value: c.id })),
 ])
 
 const initials = (p) => {

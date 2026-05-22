@@ -1,9 +1,13 @@
+import { CourseCategory } from "@prisma/client";
 import { Type } from "class-transformer";
-import { IsDate, IsInt, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsDate, IsEnum, IsInt, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class CreateCourseDto {
   @IsString()
   name: string;
+
+  @IsEnum(CourseCategory)
+  category: CourseCategory;
 
   @IsNumber()
   distanceTour: number;
@@ -21,6 +25,10 @@ export class UpdateCourseDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsEnum(CourseCategory)
+  category?: CourseCategory;
 
   @IsOptional()
   @IsNumber()

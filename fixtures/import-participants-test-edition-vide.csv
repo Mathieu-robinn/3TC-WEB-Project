@@ -1,0 +1,6 @@
+Course;Catégorie;Équipe;Nom;Prénom;Mail;Tel;Capitaine
+Trail Import;Compétition;Équipe A;Durand;Pierre;pierre@trail.test;0601010101;Oui
+Trail Import;Compétition;Équipe A;Durand;Julie;julie@trail.test;;Non
+Trail Import;Loisir;Équipe B;Sans;Email;;;Non
+Trail Import;Solo;;Orphelin;Un;;;Non
+Trail Import;Solo;;Orphelin;Deux;orphelin2@test.fr;0602020202;Non

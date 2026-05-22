@@ -216,6 +216,9 @@
               hide-default-footer
               :items-per-page="-1"
             >
+              <template #item.category="{ item }">
+                {{ courseCategoryLabel(item.category) }}
+              </template>
               <template #item.distanceTour="{ item }">
                 {{ item.distanceTour != null ? String(item.distanceTour) : '—' }}
               </template>
@@ -346,6 +349,18 @@
             hide-details="auto"
             :disabled="creatingCourse"
           />
+          <v-select
+            v-model="newCourseCategory"
+            :items="COURSE_CATEGORY_OPTIONS"
+            item-title="title"
+            item-value="value"
+            label="Catégorie"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+            hide-details="auto"
+            :disabled="creatingCourse"
+          />
           <v-text-field
             v-model="newCourseDistance"
             type="number"
@@ -462,6 +477,17 @@
             density="comfortable"
             class="mb-3"
           />
+          <v-select
+            v-model="courseEdit.category"
+            :items="COURSE_CATEGORY_OPTIONS"
+            item-title="title"
+            item-value="value"
+            label="Catégorie"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+            hide-details="auto"
+          />
           <v-text-field
             v-model="courseEdit.distance"
             type="number"
@@ -527,7 +553,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useDisplay } from 'vuetify/framework'
 import { useMobileDialogAttrs } from '~/composables/useMobileDialogAttrs'
 import { useActiveEditionStore } from '~/features/editions/stores/activeEdition'
-import type { ApiCourse, ApiEdition } from '~/types/api'
+import type { ApiCourse, ApiEdition, CourseCategoryApi } from '~/types/api'
+import { COURSE_CATEGORY_OPTIONS, courseCategoryLabel } from '~/utils/courseDisplay'
 
 const { isAdmin } = useJwtAuth()
 const activeEditionStore = useActiveEditionStore()
@@ -560,6 +587,7 @@ const createEditionSuccess = ref<string | null>(null)
 const courses = ref<ApiCourse[]>([])
 const coursesLoading = ref(false)
 const newCourseName = ref('')
+const newCourseCategory = ref<CourseCategoryApi>('LOISIR')
 const newCourseDistance = ref('')
 const newCourseDateTime = ref('')
 const creatingCourse = ref(false)
@@ -581,6 +609,7 @@ const editionTableHeaders = computed(() => {
 
 const courseHeadersBase = [
   { title: 'Nom', key: 'name' },
+  { title: 'Catégorie', key: 'category' },
   { title: 'Distance / tour (km)', key: 'distanceTour' },
   { title: 'Date et heure', key: 'dateAndTime' },
   { title: '', key: 'actions', sortable: false, width: '108px' },
@@ -606,6 +635,7 @@ const courseEditError = ref<string | null>(null)
 const courseEdit = reactive({
   id: 0,
   name: '',
+  category: 'LOISIR' as CourseCategoryApi,
   distance: '',
   dateTime: '',
   editionId: null as number | null,
@@ -794,6 +824,7 @@ function openCourseEdit(c: ApiCourse) {
   courseEditError.value = null
   courseEdit.id = c.id
   courseEdit.name = c.name
+  courseEdit.category = c.category ?? 'LOISIR'
   courseEdit.distance = c.distanceTour != null ? String(c.distanceTour) : ''
   courseEdit.dateTime = c.dateAndTime ? isoToDatetimeLocal(c.dateAndTime) : ''
   courseEdit.editionId = c.editionId ?? selectedEditionId.value
@@ -809,6 +840,7 @@ async function saveCourseEdit() {
   try {
     await api.put(`/course/${courseEdit.id}`, {
       name: courseEdit.name.trim(),
+      category: courseEdit.category,
       distanceTour: dist,
       dateAndTime: new Date(courseEdit.dateTime).toISOString(),
       editionId: courseEdit.editionId,
@@ -981,6 +1013,7 @@ async function createCourse() {
   try {
     await api.post<ApiCourse>('/course', {
       name: newCourseName.value.trim(),
+      category: newCourseCategory.value,
       distanceTour: Number(newCourseDistance.value),
       dateAndTime: new Date(newCourseDateTime.value).toISOString(),
       editionId: selectedEditionId.value,

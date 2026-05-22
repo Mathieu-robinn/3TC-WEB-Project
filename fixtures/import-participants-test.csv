@@ -1,0 +1,15 @@
+Course;Catégorie;Équipe;Nom;Prénom;Mail;Tel;Date de naissance;Capitaine
+CSV Parcours Alpha;Compétition;CSV Équipe Complète;Martin;Paul;paul.martin@test.import.fr;0611111111;1990-01-15;Oui
+CSV Parcours Alpha;Compétition;CSV Équipe Complète;Martin;Claire;claire.martin@test.import.fr;0622222222;;Non
+CSV Parcours Alpha;Loisir;CSV Équipe Minimale;Dupuis;Ana;;; ;Non
+CSV Parcours Alpha;Loisir;CSV Équipe Minimale;Dupuis;Ana;;; ;Non
+CSV Parcours Alpha;Compétition;CSV Équipe Sans Tel;Bernard;Luc;luc.bernard@test.import.fr;;1992-06-20;Non
+CSV Parcours Alpha;Solo;;Orphelin;Jean;;; ;Non
+CSV Parcours Alpha;Solo;;Orphelin;Marie;;; ;Non
+12 Heures;Loisir;CSV Équipe 12h;Petit;Sophie;sophie.petit@test.import.fr;0633333333;;Oui
+CSV Parcours Beta;Compétition;CSV Équipe Capitaines;Capitaine;Un;cap1@test.import.fr;0644444444;;1
+CSV Parcours Beta;Compétition;CSV Équipe Capitaines;Capitaine;Deux;cap2@test.import.fr;0655555555;;Oui
+CSV Parcours Beta;Loisir;CSV Conflit Email A;Conflit;A;test.import.conflit@test.fr;0666666666;;Non
+CSV Parcours Alpha;Loisir;CSV Conflit Email B;Conflit;B;test.import.conflit@test.fr;0677777777;;Non
+24 Heures;Compétition;Les Fous du Volant;Import;Membre;import.fous@test.import.fr;0688888888;;Non
+12 Heures;Loisir;Les Fous du Volant;Import;Erreur;import.erreur@test.import.fr;0699999999;;Non
