@@ -163,7 +163,13 @@ async function main() {
   for (const def of teamDefinitions) {
     // Créer l'équipe sans respRunnerId pour l'instant
     const team = await prisma.team.create({
-      data: { num: def.num, name: def.name, nbTour: def.nbTour, courseId: def.course.id },
+      data: {
+        num: def.num,
+        name: def.name,
+        nbTour: def.nbTour,
+        courseId: def.course.id,
+        editionId: def.course.editionId,
+      },
     });
 
     // Créer 3 à 6 coureurs par équipe
@@ -190,7 +196,13 @@ async function main() {
 
   // Une équipe historique de 2025 (au moins un coureur requis)
   const oldTeam = await prisma.team.create({
-    data: { num: 1, name: "Anciens 2025", nbTour: 190, courseId: course2025_24h.id },
+    data: {
+      num: 1,
+      name: "Anciens 2025",
+      nbTour: 190,
+      courseId: course2025_24h.id,
+      editionId: edition2025.id,
+    },
   });
   const oldTeamRunner = await prisma.runner.create({
     data: {

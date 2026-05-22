@@ -8,6 +8,19 @@ export interface ApiEdition {
   endDate: string
 }
 
+export interface ImportLineIssue {
+  line: number
+  message: string
+}
+
+export interface ImportParticipantsResult {
+  dryRun: boolean
+  created: { courses: number; teams: number; runners: number }
+  skipped: number
+  errors: ImportLineIssue[]
+  warnings: ImportLineIssue[]
+}
+
 export type TransponderStatusApi =
   | 'INITIALISE'
   | 'EN_ATTENTE'

@@ -53,12 +53,11 @@ export class TeamsController {
   @Post("team")
   @Roles(Role.ADMIN)
   async createTeam(@Body() data: CreateTeamDto): Promise<Team> {
-    const prismaData: Prisma.TeamCreateInput = {
+    return this.teamService.createTeam({
       num: data.num,
-      name: data.name,
+      name: data.name.trim(),
       course: { connect: { id: data.courseId } },
-    };
-    return this.teamService.createTeam(prismaData);
+    } as Prisma.TeamCreateInput);
   }
 
   @ApiOperation({ summary: "Mettre à jour une équipe (ex: nbTour)" })

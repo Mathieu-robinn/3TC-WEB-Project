@@ -95,6 +95,7 @@ model Edition {
   endDate   DateTime
 
   courses      Course[]
+  teams        Team[]
   transponders Transponder[]
 }
 
@@ -107,14 +108,17 @@ model Course {
 
   edition Edition @relation(fields: [editionId], references: [id], onDelete: Cascade)
   teams   Team[]
+
+  @@unique([editionId, name])
 }
 
 model Team {
   id             Int     @id @default(autoincrement())
   num            Int
-  name           String  @unique
+  name           String
   nbTour         Int     @default(0)
   courseId       Int
+  editionId      Int
   respRunnerId   Int?    @unique
   /** Coureur à qui le transpondeur actif a été attribué (affichage « Resp transpondeur »). */
   transponderHolderRunnerId Int? @unique
@@ -122,11 +126,14 @@ model Team {
   courseFinished Boolean @default(false)
 
   course       Course        @relation(fields: [courseId], references: [id])
+  edition      Edition       @relation(fields: [editionId], references: [id], onDelete: Cascade)
   runners      Runner[]      @relation("TeamRunners")
   respRunner   Runner?       @relation("TeamResponsible", fields: [respRunnerId], references: [id])
   transponderHolderRunner   Runner?       @relation("TeamTransponderHolder", fields: [transponderHolderRunnerId], references: [id], onDelete: SetNull)
   transponders            Transponder[]
   transponderTransactions TransponderTransaction[]
+
+  @@unique([editionId, name])
 }
 
 model Runner {
@@ -134,7 +141,7 @@ model Runner {
   teamId    Int
   lastName  String
   firstName String
-  email     String? @unique
+  email     String?
   phone     String?
 
   /** RESTRICT : supprimer l’équipe impose de traiter coureurs / transpondeurs d’abord (voir TeamService.deleteTeam). */

@@ -26,6 +26,8 @@ import { TransactionsController } from "./modules/transactions/transactions.cont
 import { MessagingController } from "./modules/messaging/messaging.controller.js";
 import { NotificationsController } from "./modules/notification/notifications.controller.js";
 import { LogsController } from "./modules/log/logs.controller.js";
+import { ImportController } from "./modules/import/import.controller.js";
+import { ImportService } from "./modules/import/import.service.js";
 import { PasswordChangeRateLimitService } from "./modules/users/password-change-rate-limit.service.js";
 
 /**
@@ -53,6 +55,7 @@ import { PasswordChangeRateLimitService } from "./modules/users/password-change-
     MessagingController,
     NotificationsController,
     LogsController,
+    ImportController,
   ],
   providers: [
     PrismaService,
@@ -70,6 +73,7 @@ import { PasswordChangeRateLimitService } from "./modules/users/password-change-
     MessageService,
     ConversationParticipantService,
     PasswordChangeRateLimitService,
+    ImportService,
   ],
 })
 export class AppModule {}

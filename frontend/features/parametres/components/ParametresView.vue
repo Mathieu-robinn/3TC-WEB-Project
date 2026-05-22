@@ -125,6 +125,13 @@
         </v-card-text>
       </v-card>
 
+      <ImportParticipantsCard
+        v-if="isAdmin"
+        :edition-id="selectedEditionId"
+        :edition-label="selectedEditionLabel"
+        @imported="onImportCompleted"
+      />
+
       <template v-if="isAdmin">
         <v-card class="list-card mb-5" rounded="xl" elevation="0">
           <v-toolbar density="comfortable" color="transparent" class="px-2">
@@ -671,6 +678,12 @@ async function refreshAll() {
   } finally {
     refreshingAll.value = false
   }
+}
+
+async function onImportCompleted() {
+  courseSuccess.value = 'Import CSV terminé.'
+  await loadCoursesForSelection()
+  await refreshAppData()
 }
 
 const canApply = computed(() => {

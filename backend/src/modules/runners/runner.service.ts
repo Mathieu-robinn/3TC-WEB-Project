@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
 import { Runner, Prisma } from "@prisma/client";
 
@@ -49,8 +49,39 @@ export class RunnerService {
   }
 
   async createRunner(data: Prisma.RunnerCreateInput): Promise<Runner> {
+    const teamConnect = (data.team as { connect?: { id: number } } | undefined)?.connect;
+    const teamId = teamConnect?.id;
+    if (teamId == null) {
+      throw new BadRequestException("teamId requis pour créer un coureur.");
+    }
+
+    const email = (data.email as string | null | undefined)?.trim() || null;
+    if (email) {
+      const team = await this.prisma.team.findUnique({
+        where: { id: teamId },
+        select: { editionId: true },
+      });
+      if (!team) {
+        throw new BadRequestException(`Équipe #${teamId} introuvable.`);
+      }
+      const dup = await this.prisma.runner.findFirst({
+        where: {
+          email: { equals: email, mode: "insensitive" },
+          team: { editionId: team.editionId },
+        },
+      });
+      if (dup) {
+        throw new ConflictException(
+          `L'email « ${email} » est déjà utilisé par un participant de cette édition.`,
+        );
+      }
+    }
+
     return this.prisma.runner.create({
-      data,
+      data: {
+        ...data,
+        ...(email ? { email } : {}),
+      },
     });
   }
 

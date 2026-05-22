@@ -1,7 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
 import { Prisma, Team, TransponderStatus } from "@prisma/client";
-
 @Injectable()
 export class TeamService {
   constructor(private prisma: PrismaService) {}
@@ -50,8 +49,50 @@ export class TeamService {
   }
 
   async createTeam(data: Prisma.TeamCreateInput): Promise<Team> {
+    const courseConnect = (data.course as { connect?: { id: number } } | undefined)?.connect;
+    const courseId = courseConnect?.id;
+    const editionId = (data as { editionId?: number }).editionId
+      ?? (data.edition as { connect?: { id: number } } | undefined)?.connect?.id;
+
+    if (courseId == null) {
+      throw new BadRequestException("courseId requis pour créer une équipe.");
+    }
+
+    const course = await this.prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) {
+      throw new BadRequestException(`Parcours #${courseId} introuvable.`);
+    }
+
+    const resolvedEditionId = editionId ?? course.editionId;
+    const name = data.name as string | undefined;
+    if (!name?.trim()) {
+      throw new BadRequestException("Le nom de l'équipe est requis.");
+    }
+
+    const existing = await this.prisma.team.findFirst({
+      where: { editionId: resolvedEditionId, name: { equals: name.trim(), mode: "insensitive" } },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Une équipe nommée « ${name.trim()} » existe déjà pour cette édition.`,
+      );
+    }
+
+    const num = (data as { num?: number }).num;
+    if (num == null) {
+      throw new BadRequestException("Le numéro d'équipe est requis.");
+    }
+
     return this.prisma.team.create({
-      data,
+      data: {
+        num,
+        name: name.trim(),
+        editionId: resolvedEditionId,
+        courseId,
+        ...((data as { nbTour?: number }).nbTour !== undefined
+          ? { nbTour: (data as { nbTour?: number }).nbTour }
+          : {}),
+      },
     });
   }
 

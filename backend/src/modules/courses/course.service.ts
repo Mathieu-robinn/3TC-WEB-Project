@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma.service.js";
 import { Course, Prisma } from "@prisma/client";
 import { TeamService } from "../teams/team.service.js";
@@ -34,8 +34,25 @@ export class CourseService {
   }
 
   async createCourse(data: Prisma.CourseCreateInput): Promise<Course> {
+    const editionConnect = (data.edition as { connect?: { id: number } } | undefined)?.connect;
+    const editionId = editionConnect?.id ?? (data as { editionId?: number }).editionId;
+    const name = (data.name as string | undefined)?.trim();
+    if (!name) {
+      throw new BadRequestException("Le nom du parcours est requis.");
+    }
+    if (editionId == null) {
+      throw new BadRequestException("editionId requis pour créer un parcours.");
+    }
+
+    const existing = await this.prisma.course.findFirst({
+      where: { editionId, name: { equals: name, mode: "insensitive" } },
+    });
+    if (existing) {
+      throw new ConflictException(`Un parcours « ${name} » existe déjà pour cette édition.`);
+    }
+
     return this.prisma.course.create({
-      data,
+      data: { ...data, name },
     });
   }
 
