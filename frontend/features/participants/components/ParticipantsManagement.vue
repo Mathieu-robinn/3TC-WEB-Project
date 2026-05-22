@@ -421,7 +421,7 @@
   </v-container>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useParticipantsStore } from '~/features/participants/stores/participants'
 import { usePermissions } from '~/composables/usePermissions'

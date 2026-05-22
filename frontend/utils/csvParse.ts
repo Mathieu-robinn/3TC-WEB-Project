@@ -54,6 +54,21 @@ export const CANONICAL_LABELS: Record<ImportCanonicalField, string> = {
   captain: 'Capitaine',
 }
 
+export const IMPORT_CSV_TEMPLATE_HEADERS = [
+  'Course',
+  'Catégorie',
+  'Équipe',
+  'Nom',
+  'Prénom',
+  'Mail',
+  'Tel',
+  'Capitaine',
+] as const
+
+export function missingRequiredLabels(missing: ImportCanonicalField[]): string {
+  return missing.map((f) => CANONICAL_LABELS[f]).join(', ')
+}
+
 const REQUIRED_FIELDS: ImportCanonicalField[] = ['course', 'category', 'lastName', 'firstName']
 
 const CATEGORY_MAP: Record<string, CourseCategoryApi> = {
