@@ -125,7 +125,7 @@ const props = defineProps({
   compact: { type: Boolean, default: false },
 })
 
-defineEmits(['link', 'unlink', 'give', 'unassign', 'defective', 'lost', 'initialise', 'history'])
+const emit = defineEmits(['link', 'unlink', 'give', 'unassign', 'defective', 'lost', 'initialise', 'history'])
 
 const {
   canOperateTransponders,
