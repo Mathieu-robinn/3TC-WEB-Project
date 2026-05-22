@@ -73,6 +73,28 @@
               <div class="text-caption text-medium-emphasis">Nom</div>
               <div class="text-body-2 font-weight-medium">{{ participant.lastName || participant.nom || '—' }}</div>
             </v-col>
+            <v-col cols="12" sm="6" class="mt-2">
+              <div class="text-caption text-medium-emphasis">Email</div>
+              <div class="text-body-2 font-weight-medium">
+                <a
+                  v-if="participant.email"
+                  :href="`mailto:${participant.email}`"
+                  class="info-link"
+                >{{ participant.email }}</a>
+                <span v-else>—</span>
+              </div>
+            </v-col>
+            <v-col cols="12" sm="6" class="mt-2">
+              <div class="text-caption text-medium-emphasis">Téléphone</div>
+              <div class="text-body-2 font-weight-medium">
+                <a
+                  v-if="participant.phone"
+                  :href="`tel:${participant.phone}`"
+                  class="info-link"
+                >{{ participant.phone }}</a>
+                <span v-else>—</span>
+              </div>
+            </v-col>
             <v-col cols="12" class="mt-2">
               <div class="text-caption text-medium-emphasis">Équipe</div>
               <div class="text-body-2 font-weight-medium">{{ participant.teamName }}</div>
@@ -363,6 +385,15 @@ watch(participantTeamId, () => {
 .info-card {
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
+.info-link {
+  color: rgb(var(--v-theme-primary));
+  text-decoration: none;
+}
+
+.info-link:hover {
+  text-decoration: underline;
 }
 
 .empty-history {
