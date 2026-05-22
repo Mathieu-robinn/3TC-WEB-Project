@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { Course, Prisma, Runner, Team } from "@prisma/client";
 import { PrismaService } from "../../prisma.service.js";
-import { courseLookupKey } from "../../common/course-category.util.js";
+import {
+  courseLookupKey,
+  normalizeCustomCategoryName,
+} from "../../common/course-category.util.js";
 import { normalizeLabel } from "../../common/normalize-label.util.js";
 import { ImportParticipantRowDto } from "./dto/import-participants.dto.js";
 
@@ -77,7 +80,10 @@ export class ImportService {
 
     const coursesByKey = new Map<string, Course>();
     for (const c of courses) {
-      coursesByKey.set(courseLookupKey(c.name, c.category), c);
+      coursesByKey.set(
+        courseLookupKey(c.name, c.category, c.customCategoryName ?? ""),
+        c,
+      );
     }
 
     const teamsByKey = new Map<string, Team>();
@@ -124,6 +130,19 @@ export class ImportService {
     const line = row.lineNumber;
     const courseName = row.courseName?.trim() ?? "";
     const category = row.category;
+    let customCategoryName = "";
+    try {
+      customCategoryName = normalizeCustomCategoryName(
+        category,
+        row.customCategoryName,
+      );
+    } catch (e) {
+      result.errors.push({
+        line,
+        message: e instanceof Error ? e.message : "Catégorie personnalisée invalide.",
+      });
+      return;
+    }
     let teamName = row.teamName?.trim() ?? "";
     const lastName = row.lastName?.trim() ?? "";
     const firstName = row.firstName?.trim() ?? "";
@@ -142,7 +161,7 @@ export class ImportService {
       teamName = `Solo ${firstName} ${lastName}`.trim();
     }
 
-    const courseKey = courseLookupKey(courseName, category);
+    const courseKey = courseLookupKey(courseName, category, customCategoryName);
     let course = ctx.coursesByKey.get(courseKey);
     if (!course) {
       if (dryRun) {
@@ -151,6 +170,7 @@ export class ImportService {
           id: -result.created.courses,
           name: courseName,
           category,
+          customCategoryName,
           distanceTour: 0,
           dateAndTime: ctx.startDate,
           editionId: ctx.editionId,
@@ -162,6 +182,7 @@ export class ImportService {
             data: {
               name: courseName,
               category,
+              customCategoryName,
               distanceTour: 0,
               dateAndTime: ctx.startDate,
               editionId: ctx.editionId,

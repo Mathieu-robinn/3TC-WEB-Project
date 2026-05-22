@@ -8,6 +8,7 @@ import { Roles } from "../auth/roles.decorator.js";
 import { CreateCourseDto, UpdateCourseDto } from "./dto/course.dto.js";
 import { CourseService } from "./course.service.js";
 import { EditionService } from "../editions/edition.service.js";
+import { normalizeCustomCategoryName } from "../../common/course-category.util.js";
 
 @ApiTags("Courses")
 @Controller()
@@ -50,9 +51,11 @@ export class CoursesController {
   @Post("course")
   @Roles(Role.ADMIN)
   async createCourse(@Body() data: CreateCourseDto): Promise<Course> {
+    const customCategoryName = normalizeCustomCategoryName(data.category, data.customCategoryName);
     const prismaData: Prisma.CourseCreateInput = {
       name: data.name,
       category: data.category,
+      customCategoryName,
       distanceTour: data.distanceTour,
       dateAndTime: data.dateAndTime,
       edition: { connect: { id: data.editionId } },
@@ -69,6 +72,7 @@ export class CoursesController {
     return this.courseService.updateCourseSafe(Number(id), {
       ...(data.name !== undefined ? { name: data.name } : {}),
       ...(data.category !== undefined ? { category: data.category } : {}),
+      ...(data.customCategoryName !== undefined ? { customCategoryName: data.customCategoryName } : {}),
       ...(data.distanceTour !== undefined ? { distanceTour: data.distanceTour } : {}),
       ...(data.dateAndTime !== undefined ? { dateAndTime: data.dateAndTime } : {}),
       ...(data.editionId !== undefined ? { editionId: data.editionId } : {}),

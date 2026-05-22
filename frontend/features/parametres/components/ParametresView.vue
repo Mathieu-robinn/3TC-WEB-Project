@@ -217,7 +217,7 @@
               :items-per-page="-1"
             >
               <template #item.category="{ item }">
-                {{ courseCategoryLabel(item.category) }}
+                {{ courseCategoryLabel(item.category, item.customCategoryName) }}
               </template>
               <template #item.distanceTour="{ item }">
                 {{ item.distanceTour != null ? String(item.distanceTour) : '—' }}
@@ -362,6 +362,16 @@
             :disabled="creatingCourse"
           />
           <v-text-field
+            v-if="newCourseCategory === 'PERSONNALISE'"
+            v-model="newCourseCustomCategory"
+            label="Catégorie personnalisée"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+            hide-details="auto"
+            :disabled="creatingCourse"
+          />
+          <v-text-field
             v-model="newCourseDistance"
             type="number"
             step="any"
@@ -489,6 +499,15 @@
             hide-details="auto"
           />
           <v-text-field
+            v-if="courseEdit.category === 'PERSONNALISE'"
+            v-model="courseEdit.customCategoryName"
+            label="Catégorie personnalisée"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+            hide-details="auto"
+          />
+          <v-text-field
             v-model="courseEdit.distance"
             type="number"
             step="any"
@@ -588,6 +607,7 @@ const courses = ref<ApiCourse[]>([])
 const coursesLoading = ref(false)
 const newCourseName = ref('')
 const newCourseCategory = ref<CourseCategoryApi>('LOISIR')
+const newCourseCustomCategory = ref('')
 const newCourseDistance = ref('')
 const newCourseDateTime = ref('')
 const creatingCourse = ref(false)
@@ -636,6 +656,7 @@ const courseEdit = reactive({
   id: 0,
   name: '',
   category: 'LOISIR' as CourseCategoryApi,
+  customCategoryName: '',
   distance: '',
   dateTime: '',
   editionId: null as number | null,
@@ -731,8 +752,23 @@ const canCreateCourse = computed(() => {
   if (selectedEditionId.value == null) return false
   const name = newCourseName.value.trim()
   const dist = Number(newCourseDistance.value)
-  return name.length > 0 && Number.isFinite(dist) && dist >= 0 && newCourseDateTime.value.length > 0
+  const customOk =
+    newCourseCategory.value !== 'PERSONNALISE' || newCourseCustomCategory.value.trim().length > 0
+  return (
+    name.length > 0 &&
+    Number.isFinite(dist) &&
+    dist >= 0 &&
+    newCourseDateTime.value.length > 0 &&
+    customOk
+  )
 })
+
+function courseCategoryPayload(category: CourseCategoryApi, customName: string) {
+  if (category === 'PERSONNALISE') {
+    return { category, customCategoryName: customName.trim() }
+  }
+  return { category, customCategoryName: '' }
+}
 
 function formatCourseDate(iso: string | undefined) {
   if (!iso) return '—'
@@ -825,6 +861,8 @@ function openCourseEdit(c: ApiCourse) {
   courseEdit.id = c.id
   courseEdit.name = c.name
   courseEdit.category = c.category ?? 'LOISIR'
+  courseEdit.customCategoryName =
+    c.category === 'PERSONNALISE' ? (c.customCategoryName ?? '').trim() : ''
   courseEdit.distance = c.distanceTour != null ? String(c.distanceTour) : ''
   courseEdit.dateTime = c.dateAndTime ? isoToDatetimeLocal(c.dateAndTime) : ''
   courseEdit.editionId = c.editionId ?? selectedEditionId.value
@@ -833,6 +871,10 @@ function openCourseEdit(c: ApiCourse) {
 
 async function saveCourseEdit() {
   if (!courseEdit.name.trim() || courseEdit.editionId == null) return
+  if (courseEdit.category === 'PERSONNALISE' && !courseEdit.customCategoryName.trim()) {
+    courseEditError.value = 'Indiquez un libellé pour la catégorie personnalisée.'
+    return
+  }
   const dist = Number(courseEdit.distance)
   if (!Number.isFinite(dist) || dist < 0 || !courseEdit.dateTime) return
   courseEditSaving.value = true
@@ -840,7 +882,7 @@ async function saveCourseEdit() {
   try {
     await api.put(`/course/${courseEdit.id}`, {
       name: courseEdit.name.trim(),
-      category: courseEdit.category,
+      ...courseCategoryPayload(courseEdit.category, courseEdit.customCategoryName),
       distanceTour: dist,
       dateAndTime: new Date(courseEdit.dateTime).toISOString(),
       editionId: courseEdit.editionId,
@@ -1013,12 +1055,13 @@ async function createCourse() {
   try {
     await api.post<ApiCourse>('/course', {
       name: newCourseName.value.trim(),
-      category: newCourseCategory.value,
+      ...courseCategoryPayload(newCourseCategory.value, newCourseCustomCategory.value),
       distanceTour: Number(newCourseDistance.value),
       dateAndTime: new Date(newCourseDateTime.value).toISOString(),
       editionId: selectedEditionId.value,
     })
     newCourseName.value = ''
+    newCourseCustomCategory.value = ''
     newCourseDistance.value = ''
     newCourseDateTime.value = ''
     courseSuccess.value = 'Course ajoutée.'

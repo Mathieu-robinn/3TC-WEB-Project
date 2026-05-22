@@ -72,6 +72,7 @@ enum CourseCategory {
   SOLO
   LOISIR
   COMPETITION
+  PERSONNALISE
 }
 
 model User {
@@ -106,17 +107,18 @@ model Edition {
 }
 
 model Course {
-  id           Int            @id @default(autoincrement())
-  name         String
-  category     CourseCategory
-  distanceTour Float
-  dateAndTime  DateTime
-  editionId    Int
+  id                 Int            @id @default(autoincrement())
+  name               String
+  category           CourseCategory
+  customCategoryName String         @default("")
+  distanceTour       Float
+  dateAndTime        DateTime
+  editionId          Int
 
   edition Edition @relation(fields: [editionId], references: [id], onDelete: Cascade)
   teams   Team[]
 
-  @@unique([editionId, name, category])
+  @@unique([editionId, name, category, customCategoryName])
 }
 
 model Team {

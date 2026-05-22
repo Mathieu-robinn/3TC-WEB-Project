@@ -22,6 +22,10 @@ export class ImportParticipantRowDto {
   @IsEnum(CourseCategory)
   category: CourseCategory;
 
+  @IsOptional()
+  @IsString()
+  customCategoryName?: string;
+
   @IsString()
   teamName: string;
 

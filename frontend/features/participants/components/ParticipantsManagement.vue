@@ -342,6 +342,26 @@
             <v-col cols="6">
               <v-text-field v-model="form.lastName" label="Nom *" variant="outlined" density="comfortable" :rules="[v => !!v || 'Requis']" />
             </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model="form.email"
+                label="Email"
+                type="email"
+                variant="outlined"
+                density="comfortable"
+                hide-details="auto"
+                :rules="emailRules"
+              />
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model="form.phone"
+                label="Téléphone"
+                variant="outlined"
+                density="comfortable"
+                hide-details="auto"
+              />
+            </v-col>
             <v-col cols="12">
               <v-select
                 v-model="form.teamId"
@@ -423,8 +443,12 @@ const viewMode = ref('list')
 // Form state
 const showForm = ref(false)
 const editingRunner = ref(null)
-const form = reactive({ firstName: '', lastName: '', teamId: null })
+const form = reactive({ firstName: '', lastName: '', email: '', phone: '', teamId: null as number | null })
 const formError = ref('')
+
+const emailRules = [
+  (v: string) => !v?.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) || 'Email invalide',
+]
 
 // Delete state
 const showDeleteConfirm = ref(false)
@@ -522,6 +546,8 @@ const openCreate = () => {
   editingRunner.value = null
   form.firstName = ''
   form.lastName = ''
+  form.email = ''
+  form.phone = ''
   form.teamId = store.availableTeams[0]?.value ?? null
   formError.value = ''
   showForm.value = true
@@ -532,6 +558,8 @@ const openEdit = (p) => {
   editingRunner.value = p
   form.firstName = p.firstName || p.prenom || ''
   form.lastName = p.lastName || p.nom || ''
+  form.email = p.email ?? ''
+  form.phone = p.phone ?? ''
   form.teamId = p.teamId ?? p.team?.id ?? null
   formError.value = ''
   showForm.value = true
@@ -553,10 +581,17 @@ const submitForm = async () => {
   if (!canManageRunners.value) return
   formError.value = ''
   try {
+    const payload = {
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      email: form.email,
+      phone: form.phone,
+      teamId: form.teamId!,
+    }
     if (editingRunner.value) {
-      await store.updateRunner(editingRunner.value.id, { ...form })
+      await store.updateRunner(editingRunner.value.id, payload)
     } else {
-      await store.createRunner({ ...form })
+      await store.createRunner(payload)
     }
     await store.fetchAll()
     showForm.value = false

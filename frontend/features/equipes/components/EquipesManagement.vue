@@ -529,7 +529,7 @@
               />
             </v-col>
             <v-col cols="6" v-if="!editingTeam">
-              <div class="field-label">Parcours (courseId) *</div>
+              <div class="field-label">Discipline *</div>
               <v-select
                 v-model="form.courseId"
                 :items="coursesOptions" item-title="label" item-value="id"

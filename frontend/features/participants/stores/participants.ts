@@ -8,6 +8,7 @@ export interface RunnerCreateInput {
   firstName: string
   lastName: string
   email?: string
+  phone?: string
   teamId: number
 }
 
@@ -15,6 +16,7 @@ export interface RunnerUpdateInput {
   firstName: string
   lastName: string
   email?: string
+  phone?: string
   teamId?: number
 }
 
@@ -80,11 +82,14 @@ export const useParticipantsStore = defineStore('participants', () => {
     saving.value = true
     const api = useApi()
     try {
+      const email = data.email?.trim()
+      const phone = data.phone?.trim()
       const body: Record<string, unknown> = {
         firstName: data.firstName,
         lastName: data.lastName,
         teamId: data.teamId,
-        ...(data.email ? { email: data.email } : {}),
+        ...(email ? { email } : {}),
+        ...(phone ? { phone } : {}),
       }
       return await api.post<ApiRunner>('/runner', body)
     } finally {
@@ -100,7 +105,8 @@ export const useParticipantsStore = defineStore('participants', () => {
         firstName: data.firstName,
         lastName: data.lastName,
       }
-      if (data.email !== undefined) body.email = data.email || null
+      if (data.email !== undefined) body.email = data.email?.trim() || null
+      if (data.phone !== undefined) body.phone = data.phone?.trim() || null
       if (data.teamId !== undefined) body.teamId = data.teamId
 
       return await api.put<ApiRunner>(`/runner/${id}`, body)

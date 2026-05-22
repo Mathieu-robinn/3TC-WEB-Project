@@ -18,6 +18,7 @@ describe("ImportService", () => {
     id: 10,
     name: "Marathon",
     category: CourseCategory.COMPETITION,
+    customCategoryName: "",
     distanceTour: 2.5,
     dateAndTime: edition.startDate,
     editionId: 1,
@@ -45,12 +46,18 @@ describe("ImportService", () => {
         ({
           data,
         }: {
-          data: { name: string; category: CourseCategory; editionId: number };
+          data: {
+            name: string;
+            category: CourseCategory;
+            customCategoryName?: string;
+            editionId: number;
+          };
         }) => {
           const c = {
             id: nextCourseId++,
             name: data.name,
             category: data.category,
+            customCategoryName: data.customCategoryName ?? "",
             distanceTour: 0,
             dateAndTime: edition.startDate,
             editionId: 1,
@@ -204,6 +211,7 @@ describe("ImportService", () => {
       id: 99,
       name: "Autre",
       category: CourseCategory.LOISIR,
+      customCategoryName: "",
       distanceTour: 0,
       dateAndTime: edition.startDate,
       editionId: 1,
@@ -223,6 +231,25 @@ describe("ImportService", () => {
 
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].message).toContain("autre course");
+  });
+
+  it("crée une course PERSONNALISE avec libellé libre", async () => {
+    courses = [];
+    const result = await service.importParticipants(1, [
+      {
+        lineNumber: 2,
+        courseName: "Vélo",
+        category: CourseCategory.PERSONNALISE,
+        customCategoryName: "Handisport",
+        teamName: "HS",
+        lastName: "Test",
+        firstName: "A",
+      },
+    ]);
+
+    expect(result.created.courses).toBe(1);
+    expect(courses[0].category).toBe(CourseCategory.PERSONNALISE);
+    expect(courses[0].customCategoryName).toBe("Handisport");
   });
 
   it("dryRun ne crée rien en base", async () => {

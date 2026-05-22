@@ -74,6 +74,7 @@
                 <th>Nom</th>
                 <th>Prénom</th>
                 <th>Mail</th>
+                <th>Tel</th>
                 <th>Capitaine</th>
               </tr>
             </thead>
@@ -81,11 +82,12 @@
               <tr v-for="r in previewRows" :key="r.lineNumber">
                 <td>{{ r.lineNumber }}</td>
                 <td>{{ r.courseName }}</td>
-                <td>{{ categoryPreview(r.category) }}</td>
+                <td>{{ categoryPreview(r) }}</td>
                 <td>{{ previewTeamName(r) }}</td>
                 <td>{{ r.lastName }}</td>
                 <td>{{ r.firstName }}</td>
                 <td>{{ r.email ?? '—' }}</td>
+                <td>{{ r.phone ?? '—' }}</td>
                 <td>{{ r.isCaptain ? 'Oui' : 'Non' }}</td>
               </tr>
             </tbody>
@@ -196,8 +198,8 @@ function fieldLabel(field: ImportCanonicalField): string {
   return FIELD_LABELS[field]
 }
 
-function categoryPreview(cat: CourseCategoryApi): string {
-  return courseCategoryLabel(cat)
+function categoryPreview(r: ImportRow): string {
+  return courseCategoryLabel(r.category, r.customCategoryName)
 }
 
 function previewTeamName(r: ImportRow): string {

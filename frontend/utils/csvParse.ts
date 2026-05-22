@@ -14,10 +14,16 @@ export type ImportCanonicalField =
 
 export type ImportColumnMap = Partial<Record<ImportCanonicalField, number>>
 
+export type ParsedCourseCategory = {
+  category: CourseCategoryApi
+  customCategoryName?: string
+}
+
 export type ImportRow = {
   lineNumber: number
   courseName: string
   category: CourseCategoryApi
+  customCategoryName?: string
   teamName: string
   lastName: string
   firstName: string
@@ -28,43 +34,33 @@ export type ImportRow = {
 
 export const IMPORT_HEADER_ALIASES: Record<ImportCanonicalField, readonly string[]> = {
   course: ['course', 'parcours', 'epreuve', 'épreuve', 'discipline'],
-  category: ['catégorie', 'categorie', 'category', 'type'],
-  team: ['équipe', 'equipe', 'team'],
-  lastName: ['nom', 'lastname', 'nom de famille'],
-  firstName: ['prénom', 'prenom', 'firstname'],
+  category: ['categorie', 'catégorie', 'category', 'cat'],
+  team: ['equipe', 'équipe', 'team', 'groupe'],
+  lastName: ['nom', 'lastname', 'last name', 'nom de famille'],
+  firstName: ['prenom', 'prénom', 'firstname', 'first name'],
   email: ['mail', 'email', 'e-mail', 'courriel'],
   phone: ['tel', 'téléphone', 'telephone', 'phone', 'mobile'],
-  captain: ['capitaine', 'captain', "chef d'équipe", 'chef d equipe'],
+  captain: ['capitaine', 'captain', 'chef'],
 }
 
-const REQUIRED_FIELDS: ImportCanonicalField[] = ['course', 'category', 'lastName', 'firstName']
-
-const CANONICAL_LABELS: Record<ImportCanonicalField, string> = {
+export const CANONICAL_LABELS: Record<ImportCanonicalField, string> = {
   course: 'Course',
   category: 'Catégorie',
   team: 'Équipe',
   lastName: 'Nom',
   firstName: 'Prénom',
-  email: 'Email',
-  phone: 'Téléphone',
+  email: 'Mail',
+  phone: 'Tel',
   captain: 'Capitaine',
 }
 
-export const IMPORT_CSV_TEMPLATE_HEADERS = [
-  'Course',
-  'Catégorie',
-  'Équipe',
-  'Nom',
-  'Prénom',
-  'Mail',
-  'Tel',
-  'Capitaine',
-] as const
+const REQUIRED_FIELDS: ImportCanonicalField[] = ['course', 'category', 'lastName', 'firstName']
 
 const CATEGORY_MAP: Record<string, CourseCategoryApi> = {
   solo: 'SOLO',
   loisir: 'LOISIR',
   competition: 'COMPETITION',
+  compétition: 'COMPETITION',
 }
 
 export function normalizeHeader(label: string): string {
@@ -75,9 +71,18 @@ export function normalizeHeader(label: string): string {
     .replace(/\p{M}/gu, '')
 }
 
-export function parseCourseCategoryInput(input: string): CourseCategoryApi | null {
-  const key = normalizeHeader(input)
-  return CATEGORY_MAP[key] ?? null
+export function parseCourseCategoryInput(input: string): ParsedCourseCategory | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+  const key = normalizeHeader(trimmed)
+  if (key === 'personnalise' || key === 'personnalisee') {
+    return null
+  }
+  const standard = CATEGORY_MAP[key]
+  if (standard) {
+    return { category: standard }
+  }
+  return { category: 'PERSONNALISE', customCategoryName: trimmed }
 }
 
 function parseCsvLine(line: string, sep: string): string[] {
@@ -195,11 +200,11 @@ export function csvRowsToImportPayload(matrix: string[][]): {
 
     const lineNumber = i + 1
     const categoryRaw = cellAt(line, columnMap.category)
-    const category = parseCourseCategoryInput(categoryRaw)
-    if (!category) {
+    const parsedCategory = parseCourseCategoryInput(categoryRaw)
+    if (!parsedCategory) {
       categoryErrors.push({
         line: lineNumber,
-        message: `Catégorie invalide « ${categoryRaw} » (Solo, Loisir, Compétition).`,
+        message: `Catégorie invalide ou vide « ${categoryRaw} ».`,
       })
       continue
     }
@@ -207,7 +212,10 @@ export function csvRowsToImportPayload(matrix: string[][]): {
     rows.push({
       lineNumber,
       courseName: cellAt(line, columnMap.course),
-      category,
+      category: parsedCategory.category,
+      ...(parsedCategory.customCategoryName
+        ? { customCategoryName: parsedCategory.customCategoryName }
+        : {}),
       teamName: cellAt(line, columnMap.team),
       lastName: cellAt(line, columnMap.lastName),
       firstName: cellAt(line, columnMap.firstName),
@@ -218,8 +226,4 @@ export function csvRowsToImportPayload(matrix: string[][]): {
   }
 
   return { rows, columnMap, missingRequired, mappingLabels, categoryErrors }
-}
-
-export function missingRequiredLabels(missing: ImportCanonicalField[]): string {
-  return missing.map((f) => CANONICAL_LABELS[f]).join(', ')
 }

@@ -92,7 +92,7 @@
       <div class="ranking-controls">
         <v-select
           v-if="courseSelectItems.length"
-          v-model="selectedCourseId"
+          v-model="selectedRankingKey"
           :items="courseSelectItems"
           item-title="title"
           item-value="value"
@@ -135,7 +135,7 @@
           <div class="discipline-card__header">
             <div>
               <div class="discipline-card__eyebrow">Course</div>
-              <h2 class="discipline-card__title">{{ courseDisplayLabel(selectedSection.course) }}</h2>
+              <h2 class="discipline-card__title">{{ selectedSection.sectionTitle }}</h2>
             </div>
             <div class="discipline-card__stats">
               <div>
@@ -256,7 +256,8 @@ import { useThemeStore } from '~/features/theme/stores/theme'
 import type { ApiCourse, ApiRunner, ApiTeam } from '~/types/api'
 import { courseDisplayLabel } from '~/utils/courseDisplay'
 
-const RANKING_COURSE_STORAGE_KEY = 'ranking-selected-course-id'
+const RANKING_SELECTION_STORAGE_KEY = 'ranking-selected-ranking-key'
+const RANKING_COURSE_STORAGE_KEY_LEGACY = 'ranking-selected-course-id'
 
 definePageMeta({ layout: 'public' as any })
 
@@ -273,7 +274,7 @@ const { countdown, statusLabel, targetLabel, referenceDateLabel } = useEditionCo
 
 const ranking = ref<ApiTeam[]>([])
 const courses = ref<ApiCourse[]>([])
-const selectedCourseId = ref<number | null>(null)
+const selectedRankingKey = ref<string | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const lastRefreshed = ref<string | null>(null)
@@ -281,14 +282,51 @@ const search = ref('')
 
 let timer: ReturnType<typeof setInterval> | null = null
 
-const courseSelectItems = computed(() =>
-  courses.value.map((c) => ({ title: courseDisplayLabel(c), value: c.id })),
-)
+const courseIdsForRankingKey = computed(() => {
+  const key = selectedRankingKey.value
+  if (!key) return [] as number[]
+  if (key.startsWith('course:')) {
+    const id = Number(key.slice(7))
+    return Number.isFinite(id) ? [id] : []
+  }
+  if (key.startsWith('agg:')) {
+    const nameKey = key.slice(4)
+    return courses.value
+      .filter((c) => normalize(c.name ?? '') === nameKey)
+      .map((c) => c.id)
+  }
+  return []
+})
+
+const courseSelectItems = computed(() => {
+  const perCourse = courses.value.map((c) => ({
+    title: courseDisplayLabel(c),
+    value: `course:${c.id}`,
+  }))
+  const nameGroups = new Map<string, ApiCourse[]>()
+  for (const c of courses.value) {
+    const nameKey = normalize(c.name ?? '')
+    const list = nameGroups.get(nameKey) ?? []
+    list.push(c)
+    nameGroups.set(nameKey, list)
+  }
+  const aggregated: { title: string; value: string }[] = []
+  for (const [nameKey, group] of nameGroups) {
+    if (group.length >= 2) {
+      aggregated.push({
+        title: `${group[0].name} (toutes catégories)`,
+        value: `agg:${nameKey}`,
+      })
+    }
+  }
+  return [...perCourse, ...aggregated]
+})
 
 const teamsForSelectedCourse = computed(() => {
-  if (selectedCourseId.value == null) return []
+  const ids = courseIdsForRankingKey.value
+  if (ids.length === 0) return []
   return [...ranking.value]
-    .filter((team) => team.courseId === selectedCourseId.value)
+    .filter((team) => team.courseId != null && ids.includes(team.courseId))
     .sort((a, b) => (b.nbTour || 0) - (a.nbTour || 0))
 })
 
@@ -297,9 +335,29 @@ const totalLaps = computed(() =>
 )
 
 const selectedSection = computed(() => {
-  const course = courses.value.find((c) => c.id === selectedCourseId.value)
-  if (!course) return null
+  const key = selectedRankingKey.value
+  if (!key) return null
+
+  let course: ApiCourse | null = null
+  let sectionTitle = ''
+
+  if (key.startsWith('course:')) {
+    const id = Number(key.slice(7))
+    course = courses.value.find((c) => c.id === id) ?? null
+    if (!course) return null
+    sectionTitle = courseDisplayLabel(course)
+  } else if (key.startsWith('agg:')) {
+    const nameKey = key.slice(4)
+    const group = courses.value.filter((c) => normalize(c.name ?? '') === nameKey)
+    if (!group.length) return null
+    course = group[0]
+    sectionTitle = `${group[0].name} (toutes catégories)`
+  } else {
+    return null
+  }
+
   const fullTeams = teamsForSelectedCourse.value
+
   const rankedTeams = fullTeams.map((team, index) => ({ team, rank: index + 1 }))
   const q = normalize(search.value)
   let teams = rankedTeams
@@ -311,29 +369,39 @@ const selectedSection = computed(() => {
       )
     })
   }
-  return { course, fullTeams, teams, leader: fullTeams[0] }
+  return { course, sectionTitle, fullTeams, teams, leader: fullTeams[0] }
 })
 
-function syncSelectedCourseId() {
+function isValidRankingKey(key: string | null): boolean {
+  if (!key) return false
+  return courseSelectItems.value.some((item) => item.value === key)
+}
+
+function syncSelectedRankingKey() {
   if (courses.value.length === 0) {
-    selectedCourseId.value = null
+    selectedRankingKey.value = null
     return
   }
-  const stored = typeof sessionStorage !== 'undefined'
-    ? Number(sessionStorage.getItem(RANKING_COURSE_STORAGE_KEY))
-    : NaN
-  if (Number.isFinite(stored) && courses.value.some((c) => c.id === stored)) {
-    selectedCourseId.value = stored
-    return
+  if (typeof sessionStorage !== 'undefined') {
+    const storedKey = sessionStorage.getItem(RANKING_SELECTION_STORAGE_KEY)
+    if (storedKey && isValidRankingKey(storedKey)) {
+      selectedRankingKey.value = storedKey
+      return
+    }
+    const legacyId = Number(sessionStorage.getItem(RANKING_COURSE_STORAGE_KEY_LEGACY))
+    if (Number.isFinite(legacyId) && courses.value.some((c) => c.id === legacyId)) {
+      selectedRankingKey.value = `course:${legacyId}`
+      return
+    }
   }
-  if (selectedCourseId.value == null || !courses.value.some((c) => c.id === selectedCourseId.value)) {
-    selectedCourseId.value = courses.value[0].id
+  if (selectedRankingKey.value == null || !isValidRankingKey(selectedRankingKey.value)) {
+    selectedRankingKey.value = courseSelectItems.value[0]?.value ?? `course:${courses.value[0].id}`
   }
 }
 
-watch(selectedCourseId, (id) => {
-  if (id != null && typeof sessionStorage !== 'undefined') {
-    sessionStorage.setItem(RANKING_COURSE_STORAGE_KEY, String(id))
+watch(selectedRankingKey, (key) => {
+  if (key != null && typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(RANKING_SELECTION_STORAGE_KEY, key)
   }
 })
 
@@ -401,7 +469,7 @@ async function fetchData() {
     ])
     ranking.value = Array.isArray(rankingData) ? rankingData : []
     courses.value = Array.isArray(coursesData) ? coursesData : []
-    syncSelectedCourseId()
+    syncSelectedRankingKey()
     lastRefreshed.value = stampNow()
   } catch {
     error.value = 'API non disponible'
@@ -416,7 +484,7 @@ async function fetchData() {
       { id: 1, name: '24 Heures', category: 'COMPETITION', distanceTour: 1.6 },
       { id: 2, name: '12 Heures', category: 'LOISIR', distanceTour: 1.6 },
     ]
-    syncSelectedCourseId()
+    syncSelectedRankingKey()
     lastRefreshed.value = stampNow()
   } finally {
     loading.value = false

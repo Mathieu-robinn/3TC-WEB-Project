@@ -2,6 +2,10 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { PrismaService } from "../../prisma.service.js";
 import { Course, CourseCategory, Prisma } from "@prisma/client";
 import { TeamService } from "../teams/team.service.js";
+import {
+  courseCategoryLabelFromCourse,
+  normalizeCustomCategoryName,
+} from "../../common/course-category.util.js";
 
 @Injectable()
 export class CourseService {
@@ -38,6 +42,7 @@ export class CourseService {
     const editionId = editionConnect?.id ?? (data as { editionId?: number }).editionId;
     const name = (data.name as string | undefined)?.trim();
     const category = (data as { category?: CourseCategory }).category;
+    const rawCustom = (data as { customCategoryName?: string }).customCategoryName;
     if (!name) {
       throw new BadRequestException("Le nom du parcours est requis.");
     }
@@ -47,22 +52,24 @@ export class CourseService {
     if (category == null) {
       throw new BadRequestException("La catégorie du parcours est requise.");
     }
+    const customCategoryName = normalizeCustomCategoryName(category, rawCustom);
 
     const existing = await this.prisma.course.findFirst({
       where: {
         editionId,
         category,
+        customCategoryName,
         name: { equals: name, mode: "insensitive" },
       },
     });
     if (existing) {
       throw new ConflictException(
-        `Un parcours « ${name} » (${category}) existe déjà pour cette édition.`,
+        `Un parcours « ${name} » (${courseCategoryLabelFromCourse({ category, customCategoryName })}) existe déjà pour cette édition.`,
       );
     }
 
     return this.prisma.course.create({
-      data: { ...data, name, category },
+      data: { ...data, name, category, customCategoryName },
     });
   }
 
@@ -103,6 +110,7 @@ export class CourseService {
     data: {
       name?: string;
       category?: CourseCategory;
+      customCategoryName?: string;
       distanceTour?: number;
       dateAndTime?: Date;
       editionId?: number;
@@ -111,6 +119,7 @@ export class CourseService {
     const hasField =
       data.name !== undefined ||
       data.category !== undefined ||
+      data.customCategoryName !== undefined ||
       data.distanceTour !== undefined ||
       data.dateAndTime !== undefined ||
       data.editionId !== undefined;
@@ -130,19 +139,34 @@ export class CourseService {
     const targetEditionId = data.editionId ?? existing.editionId;
     const targetName = data.name ?? existing.name;
     const targetCategory = data.category ?? existing.category;
+    const targetCustom =
+      data.customCategoryName !== undefined || data.category !== undefined
+        ? normalizeCustomCategoryName(
+            targetCategory,
+            data.customCategoryName !== undefined
+              ? data.customCategoryName
+              : existing.customCategoryName,
+          )
+        : existing.customCategoryName;
 
-    if (data.name !== undefined || data.category !== undefined || data.editionId !== undefined) {
+    if (
+      data.name !== undefined ||
+      data.category !== undefined ||
+      data.customCategoryName !== undefined ||
+      data.editionId !== undefined
+    ) {
       const dup = await this.prisma.course.findFirst({
         where: {
           editionId: targetEditionId,
           category: targetCategory,
+          customCategoryName: targetCustom,
           name: { equals: targetName, mode: "insensitive" },
           NOT: { id },
         },
       });
       if (dup) {
         throw new ConflictException(
-          `Un parcours « ${targetName} » (${targetCategory}) existe déjà pour cette édition.`,
+          `Un parcours « ${targetName} » (${courseCategoryLabelFromCourse({ category: targetCategory, customCategoryName: targetCustom })}) existe déjà pour cette édition.`,
         );
       }
     }
@@ -152,6 +176,9 @@ export class CourseService {
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.category !== undefined ? { category: data.category } : {}),
+        ...(data.customCategoryName !== undefined || data.category !== undefined
+          ? { customCategoryName: targetCustom }
+          : {}),
         ...(data.distanceTour !== undefined ? { distanceTour: data.distanceTour } : {}),
         ...(data.dateAndTime !== undefined ? { dateAndTime: data.dateAndTime } : {}),
         ...(data.editionId != null && data.editionId !== existing.editionId

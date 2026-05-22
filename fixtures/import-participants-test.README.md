@@ -2,7 +2,7 @@
 
 **Format** : `Course;Catégorie;Équipe;Nom;Prénom;Mail;Tel;Capitaine`
 
-- **Catégorie** obligatoire : `Solo`, `Loisir`, `Compétition` (alias acceptés, insensibles aux accents).
+- **Catégorie** obligatoire : `Solo`, `Loisir`, `Compétition` (alias acceptés, insensibles aux accents), ou tout autre libellé (ex. `Handisport`) enregistré comme catégorie personnalisée.
 - **Équipe** vide → création automatique de `Solo <prénom> <nom>`.
 - Même nom de course possible si la catégorie diffère (ex. « Vélo » en Solo et en Compétition).
 
