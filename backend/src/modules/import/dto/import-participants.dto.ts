@@ -53,9 +53,15 @@ export class ImportParticipantsBodyDto {
   @IsBoolean()
   dryRun?: boolean;
 
+  /** CSV brut (recommandé pour les gros fichiers : payload bien plus léger que rows en JSON). */
+  @IsOptional()
+  @IsString()
+  csvText?: string;
+
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => ImportParticipantRowDto)
-  rows: ImportParticipantRowDto[];
+  rows?: ImportParticipantRowDto[];
 }

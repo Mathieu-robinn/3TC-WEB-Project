@@ -182,6 +182,7 @@ const api = useApi()
 const fileModel = ref<File[]>([])
 const parseError = ref<string | null>(null)
 const parsedRows = ref<ImportRow[]>([])
+const csvRawText = ref<string | null>(null)
 const mappingLabels = ref<{ header: string; field: ImportCanonicalField }[]>([])
 const analyzing = ref(false)
 const importing = ref(false)
@@ -215,6 +216,7 @@ function downloadTemplate() {
 async function onFileSelected(files: File | File[] | null) {
   parseError.value = null
   parsedRows.value = []
+  csvRawText.value = null
   mappingLabels.value = []
   lastResult.value = null
 
@@ -223,6 +225,7 @@ async function onFileSelected(files: File | File[] | null) {
 
   try {
     const text = await file.text()
+    csvRawText.value = text
     const matrix = parseCsv(text)
     const { rows, missingRequired, mappingLabels: labels, categoryErrors } = csvRowsToImportPayload(matrix)
     if (missingRequired.length > 0) {
@@ -245,7 +248,7 @@ async function onFileSelected(files: File | File[] | null) {
 }
 
 async function runImport(dryRun: boolean) {
-  if (props.editionId == null || parsedRows.value.length === 0) return
+  if (props.editionId == null || parsedRows.value.length === 0 || !csvRawText.value) return
 
   if (dryRun) {
     analyzing.value = true
@@ -257,7 +260,7 @@ async function runImport(dryRun: boolean) {
   try {
     const result = await api.post<ImportParticipantsResult>(
       `/edition/${props.editionId}/import-participants`,
-      { dryRun, rows: parsedRows.value },
+      { dryRun, csvText: csvRawText.value },
     )
     lastResult.value = result
     if (!dryRun) {

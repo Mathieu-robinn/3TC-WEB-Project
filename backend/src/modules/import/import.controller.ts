@@ -1,4 +1,6 @@
-import { Body, Controller, Param, Post, Request, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Param, Post, Request, UseGuards } from "@nestjs/common";
+import { assertImportCsvParseable } from "./import-csv-parse.util.js";
+import type { ImportParticipantRowDto } from "./dto/import-participants.dto.js";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { LogType, Role } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
@@ -49,9 +51,19 @@ export class ImportController {
     @Body() body: ImportParticipantsBodyDto,
     @Request() req: { user: { userId: number } },
   ) {
+    const hasCsv = typeof body.csvText === "string" && body.csvText.trim().length > 0;
+    const hasRows = Array.isArray(body.rows) && body.rows.length > 0;
+    if (!hasCsv && !hasRows) {
+      throw new BadRequestException("Fournir csvText ou au moins une ligne dans rows.");
+    }
+
+    const rows: ImportParticipantRowDto[] = hasCsv
+      ? assertImportCsvParseable(body.csvText!)
+      : body.rows!;
+
     const result = await this.importService.importParticipants(
       Number(editionId),
-      body.rows,
+      rows,
       body.dryRun ?? false,
     );
 
